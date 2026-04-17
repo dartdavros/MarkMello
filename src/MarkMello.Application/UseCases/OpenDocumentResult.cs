@@ -14,4 +14,5 @@ public abstract record OpenDocumentResult
     public sealed record NotFound(string Path) : OpenDocumentResult;
     public sealed record AccessDenied(string Path) : OpenDocumentResult;
     public sealed record ReadError(string Path, string Message) : OpenDocumentResult;
+    public sealed record UnsupportedType(string Path) : OpenDocumentResult;
 }

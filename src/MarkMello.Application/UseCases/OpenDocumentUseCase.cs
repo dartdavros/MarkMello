@@ -1,4 +1,5 @@
 using MarkMello.Application.Abstractions;
+using MarkMello.Domain;
 
 namespace MarkMello.Application.UseCases;
 
@@ -21,6 +22,11 @@ public sealed class OpenDocumentUseCase
         if (string.IsNullOrWhiteSpace(path))
         {
             return new OpenDocumentResult.NotFound(path ?? string.Empty);
+        }
+
+        if (!SupportedDocumentTypes.IsSupportedPath(path))
+        {
+            return new OpenDocumentResult.UnsupportedType(path);
         }
 
         try

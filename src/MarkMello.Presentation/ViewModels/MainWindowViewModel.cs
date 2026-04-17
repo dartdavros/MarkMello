@@ -65,8 +65,13 @@ public partial class MainWindowViewModel : ObservableObject
     private double _readingProgress;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(NextThemeHint))]
     private ThemeMode _theme = ThemeMode.System;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsMoonThemeIcon))]
+    [NotifyPropertyChangedFor(nameof(ShowsSunThemeIcon))]
+    [NotifyPropertyChangedFor(nameof(NextThemeHint))]
+    private ThemeMode _effectiveTheme = ThemeMode.Light;
 
     // ---------- Error state ----------
 
@@ -85,6 +90,8 @@ public partial class MainWindowViewModel : ObservableObject
     public bool IsError => State == ViewState.LoadError;
 
     public bool ShowCustomTitleBar => _showCustomTitleBar;
+    public bool ShowsMoonThemeIcon => EffectiveTheme == ThemeMode.Light;
+    public bool ShowsSunThemeIcon => EffectiveTheme == ThemeMode.Dark;
 
     public int WordCount
     {
@@ -119,13 +126,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     public int ReadTimeMinutes => Math.Max(1, (int)Math.Round(WordCount / 220.0));
 
-    public string NextThemeHint => Theme switch
-    {
-        ThemeMode.System => "Switch to Light",
-        ThemeMode.Light => "Switch to Dark",
-        ThemeMode.Dark => "Follow system",
-        _ => "Theme"
-    };
+    public string NextThemeHint => EffectiveTheme == ThemeMode.Light
+        ? "Switch to dark theme"
+        : "Switch to light theme";
 
     // ---------- Lifecycle ----------
 
@@ -136,8 +139,7 @@ public partial class MainWindowViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         var savedTheme = await _settings.LoadThemeAsync().ConfigureAwait(true);
-        Theme = savedTheme;
-        _themeService.Apply(savedTheme);
+        ApplyTheme(savedTheme);
 
         var path = _commandLine.GetActivationFilePath();
         if (!string.IsNullOrEmpty(path))
@@ -174,14 +176,11 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task CycleThemeAsync()
     {
-        var next = Theme switch
-        {
-            ThemeMode.System => ThemeMode.Light,
-            ThemeMode.Light => ThemeMode.Dark,
-            _ => ThemeMode.System
-        };
-        Theme = next;
-        _themeService.Apply(next);
+        var next = EffectiveTheme == ThemeMode.Light
+            ? ThemeMode.Dark
+            : ThemeMode.Light;
+
+        ApplyTheme(next);
         await _settings.SaveThemeAsync(next).ConfigureAwait(true);
     }
 
@@ -240,7 +239,20 @@ public partial class MainWindowViewModel : ObservableObject
             case OpenDocumentResult.ReadError read:
                 ShowError("Couldn't read the file", $"{read.Path}\n\n{read.Message}");
                 break;
+
+            case OpenDocumentResult.UnsupportedType unsupported:
+                ShowError(
+                    "Unsupported file type",
+                    $"{unsupported.Path}\n\nSupported extensions: {string.Join(", ", SupportedDocumentTypes.Extensions)}");
+                break;
         }
+    }
+
+    private void ApplyTheme(ThemeMode mode)
+    {
+        Theme = mode;
+        _themeService.Apply(mode);
+        EffectiveTheme = _themeService.GetEffectiveTheme();
     }
 
     private void ShowError(string title, string details)

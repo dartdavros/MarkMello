@@ -1,4 +1,5 @@
 using MarkMello.Application.Abstractions;
+using MarkMello.Domain;
 
 namespace MarkMello.Infrastructure.Platform;
 
@@ -8,11 +9,6 @@ namespace MarkMello.Infrastructure.Platform;
 /// </summary>
 public sealed class CommandLineActivation : ICommandLineActivation
 {
-    private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".md", ".markdown", ".txt"
-    };
-
     private readonly string[] _args;
 
     public CommandLineActivation(string[] args)
@@ -35,8 +31,7 @@ public sealed class CommandLineActivation : ICommandLineActivation
                 continue;
             }
 
-            var extension = Path.GetExtension(arg);
-            if (SupportedExtensions.Contains(extension))
+            if (SupportedDocumentTypes.IsSupportedPath(arg))
             {
                 return Path.GetFullPath(arg);
             }

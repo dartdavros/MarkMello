@@ -30,6 +30,13 @@ public sealed class AvaloniaThemeService : IThemeService
         }
     }
 
+
+    public ThemeMode GetEffectiveTheme()
+    {
+        var variant = global::Avalonia.Application.Current?.ActualThemeVariant;
+        return variant == ThemeVariant.Dark ? ThemeMode.Dark : ThemeMode.Light;
+    }
+
     private static void ApplyCore(ThemeVariant variant)
     {
         var app = global::Avalonia.Application.Current;

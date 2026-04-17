@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using MarkMello.Domain;
 using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Views;
@@ -77,11 +78,34 @@ public partial class MainWindow : Window
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!_viewModel.ShowCustomTitleBar || e.ClickCount != 1)
+        {
+            return;
+        }
+
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        try
+        {
+            BeginMoveDrag(e);
+            e.Handled = true;
+        }
+        catch
+        {
+            // На неподдерживаемых платформах/состояниях окно просто не начнёт drag.
+        }
+    }
+
     // ---------- Drag & drop ----------
 
     private void OnDragEnter(object? sender, DragEventArgs e)
     {
-        if (HasFiles(e))
+        if (TryGetSupportedDroppedFilePath(e) is not null)
         {
             _viewModel.IsDragHovering = true;
             e.DragEffects = DragDropEffects.Copy;
@@ -90,7 +114,9 @@ public partial class MainWindow : Window
 
     private void OnDragOver(object? sender, DragEventArgs e)
     {
-        e.DragEffects = HasFiles(e) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.DragEffects = TryGetSupportedDroppedFilePath(e) is not null
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
         e.Handled = true;
     }
 
@@ -103,46 +129,44 @@ public partial class MainWindow : Window
     {
         _viewModel.IsDragHovering = false;
 
-        var files = e.DataTransfer.TryGetFiles();
-        if (files is null)
+        var path = TryGetSupportedDroppedFilePath(e);
+        if (string.IsNullOrEmpty(path))
         {
             return;
         }
 
-        foreach (var item in files)
+        try
         {
-            if (item is IStorageFile file)
-            {
-                var path = file.TryGetLocalPath();
-                if (!string.IsNullOrEmpty(path))
-                {
-                    try
-                    {
-                        await _viewModel.OpenDroppedFileAsync(path);
-                    }
-                    catch
-                    {
-                        // VM сама конвертирует ошибки в LoadError state.
-                    }
-                    return;
-                }
-            }
+            await _viewModel.OpenDroppedFileAsync(path);
+        }
+        catch
+        {
+            // VM сама конвертирует ошибки в LoadError state.
         }
     }
 
-    private static bool HasFiles(DragEventArgs e)
+    private static string? TryGetSupportedDroppedFilePath(DragEventArgs e)
     {
         var files = e.DataTransfer.TryGetFiles();
         if (files is null)
         {
-            return false;
+            return null;
         }
 
-        foreach (var _ in files)
+        foreach (var item in files)
         {
-            return true;
+            if (item is not IStorageFile file)
+            {
+                continue;
+            }
+
+            var path = file.TryGetLocalPath();
+            if (!string.IsNullOrWhiteSpace(path) && SupportedDocumentTypes.IsSupportedPath(path))
+            {
+                return path;
+            }
         }
 
-        return false;
+        return null;
     }
 }

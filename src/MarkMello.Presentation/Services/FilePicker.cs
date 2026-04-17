@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using MarkMello.Application.Abstractions;
+using MarkMello.Domain;
 
 namespace MarkMello.Presentation.Services;
 
@@ -33,15 +34,12 @@ public sealed class FilePicker : IFilePicker
             AllowMultiple = false,
             FileTypeFilter = new[]
             {
-                new FilePickerFileType("Markdown")
+                new FilePickerFileType("Markdown documents")
                 {
-                    Patterns = new[] { "*.md", "*.markdown" }
-                },
-                new FilePickerFileType("Text")
-                {
-                    Patterns = new[] { "*.txt" }
-                },
-                FilePickerFileTypes.All
+                    Patterns = SupportedDocumentTypes.Extensions
+                        .Select(static extension => $"*{extension}")
+                        .ToArray()
+                }
             }
         };
 

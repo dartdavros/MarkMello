@@ -25,6 +25,49 @@
     <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
   </Style>
 
+
+  <Style Selector="Button.topbar-ghost">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="MinWidth" Value="28" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.topbar-ghost:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+  <Style Selector="Button.topbar-ghost:pointerover Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+  <Style Selector="Button.topbar-ghost:pointerover Ellipse">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+  <Style Selector="Button.topbar-ghost:pointerover Line">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+  <Style Selector="Button.topbar-ghost:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmAccentSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="Button.topbar-ghost:pressed Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="Button.topbar-ghost:pressed Ellipse">
+    <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="Button.topbar-ghost:pressed Line">
+    <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+
   <!-- Title bar buttons (Win-style: Min / Max / Close) -->
   <Style Selector="Button.titlebar">
     <Setter Property="Background" Value="Transparent" />

@@ -77,7 +77,8 @@
         <DockPanel Grid.Column="0"
                    LastChildFill="True"
                    Margin="14,0,0,0"
-                   VerticalAlignment="Center">
+                   VerticalAlignment="Center"
+                   PointerPressed="OnTitleBarPointerPressed">
           <Ellipse DockPanel.Dock="Left"
                    Width="5" Height="5"
                    VerticalAlignment="Center"
@@ -148,10 +149,62 @@
               VerticalAlignment="Top"
               Margin="0,12,16,0">
         <StackPanel Orientation="Horizontal" Spacing="6">
-          <Button Classes="ghost"
+          <Button Classes="topbar-ghost"
                   Command="{Binding CycleThemeCommand}"
                   ToolTip.Tip="{Binding NextThemeHint}">
-            <TextBlock Text="◐" FontSize="13" />
+            <Grid Width="14" Height="14">
+              <Path IsVisible="{Binding ShowsMoonThemeIcon}"
+                    Data="M10.5 8.5A4 4 0 1 1 5.5 3.5 3.2 3.2 0 0 0 10.5 8.5Z"
+                    Stroke="{DynamicResource MmTextSoftBrush}"
+                    StrokeThickness="1.5"
+                    StrokeJoin="Round"
+                    StrokeLineCap="Round"
+                    Fill="Transparent"
+                    Stretch="Uniform" />
+              <Canvas IsVisible="{Binding ShowsSunThemeIcon}"
+                      Width="14"
+                      Height="14">
+                <Ellipse Canvas.Left="4.25"
+                         Canvas.Top="4.25"
+                         Width="5.5"
+                         Height="5.5"
+                         Stroke="{DynamicResource MmTextSoftBrush}"
+                         StrokeThickness="1.5"
+                         Fill="Transparent" />
+                <Line StartPoint="7,0.75" EndPoint="7,2.1"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round" />
+                <Line StartPoint="7,11.9" EndPoint="7,13.25"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round" />
+                <Line StartPoint="0.75,7" EndPoint="2.1,7"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round" />
+                <Line StartPoint="11.9,7" EndPoint="13.25,7"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round" />
+                <Line StartPoint="2.15,2.15" EndPoint="3.1,3.1"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round" />
+                <Line StartPoint="10.9,10.9" EndPoint="11.85,11.85"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round" />
+                <Line StartPoint="2.15,11.85" EndPoint="3.1,10.9"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round" />
+                <Line StartPoint="10.9,3.1" EndPoint="11.85,2.15"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round" />
+              </Canvas>
+            </Grid>
           </Button>
         </StackPanel>
       </Border>

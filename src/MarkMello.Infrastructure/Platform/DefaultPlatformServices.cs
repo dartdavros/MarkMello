@@ -4,8 +4,9 @@ using MarkMello.Application.Abstractions;
 namespace MarkMello.Infrastructure.Platform;
 
 /// <summary>
-/// Дефолтная реализация. В M2 здесь появятся file association hooks,
-/// command-line activation parsing и системные шорткаты.
+/// Дефолтная реализация платформенного контекста для baseline M2.
+/// Реальная регистрация file associations делается на уровне packaging/installer,
+/// а runtime activation приходит в приложение как command-line path.
 /// </summary>
 public sealed class DefaultPlatformServices : IPlatformServices
 {
