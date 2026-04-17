@@ -20,6 +20,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private readonly IThemeService _themeService;
     private readonly IStartupMetrics _startupMetrics;
+    private readonly RenderMarkdownDocumentUseCase _renderMarkdown;
 
     private bool _stage3Marked;
     private string? _currentPath;
@@ -31,7 +32,8 @@ public partial class MainWindowViewModel : ObservableObject
         ICommandLineActivation commandLine,
         ISettingsStore settings,
         IThemeService themeService,
-        IStartupMetrics startupMetrics)
+        IStartupMetrics startupMetrics,
+        RenderMarkdownDocumentUseCase renderMarkdown)
     {
         _openDocument = openDocument;
         _filePicker = filePicker;
@@ -39,6 +41,7 @@ public partial class MainWindowViewModel : ObservableObject
         _settings = settings;
         _themeService = themeService;
         _startupMetrics = startupMetrics;
+        _renderMarkdown = renderMarkdown;
     }
 
     // ---------- State ----------
@@ -66,6 +69,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private ThemeMode _theme = ThemeMode.System;
+
+    [ObservableProperty]
+    private ReadingPreferences _readingPreferences = ReadingPreferences.Default;
+
+    [ObservableProperty]
+    private RenderedMarkdownDocument _renderedDocument = RenderedMarkdownDocument.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsMoonThemeIcon))]
@@ -138,6 +147,8 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     public async Task InitializeAsync()
     {
+        ReadingPreferences = await _settings.LoadPreferencesAsync().ConfigureAwait(true);
+
         var savedTheme = await _settings.LoadThemeAsync().ConfigureAwait(true);
         ApplyTheme(savedTheme);
 
@@ -213,6 +224,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             case OpenDocumentResult.Success success:
                 Document = success.Source;
+                RenderedDocument = _renderMarkdown.Execute(success.Source.Content);
                 _currentPath = success.Source.Path;
                 State = ViewState.Viewing;
                 WindowTitle = $"{success.Source.FileName} — MarkMello";

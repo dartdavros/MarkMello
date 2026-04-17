@@ -1,5 +1,6 @@
 using MarkMello.Application.Abstractions;
 using MarkMello.Infrastructure.Documents;
+using MarkMello.Infrastructure.Markdown;
 using MarkMello.Infrastructure.Platform;
 using MarkMello.Infrastructure.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,7 @@ public static class DependencyInjection
 
         services.AddSingleton(metrics);
         services.AddSingleton<IDocumentLoader, FileDocumentLoader>();
+        services.AddSingleton<IMarkdownDocumentRenderer, MarkdigMarkdownDocumentRenderer>();
         services.AddSingleton<ISettingsStore, InMemorySettingsStore>();
         services.AddSingleton<IPlatformServices, DefaultPlatformServices>();
         services.AddSingleton<ICommandLineActivation>(_ => new CommandLineActivation(commandLineArgs));

@@ -73,25 +73,27 @@
             Background="{DynamicResource MmTitleBarBrush}">
       <Grid ColumnDefinitions="*,Auto">
 
-        <!-- Title text (drag region on Windows when extended chrome) -->
-        <DockPanel Grid.Column="0"
-                   LastChildFill="True"
-                   Margin="14,0,0,0"
-                   VerticalAlignment="Center"
-                   PointerPressed="OnTitleBarPointerPressed">
-          <Ellipse DockPanel.Dock="Left"
-                   Width="5" Height="5"
-                   VerticalAlignment="Center"
-                   Margin="0,0,8,0"
-                   Fill="{DynamicResource MmAccentBrush}"
-                   IsVisible="{Binding IsViewer}" />
-          <TextBlock Text="{Binding WindowTitle}"
-                     FontSize="12"
-                     FontWeight="Medium"
+        <!-- Title text + full drag surface for the whole left caption area -->
+        <Border Grid.Column="0"
+                Background="Transparent"
+                PointerPressed="OnTitleBarPointerPressed">
+          <DockPanel LastChildFill="True"
+                     Margin="14,0,0,0"
+                     VerticalAlignment="Center">
+            <Ellipse DockPanel.Dock="Left"
+                     Width="5" Height="5"
                      VerticalAlignment="Center"
-                     TextTrimming="CharacterEllipsis"
-                     Foreground="{DynamicResource MmTitleBarTextBrush}" />
-        </DockPanel>
+                     Margin="0,0,8,0"
+                     Fill="{DynamicResource MmAccentBrush}"
+                     IsVisible="{Binding IsViewer}" />
+            <TextBlock Text="{Binding WindowTitle}"
+                       FontSize="12"
+                       FontWeight="Medium"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource MmTitleBarTextBrush}" />
+          </DockPanel>
+        </Border>
 
         <!-- Win-only window controls -->
         <StackPanel Grid.Column="1"

@@ -128,4 +128,108 @@
     <Setter Property="Padding" Value="5,1" />
   </Style>
 
+  <Style Selector="TextBlock.mm-md-heading">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-md-paragraph">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-md-list-bullet">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+  </Style>
+
+  <Style Selector="Border.mm-md-quote">
+    <Setter Property="Margin" Value="0,0,0,20" />
+    <Setter Property="Padding" Value="16,2,0,2" />
+    <Setter Property="BorderThickness" Value="3,0,0,0" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+
+  <Style Selector="Border.mm-md-hr">
+    <Setter Property="Margin" Value="0,6,0,24" />
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+
+  <Style Selector="Border.mm-md-codeblock">
+    <Setter Property="Margin" Value="0,0,0,22" />
+    <Setter Property="Padding" Value="16,12" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-md-code-info">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Margin" Value="0,0,0,4" />
+  </Style>
+
+  <Style Selector="SelectableTextBlock.mm-md-codeblock-text">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
+  <Style Selector="Border.mm-md-table">
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <Style Selector="Border.mm-md-table-header-cell">
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,1,1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+
+  <Style Selector="Border.mm-md-table-cell">
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="BorderThickness" Value="0,0,1,1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-md-table-header">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-md-table-text">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="HyperlinkButton.mm-md-link">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-md-link-text">
+    <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="TextDecorations" Value="Underline" />
+  </Style>
+
+  <Style Selector="HyperlinkButton.mm-md-link:pointerover TextBlock.mm-md-link-text">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
+  <Style Selector="Underline.mm-md-link-fallback">
+    <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+
+  <Style Selector="Span.mm-md-code-inline">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
 </Styles>
