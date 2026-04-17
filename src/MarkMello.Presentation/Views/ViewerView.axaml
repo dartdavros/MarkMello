@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             mc:Ignorable="d"
+             x:Class="MarkMello.Presentation.Views.ViewerView"
+             x:DataType="vm:MainWindowViewModel">
+
+  <!--
+    Placeholder reading surface. Показывает raw markdown content как plain text
+    с целевой типографикой и центральной колонкой. Markdown render — M3.
+  -->
+  <ScrollViewer Name="DocScroll"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollBarVisibility="Auto">
+    <Grid>
+      <Border MaxWidth="{DynamicResource MmDocumentMaxWidth}"
+              HorizontalAlignment="Center"
+              Padding="72,96,72,160">
+        <SelectableTextBlock Text="{Binding Document.Content, FallbackValue=''}"
+                             FontFamily="{DynamicResource MmDocumentSerifFontFamily}"
+                             FontSize="{DynamicResource MmDocumentFontSize}"
+                             LineHeight="{DynamicResource MmDocumentLineHeight}"
+                             Foreground="{DynamicResource MmTextBrush}"
+                             TextWrapping="Wrap" />
+      </Border>
+    </Grid>
+  </ScrollViewer>
+
+</UserControl>

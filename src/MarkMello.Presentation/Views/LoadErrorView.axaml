@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             mc:Ignorable="d"
+             x:Class="MarkMello.Presentation.Views.LoadErrorView"
+             x:DataType="vm:MainWindowViewModel">
+
+  <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14"
+                MaxWidth="520">
+
+      <TextBlock Text="{Binding ErrorTitle}"
+                 FontFamily="{DynamicResource MmDocumentSerifFontFamily}"
+                 FontSize="26"
+                 HorizontalAlignment="Center"
+                 Foreground="{DynamicResource MmTextBrush}" />
+
+      <SelectableTextBlock Text="{Binding ErrorDetails}"
+                           FontFamily="{DynamicResource MmDocumentMonoFontFamily}"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           Foreground="{DynamicResource MmTextSoftBrush}" />
+
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center"
+                  Margin="0,12,0,0">
+        <Button Classes="welcome-primary"
+                Content="Open another file"
+                Command="{Binding OpenFileCommand}" />
+        <Button Classes="welcome-secondary"
+                Content="Try again"
+                Command="{Binding ReloadCommand}" />
+      </StackPanel>
+
+      <TextBlock HorizontalAlignment="Center"
+                 FontSize="11"
+                 Foreground="{DynamicResource MmTextFaintBrush}"
+                 Margin="0,8,0,0">
+        <Run Text="Press" />
+        <Run Text="Esc" FontFamily="{DynamicResource MmDocumentMonoFontFamily}" />
+        <Run Text="to dismiss" />
+      </TextBlock>
+
+    </StackPanel>
+  </Grid>
+
+</UserControl>

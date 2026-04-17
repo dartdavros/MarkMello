@@ -1,0 +1,88 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- Ghost button: полупрозрачная кнопка для top bar и welcome actions -->
+  <Style Selector="Button.ghost">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+  <Style Selector="Button.ghost:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmAccentSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+
+  <!-- Title bar buttons (Win-style: Min / Max / Close) -->
+  <Style Selector="Button.titlebar">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTitleBarTextBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Width" Value="46" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Focusable" Value="False" />
+  </Style>
+  <Style Selector="Button.titlebar:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+  </Style>
+  <Style Selector="Button.titlebar.close:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#E81123" />
+    <Setter Property="TextElement.Foreground" Value="White" />
+  </Style>
+
+  <!-- Welcome primary / secondary buttons -->
+  <Style Selector="Button.welcome-primary">
+    <Setter Property="Background" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmBackgroundBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="16,8" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.welcome-primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Opacity" Value="0.85" />
+  </Style>
+
+  <Style Selector="Button.welcome-secondary">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="16,8" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.welcome-secondary:pointerover /template/ ContentPresenter">
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmTextSoftBrush}" />
+  </Style>
+
+  <!-- Keyboard hint pill -->
+  <Style Selector="Border.kbd">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Padding" Value="5,1" />
+  </Style>
+
+</Styles>

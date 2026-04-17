@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             mc:Ignorable="d"
+             x:Class="MarkMello.Presentation.Views.WelcomeView"
+             x:DataType="vm:MainWindowViewModel">
+
+  <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
+                MaxWidth="380">
+
+      <!-- Logo: "Mark" + italic accent "Mello" -->
+      <TextBlock FontFamily="{DynamicResource MmDocumentSerifFontFamily}"
+                 FontSize="44"
+                 HorizontalAlignment="Center"
+                 Foreground="{DynamicResource MmTextBrush}">
+        <Run Text="Mark" />
+        <Run Text="Mello"
+             FontStyle="Italic"
+             Foreground="{DynamicResource MmAccentBrush}" />
+      </TextBlock>
+
+      <TextBlock Text="A quiet place to read Markdown."
+                 FontFamily="{DynamicResource MmDocumentSansFontFamily}"
+                 FontSize="13"
+                 HorizontalAlignment="Center"
+                 Foreground="{DynamicResource MmTextFaintBrush}"
+                 Margin="0,0,0,28" />
+
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+        <Button Classes="welcome-primary"
+                Content="Open file…"
+                Command="{Binding OpenFileCommand}" />
+      </StackPanel>
+
+      <!-- Hotkey hint -->
+      <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center"
+                  Margin="0,28,0,0">
+        <Border Classes="kbd">
+          <TextBlock Text="Ctrl" FontFamily="{DynamicResource MmDocumentMonoFontFamily}" FontSize="10" />
+        </Border>
+        <Border Classes="kbd">
+          <TextBlock Text="O" FontFamily="{DynamicResource MmDocumentMonoFontFamily}" FontSize="10" />
+        </Border>
+        <TextBlock Text="or drop a .md file anywhere"
+                   FontSize="11"
+                   Foreground="{DynamicResource MmTextFaintBrush}"
+                   VerticalAlignment="Center" />
+      </StackPanel>
+
+    </StackPanel>
+  </Grid>
+
+</UserControl>

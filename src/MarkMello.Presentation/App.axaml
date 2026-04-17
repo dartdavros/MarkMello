@@ -5,6 +5,7 @@
 
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://MarkMello.Presentation/Themes/Controls.axaml" />
   </Application.Styles>
 
   <Application.Resources>

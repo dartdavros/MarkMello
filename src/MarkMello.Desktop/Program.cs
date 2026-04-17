@@ -1,4 +1,5 @@
 using Avalonia;
+using MarkMello.Application;
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain.Diagnostics;
 using MarkMello.Infrastructure;
@@ -13,7 +14,7 @@ internal static class Program
     /// <summary>
     /// Точка входа. Порядок шагов важен:
     /// 1) создаём <see cref="StopwatchStartupMetrics"/> первым делом, чтобы засечь весь startup;
-    /// 2) собираем DI контейнер;
+    /// 2) собираем DI контейнер с args для command-line activation;
     /// 3) передаём провайдер в <see cref="App"/> до запуска Avalonia builder'а;
     /// 4) стартуем classic desktop lifetime.
     /// Никаких editor-зависимостей в этом графе не должно быть (constitution §4).
@@ -24,7 +25,7 @@ internal static class Program
         var metrics = new StopwatchStartupMetrics();
         metrics.Mark(StartupStage.AppBootstrap);
 
-        var services = ConfigureServices(metrics);
+        var services = ConfigureServices(metrics, args);
         App.RegisterServices(services);
 
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -36,10 +37,11 @@ internal static class Program
             .UsePlatformDetect()
             .LogToTrace();
 
-    private static ServiceProvider ConfigureServices(IStartupMetrics metrics)
+    private static ServiceProvider ConfigureServices(IStartupMetrics metrics, string[] args)
     {
         var collection = new ServiceCollection();
-        collection.AddInfrastructure(metrics);
+        collection.AddInfrastructure(metrics, args);
+        collection.AddApplication();
         collection.AddPresentation();
         return collection.BuildServiceProvider();
     }
