@@ -19,6 +19,7 @@
       <SolidColorBrush x:Key="MmTextFaintBrush">#9A9388</SolidColorBrush>
       <SolidColorBrush x:Key="MmAccentBrush">#C45A3D</SolidColorBrush>
       <SolidColorBrush x:Key="MmAccentSoftBrush">#F5E2D8</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSelectionBrush">#E7D7CE</SolidColorBrush>
       <SolidColorBrush x:Key="MmTitleBarBrush">#F6F2EC</SolidColorBrush>
       <SolidColorBrush x:Key="MmTitleBarTextBrush">#5C5448</SolidColorBrush>
     </ResourceDictionary>
@@ -34,6 +35,7 @@
       <SolidColorBrush x:Key="MmTextFaintBrush">#7A746D</SolidColorBrush>
       <SolidColorBrush x:Key="MmAccentBrush">#D87B5C</SolidColorBrush>
       <SolidColorBrush x:Key="MmAccentSoftBrush">#3A2B22</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSelectionBrush">#47352A</SolidColorBrush>
       <SolidColorBrush x:Key="MmTitleBarBrush">#1A1714</SolidColorBrush>
       <SolidColorBrush x:Key="MmTitleBarTextBrush">#9A938A</SolidColorBrush>
     </ResourceDictionary>

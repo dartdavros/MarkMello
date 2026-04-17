@@ -250,7 +250,7 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
             case LinkInline link when !link.IsImage:
                 var linkText = ConvertInlines(link);
                 target.Add(new MarkdownLinkInline(
-                    ExtractPlainText(linkText),
+                    linkText,
                     NormalizeNullable(link.Url) ?? string.Empty,
                     NormalizeNullable(link.Title)));
                 return;
@@ -343,7 +343,14 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 builder.Append(code.Code);
                 break;
             case MarkdownLinkInline link:
-                builder.Append(string.IsNullOrWhiteSpace(link.Text) ? link.Url : link.Text);
+                if (link.Inlines.Count > 0)
+                {
+                    AppendPlainText(link.Inlines, builder);
+                }
+                else if (!string.IsNullOrWhiteSpace(link.Url))
+                {
+                    builder.Append(link.Url);
+                }
                 break;
             case MarkdownLineBreakInline:
                 builder.AppendLine();

@@ -57,6 +57,6 @@ public sealed record MarkdownEmphasisInline(IReadOnlyList<MarkdownInline> Inline
 
 public sealed record MarkdownCodeInline(string Code) : MarkdownInline;
 
-public sealed record MarkdownLinkInline(string Text, string Url, string? Title) : MarkdownInline;
+public sealed record MarkdownLinkInline(IReadOnlyList<MarkdownInline> Inlines, string Url, string? Title) : MarkdownInline;
 
 public sealed record MarkdownLineBreakInline() : MarkdownInline;
