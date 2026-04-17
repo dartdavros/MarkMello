@@ -27,7 +27,6 @@ public sealed class MarkdownDocumentView : UserControl
             ReadingPreferences.Default);
 
     private const double DragSelectionThreshold = 4;
-    private static readonly Cursor IBeamCursor = new(StandardCursorType.Ibeam);
 
     private readonly StackPanel _root = new()
     {
@@ -53,6 +52,7 @@ public sealed class MarkdownDocumentView : UserControl
     public MarkdownDocumentView()
     {
         Focusable = true;
+        IsTabStop = true;
         UseLayoutRounding = true;
         _root.UseLayoutRounding = true;
 
@@ -107,6 +107,28 @@ public sealed class MarkdownDocumentView : UserControl
         SelectionAnchor = null;
         SelectionStart = 0;
         SelectionEnd = 0;
+        ApplySelectionToFragments();
+    }
+
+    public void SelectRange(DocumentTextRange range)
+    {
+        if (_textMap.Text.Length == 0 || range.IsEmpty)
+        {
+            ClearSelection();
+            return;
+        }
+
+        var start = Math.Clamp(range.Start, 0, _textMap.Text.Length);
+        var end = Math.Clamp(range.End, start, _textMap.Text.Length);
+        if (end <= start)
+        {
+            ClearSelection();
+            return;
+        }
+
+        SelectionAnchor = start;
+        SelectionStart = start;
+        SelectionEnd = end;
         ApplySelectionToFragments();
     }
 
@@ -464,7 +486,7 @@ public sealed class MarkdownDocumentView : UserControl
             BaseFontStyle = fontStyle,
             BaseLineHeight = lineHeight,
             LayoutTextWrapping = textWrapping,
-            Cursor = IBeamCursor
+            Cursor = TryCreateCursor(StandardCursorType.Ibeam)
         };
 
         control.PointerPressed += OnFragmentPointerPressed;
@@ -766,6 +788,18 @@ public sealed class MarkdownDocumentView : UserControl
 
     private static bool HasCommandModifier(KeyModifiers modifiers)
         => modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Meta);
+
+    private static Cursor? TryCreateCursor(StandardCursorType cursorType)
+    {
+        try
+        {
+            return new Cursor(cursorType);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
 
     private void ResetPointerState()
     {

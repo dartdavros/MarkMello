@@ -12,9 +12,6 @@ namespace MarkMello.Presentation.Views.Markdown;
 
 internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
 {
-    private static readonly Cursor DefaultCursor = new(StandardCursorType.Ibeam);
-    private static readonly Cursor LinkCursor = new(StandardCursorType.Hand);
-
     private MarkdownStyledText _styledText = MarkdownStyledText.Empty;
     private DocumentTextRange _documentRange = DocumentTextRange.Empty;
     private DocumentTextRange _selectionRange = DocumentTextRange.Empty;
@@ -32,7 +29,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         ClipToBounds = false;
         Focusable = false;
         UseLayoutRounding = true;
-        Cursor = DefaultCursor;
+        Cursor = TryCreateCursor(StandardCursorType.Ibeam);
 
         ActualThemeVariantChanged += OnActualThemeVariantChanged;
         ResourcesChanged += OnResourcesChanged;
@@ -403,17 +400,29 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
         => Cursor = StyledText.Links.Count > 0 && TryGetLinkAt(e.GetPosition(this), out _)
-            ? LinkCursor
-            : DefaultCursor;
+            ? TryCreateCursor(StandardCursorType.Hand)
+            : TryCreateCursor(StandardCursorType.Ibeam);
 
     private void OnPointerExited(object? sender, PointerEventArgs e)
-        => Cursor = DefaultCursor;
+        => Cursor = TryCreateCursor(StandardCursorType.Ibeam);
 
     private void InvalidateForAppearanceChange()
     {
         InvalidateTextLayout();
         InvalidateMeasure();
         InvalidateVisual();
+    }
+
+    private static Cursor? TryCreateCursor(StandardCursorType cursorType)
+    {
+        try
+        {
+            return new Cursor(cursorType);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     private void InvalidateTextLayout()

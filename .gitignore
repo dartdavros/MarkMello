@@ -26,3 +26,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+*.zip
+
+# Skaro
+.skaro/
