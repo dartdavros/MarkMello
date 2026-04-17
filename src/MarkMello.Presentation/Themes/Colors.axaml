@@ -2,42 +2,90 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!--
-    Цвета — приближение oklch-палитры из React-прототипа в стандартный sRGB hex.
-    В M1 при копировании дизайна точные значения будут пересчитаны и сверены визуально.
+    Палитра MarkMello.
+
+    Hex значения рассчитаны напрямую из oklch() токенов дизайн-системы
+    (см. MarkMelloDesign/src/styles.css) через колориметрический конвертер
+    OKLab -> XYZ (D65) -> linear sRGB -> sRGB, с clamp в gamut.
+
+    Не редактировать цвета на глаз: любой сдвиг должен идти от изменения
+    соответствующего oklch(L C h) значения в дизайн-источнике.
   -->
 
   <ResourceDictionary.ThemeDictionaries>
 
     <ResourceDictionary x:Key="Light">
-      <SolidColorBrush x:Key="MmBackgroundBrush">#FAF8F5</SolidColorBrush>
-      <SolidColorBrush x:Key="MmElevatedBackgroundBrush">#FDFBF8</SolidColorBrush>
-      <SolidColorBrush x:Key="MmSurfaceBrush">#F2EEE7</SolidColorBrush>
-      <SolidColorBrush x:Key="MmBorderBrush">#E0DBD2</SolidColorBrush>
-      <SolidColorBrush x:Key="MmBorderSoftBrush">#E8E4DD</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTextBrush">#2A2620</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTextSoftBrush">#665E54</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTextFaintBrush">#9A9388</SolidColorBrush>
-      <SolidColorBrush x:Key="MmAccentBrush">#C45A3D</SolidColorBrush>
-      <SolidColorBrush x:Key="MmAccentSoftBrush">#F5E2D8</SolidColorBrush>
-      <SolidColorBrush x:Key="MmSelectionBrush">#E7D7CE</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTitleBarBrush">#F6F2EC</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTitleBarTextBrush">#5C5448</SolidColorBrush>
+      <!-- oklch(0.985 0.006 80) -->
+      <SolidColorBrush x:Key="MmBackgroundBrush">#FCFAF6</SolidColorBrush>
+      <!-- oklch(0.995 0.004 80) -->
+      <SolidColorBrush x:Key="MmElevatedBackgroundBrush">#FFFDFA</SolidColorBrush>
+      <!-- oklch(0.96 0.008 80) -->
+      <SolidColorBrush x:Key="MmSurfaceBrush">#F5F1EC</SolidColorBrush>
+      <!-- oklch(0.93 0.01 75) -->
+      <SolidColorBrush x:Key="MmSurfaceHoverBrush">#ECE7E1</SolidColorBrush>
+      <!-- oklch(0.90 0.01 75) -->
+      <SolidColorBrush x:Key="MmBorderBrush">#E2DDD7</SolidColorBrush>
+      <!-- oklch(0.94 0.008 75) -->
+      <SolidColorBrush x:Key="MmBorderSoftBrush">#EEEAE5</SolidColorBrush>
+      <!-- oklch(0.22 0.012 60) -->
+      <SolidColorBrush x:Key="MmTextBrush">#1F1915</SolidColorBrush>
+      <!-- oklch(0.45 0.012 60) -->
+      <SolidColorBrush x:Key="MmTextSoftBrush">#5A544F</SolidColorBrush>
+      <!-- oklch(0.62 0.010 60) -->
+      <SolidColorBrush x:Key="MmTextFaintBrush">#8B8580</SolidColorBrush>
+      <!-- oklch(0.58 0.14 42) -->
+      <SolidColorBrush x:Key="MmAccentBrush">#BD592F</SolidColorBrush>
+      <!-- oklch(0.94 0.04 50) -->
+      <SolidColorBrush x:Key="MmAccentSoftBrush">#FFE4D4</SolidColorBrush>
+      <!-- oklch(0.95 0.008 75) -->
+      <SolidColorBrush x:Key="MmCodeBackgroundBrush">#F2EEE9</SolidColorBrush>
+      <!-- oklch(0.90 0.008 75) -->
+      <SolidColorBrush x:Key="MmCodeBorderBrush">#E1DDD8</SolidColorBrush>
+      <!-- oklch(0.80 0.012 60) -->
+      <SolidColorBrush x:Key="MmQuoteBarBrush">#C4BCB6</SolidColorBrush>
+      <!-- Selection: warm highlight aligned with accent-soft -->
+      <SolidColorBrush x:Key="MmSelectionBrush">#F5D9C4</SolidColorBrush>
+      <!-- oklch(0.975 0.006 80) -->
+      <SolidColorBrush x:Key="MmTitleBarBrush">#F9F6F2</SolidColorBrush>
+      <!-- oklch(0.40 0.01 60) -->
+      <SolidColorBrush x:Key="MmTitleBarTextBrush">#4C4742</SolidColorBrush>
     </ResourceDictionary>
 
     <ResourceDictionary x:Key="Dark">
-      <SolidColorBrush x:Key="MmBackgroundBrush">#1F1C18</SolidColorBrush>
-      <SolidColorBrush x:Key="MmElevatedBackgroundBrush">#26221D</SolidColorBrush>
-      <SolidColorBrush x:Key="MmSurfaceBrush">#2A2620</SolidColorBrush>
-      <SolidColorBrush x:Key="MmBorderBrush">#3F392F</SolidColorBrush>
-      <SolidColorBrush x:Key="MmBorderSoftBrush">#332E27</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTextBrush">#E8E4DD</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTextSoftBrush">#A8A199</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTextFaintBrush">#7A746D</SolidColorBrush>
-      <SolidColorBrush x:Key="MmAccentBrush">#D87B5C</SolidColorBrush>
-      <SolidColorBrush x:Key="MmAccentSoftBrush">#3A2B22</SolidColorBrush>
-      <SolidColorBrush x:Key="MmSelectionBrush">#47352A</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTitleBarBrush">#1A1714</SolidColorBrush>
-      <SolidColorBrush x:Key="MmTitleBarTextBrush">#9A938A</SolidColorBrush>
+      <!-- oklch(0.18 0.008 60) -->
+      <SolidColorBrush x:Key="MmBackgroundBrush">#14110E</SolidColorBrush>
+      <!-- oklch(0.20 0.008 60) -->
+      <SolidColorBrush x:Key="MmElevatedBackgroundBrush">#191512</SolidColorBrush>
+      <!-- oklch(0.23 0.010 60) -->
+      <SolidColorBrush x:Key="MmSurfaceBrush">#211C18</SolidColorBrush>
+      <!-- oklch(0.27 0.012 60) -->
+      <SolidColorBrush x:Key="MmSurfaceHoverBrush">#2B2521</SolidColorBrush>
+      <!-- oklch(0.30 0.010 60) -->
+      <SolidColorBrush x:Key="MmBorderBrush">#322D29</SolidColorBrush>
+      <!-- oklch(0.25 0.010 60) -->
+      <SolidColorBrush x:Key="MmBorderSoftBrush">#25211D</SolidColorBrush>
+      <!-- oklch(0.92 0.008 80) -->
+      <SolidColorBrush x:Key="MmTextBrush">#E7E4DF</SolidColorBrush>
+      <!-- oklch(0.70 0.010 75) -->
+      <SolidColorBrush x:Key="MmTextSoftBrush">#A29E98</SolidColorBrush>
+      <!-- oklch(0.55 0.010 70) -->
+      <SolidColorBrush x:Key="MmTextFaintBrush">#75716B</SolidColorBrush>
+      <!-- oklch(0.72 0.12 42) -->
+      <SolidColorBrush x:Key="MmAccentBrush">#E38A67</SolidColorBrush>
+      <!-- oklch(0.30 0.05 42) -->
+      <SolidColorBrush x:Key="MmAccentSoftBrush">#432519</SolidColorBrush>
+      <!-- oklch(0.22 0.010 60) -->
+      <SolidColorBrush x:Key="MmCodeBackgroundBrush">#1E1A16</SolidColorBrush>
+      <!-- oklch(0.28 0.010 60) -->
+      <SolidColorBrush x:Key="MmCodeBorderBrush">#2D2824</SolidColorBrush>
+      <!-- oklch(0.40 0.012 60) -->
+      <SolidColorBrush x:Key="MmQuoteBarBrush">#4D4641</SolidColorBrush>
+      <!-- Selection: warm highlight, aligned with dark accent-soft -->
+      <SolidColorBrush x:Key="MmSelectionBrush">#3D2B20</SolidColorBrush>
+      <!-- oklch(0.16 0.008 60) -->
+      <SolidColorBrush x:Key="MmTitleBarBrush">#100C0A</SolidColorBrush>
+      <!-- oklch(0.65 0.010 70) -->
+      <SolidColorBrush x:Key="MmTitleBarTextBrush">#938E89</SolidColorBrush>
     </ResourceDictionary>
 
   </ResourceDictionary.ThemeDictionaries>

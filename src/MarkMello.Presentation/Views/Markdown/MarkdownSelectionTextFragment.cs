@@ -15,7 +15,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
     private MarkdownStyledText _styledText = MarkdownStyledText.Empty;
     private DocumentTextRange _documentRange = DocumentTextRange.Empty;
     private DocumentTextRange _selectionRange = DocumentTextRange.Empty;
-    private FontFamily _fontFamily = new("Segoe UI, Inter, system-ui, sans-serif");
+    private FontFamily _fontFamily = FontFamily.Default;
     private double _fontSize = 16;
     private FontWeight _fontWeight = FontWeight.Normal;
     private FontStyle _fontStyle = FontStyle.Normal;
@@ -333,12 +333,24 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
     private Typeface CreateTypeface(MarkdownInlineStyleState style)
     {
         var family = style.IsCode
-            ? new FontFamily("Cascadia Code, Consolas, Menlo, monospace")
+            ? ResolveInlineCodeFontFamily()
             : BaseFontFamily;
 
         var weight = style.IsBold ? FontWeight.Bold : BaseFontWeight;
         var fontStyle = style.IsItalic ? FontStyle.Italic : BaseFontStyle;
         return new Typeface(family, fontStyle, weight);
+    }
+
+    private FontFamily ResolveInlineCodeFontFamily()
+    {
+        if (this.TryFindResource("MmDocumentMonoFontFamily", ActualThemeVariant, out var value)
+            && value is FontFamily family)
+        {
+            return family;
+        }
+
+        // Fallback stack is a subset of what MmDocumentMonoFontFamily declares.
+        return new FontFamily("Cascadia Code, Consolas, Menlo, monospace");
     }
 
     private IBrush ResolveForegroundBrush(MarkdownInlineStyleState style)

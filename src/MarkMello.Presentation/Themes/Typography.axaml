@@ -3,14 +3,24 @@
                     xmlns:sys="using:System">
 
   <!--
-    Шрифты на M0 — system fallback. В M1 заменяются на embedded:
-      Source Serif 4 / Inter Tight / JetBrains Mono.
-    Avalonia 12 поддерживает .ttf/.otf через AvaloniaResource + FontFamily uri.
+    Шрифтовые стеки MarkMello.
+
+    Источник истины: MarkMelloDesign/src/styles.css
+
+      Document (serif):  Source Serif 4, Source Serif Pro, Iowan Old Style, Georgia, serif
+      UI/document sans:  Inter Tight, Segoe UI Variable, Segoe UI, system-ui, sans-serif
+      Mono:              JetBrains Mono, Consolas, monospace
+
+    Дизайн-шрифты идут первыми. Если они установлены в системе, они и будут
+    использованы. Если нет, работает системный fallback.
+
+    Встраивание .ttf через AvaloniaResource — отдельная задача
+    (licensing review + package size impact), в этой итерации не делается.
   -->
 
-  <FontFamily x:Key="MmDocumentSerifFontFamily">Georgia, Iowan Old Style, Cambria, serif</FontFamily>
-  <FontFamily x:Key="MmDocumentSansFontFamily">Segoe UI, Inter, system-ui, sans-serif</FontFamily>
-  <FontFamily x:Key="MmDocumentMonoFontFamily">Cascadia Code, Consolas, Menlo, monospace</FontFamily>
+  <FontFamily x:Key="MmDocumentSerifFontFamily">Source Serif 4, Source Serif Pro, Iowan Old Style, Georgia, Cambria, serif</FontFamily>
+  <FontFamily x:Key="MmDocumentSansFontFamily">Inter Tight, Segoe UI Variable, Segoe UI, Inter, system-ui, sans-serif</FontFamily>
+  <FontFamily x:Key="MmDocumentMonoFontFamily">JetBrains Mono, Cascadia Code, Consolas, Menlo, monospace</FontFamily>
 
   <sys:Double x:Key="MmDocumentFontSize">18</sys:Double>
   <sys:Double x:Key="MmDocumentLineHeight">1.7</sys:Double>

@@ -82,7 +82,7 @@
     <Setter Property="Focusable" Value="False" />
   </Style>
   <Style Selector="Button.titlebar:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
   </Style>
   <Style Selector="Button.titlebar.close:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="#E81123" />
@@ -161,7 +161,7 @@
     <Setter Property="Margin" Value="0,0,0,20" />
     <Setter Property="Padding" Value="16,2,0,2" />
     <Setter Property="BorderThickness" Value="3,0,0,0" />
-    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmQuoteBarBrush}" />
   </Style>
 
   <Style Selector="Border.mm-md-hr">
@@ -175,8 +175,8 @@
     <Setter Property="Padding" Value="16,12" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
-    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmCodeBorderBrush}" />
+    <Setter Property="Background" Value="{DynamicResource MmCodeBackgroundBrush}" />
   </Style>
 
   <Style Selector="TextBlock.mm-md-code-info">
@@ -266,7 +266,7 @@
   </Style>
 
   <Style Selector="Span.mm-md-code-inline">
-    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="Background" Value="{DynamicResource MmCodeBackgroundBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
 

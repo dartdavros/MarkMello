@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using MarkMello.Domain;
@@ -42,6 +43,8 @@ public sealed class MarkdownDocumentView : UserControl
     private MarkdownSelectionTextFragment? _pressedFragment;
     private MarkdownLinkSpan? _pressedLink;
     private bool _preserveSelectionOnRelease;
+    private MenuItem? _copyMenuItem;
+    private MenuItem? _selectAllMenuItem;
 
     static MarkdownDocumentView()
     {
@@ -62,6 +65,8 @@ public sealed class MarkdownDocumentView : UserControl
         PointerCaptureLost += OnPointerCaptureLost;
 
         Content = _root;
+
+        ContextMenu = BuildContextMenu();
     }
 
     public RenderedMarkdownDocument? Document
@@ -661,6 +666,60 @@ public sealed class MarkdownDocumentView : UserControl
             text.Replace("\n", Environment.NewLine, StringComparison.Ordinal));
     }
 
+    private ContextMenu BuildContextMenu()
+    {
+        _copyMenuItem = new MenuItem
+        {
+            Header = "Copy",
+            InputGesture = new KeyGesture(Key.C, KeyModifiers.Control)
+        };
+        _copyMenuItem.Click += OnCopyMenuItemClick;
+
+        _selectAllMenuItem = new MenuItem
+        {
+            Header = "Select all",
+            InputGesture = new KeyGesture(Key.A, KeyModifiers.Control)
+        };
+        _selectAllMenuItem.Click += OnSelectAllMenuItemClick;
+
+        var menu = new ContextMenu();
+        menu.Items.Add(_copyMenuItem);
+        menu.Items.Add(_selectAllMenuItem);
+        menu.Opening += OnContextMenuOpening;
+        return menu;
+    }
+
+    private void OnContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        // Enable Copy only when there is a selection.
+        // Enable Select All only when there is any text to select.
+        if (_copyMenuItem is not null)
+        {
+            _copyMenuItem.IsEnabled = HasSelection;
+        }
+
+        if (_selectAllMenuItem is not null)
+        {
+            _selectAllMenuItem.IsEnabled = _textMap.Text.Length > 0;
+        }
+    }
+
+    private async void OnCopyMenuItemClick(object? sender, RoutedEventArgs e)
+    {
+        if (!HasSelection)
+        {
+            return;
+        }
+
+        await CopySelectionToClipboardAsync();
+    }
+
+    private void OnSelectAllMenuItemClick(object? sender, RoutedEventArgs e)
+    {
+        Focus();
+        SelectAll();
+    }
+
     private async Task TryActivatePressedLinkAsync(PointerReleasedEventArgs e)
     {
         if (_pressedFragment is null)
@@ -813,12 +872,30 @@ public sealed class MarkdownDocumentView : UserControl
 
     private FontFamily ResolveBodyFontFamily() => ReadingPreferences.FontFamily switch
     {
-        FontFamilyMode.Sans => new FontFamily("Segoe UI, Inter, system-ui, sans-serif"),
-        FontFamilyMode.Mono => ResolveMonoFontFamily(),
-        _ => new FontFamily("Georgia, Iowan Old Style, Cambria, serif")
+        FontFamilyMode.Sans => LookupFontFamily("MmDocumentSansFontFamily"),
+        FontFamilyMode.Mono => LookupFontFamily("MmDocumentMonoFontFamily"),
+        _ => LookupFontFamily("MmDocumentSerifFontFamily")
     };
 
-    private static FontFamily ResolveMonoFontFamily() => new("Cascadia Code, Consolas, Menlo, monospace");
+    private FontFamily ResolveMonoFontFamily() => LookupFontFamily("MmDocumentMonoFontFamily");
+
+    private FontFamily LookupFontFamily(string resourceKey)
+    {
+        if (this.TryFindResource(resourceKey, ActualThemeVariant, out var value) && value is FontFamily family)
+        {
+            return family;
+        }
+
+        // Fallbacks mirror the minimal tail of the stacks in Themes/Typography.axaml
+        // so that rendering stays sensible if the ResourceDictionary is not yet attached.
+        return resourceKey switch
+        {
+            "MmDocumentSerifFontFamily" => new FontFamily("Georgia, Cambria, serif"),
+            "MmDocumentSansFontFamily" => new FontFamily("Segoe UI, system-ui, sans-serif"),
+            "MmDocumentMonoFontFamily" => new FontFamily("Consolas, Menlo, monospace"),
+            _ => FontFamily.Default
+        };
+    }
 
     private double GetBodyLineHeight() => Math.Max(ReadingPreferences.FontSize * ReadingPreferences.LineHeight, ReadingPreferences.FontSize + 4);
 
