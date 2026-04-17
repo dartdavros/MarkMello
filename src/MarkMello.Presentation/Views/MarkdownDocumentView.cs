@@ -1,6 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Layout;
@@ -12,8 +12,9 @@ namespace MarkMello.Presentation.Views;
 
 /// <summary>
 /// Native Markdown renderer для viewer mode.
-/// В этой итерации переносит selection ownership на document level и покрывает simple blocks:
-/// headings, paragraphs, quote paragraph content и list paragraph content.
+/// В этой итерации переносит selection ownership на document level и покрывает:
+/// headings, paragraphs, quote paragraph content, list paragraph content,
+/// code blocks и table cells.
 /// </summary>
 public sealed class MarkdownDocumentView : UserControl
 {
@@ -26,6 +27,7 @@ public sealed class MarkdownDocumentView : UserControl
             ReadingPreferences.Default);
 
     private const double DragSelectionThreshold = 4;
+    private static readonly Cursor IBeamCursor = new(StandardCursorType.Ibeam);
 
     private readonly StackPanel _root = new()
     {
@@ -38,6 +40,8 @@ public sealed class MarkdownDocumentView : UserControl
     private bool _isPointerPressed;
     private bool _isDraggingSelection;
     private Point _pointerPressOrigin;
+    private MarkdownSelectionTextFragment? _pressedFragment;
+    private MarkdownLinkSpan? _pressedLink;
 
     static MarkdownDocumentView()
     {
@@ -107,8 +111,8 @@ public sealed class MarkdownDocumentView : UserControl
 
     private void Rebuild()
     {
+        DisposeSelectionFragments();
         _root.Children.Clear();
-        _selectionFragments.Clear();
         ResetPointerState();
 
         var document = Document;
@@ -126,6 +130,17 @@ public sealed class MarkdownDocumentView : UserControl
         }
     }
 
+    private void DisposeSelectionFragments()
+    {
+        foreach (var fragment in _selectionFragments)
+        {
+            fragment.PointerPressed -= OnFragmentPointerPressed;
+            fragment.Dispose();
+        }
+
+        _selectionFragments.Clear();
+    }
+
     private Control BuildBlock(MarkdownBlock block, string path, bool nested)
         => block switch
         {
@@ -134,8 +149,8 @@ public sealed class MarkdownDocumentView : UserControl
             MarkdownQuoteBlock quote => BuildQuote(quote, path),
             MarkdownListBlock list => BuildList(list, path),
             MarkdownHorizontalRuleBlock => BuildHorizontalRule(),
-            MarkdownCodeBlock code => BuildCodeBlock(code),
-            MarkdownTableBlock table => BuildTable(table),
+            MarkdownCodeBlock code => BuildCodeBlock(code, path),
+            MarkdownTableBlock table => BuildTable(table, path),
             _ => BuildFallback(block)
         };
 
@@ -257,7 +272,7 @@ public sealed class MarkdownDocumentView : UserControl
             Classes = { "mm-md-hr" }
         };
 
-    private Border BuildCodeBlock(MarkdownCodeBlock block)
+    private Border BuildCodeBlock(MarkdownCodeBlock block, string path)
     {
         var body = new StackPanel
         {
@@ -275,15 +290,23 @@ public sealed class MarkdownDocumentView : UserControl
             });
         }
 
-        body.Children.Add(new TextBlock
+        var codeFragment = BuildSelectionFragment(
+            path,
+            [new MarkdownTextInline(block.Code)],
+            margin: default,
+            fontSize: Math.Max(12, ReadingPreferences.FontSize - 2),
+            lineHeight: Math.Max(16, (ReadingPreferences.FontSize - 2) * 1.5),
+            fontWeight: FontWeight.Normal,
+            fontStyle: FontStyle.Normal,
+            fallbackClassName: "mm-md-codeblock-text",
+            baseFontFamily: ResolveMonoFontFamily(),
+            textWrapping: TextWrapping.NoWrap);
+
+        body.Children.Add(new ScrollViewer
         {
-            Text = block.Code,
-            Classes = { "mm-md-codeblock-text" },
-            FontFamily = ResolveMonoFontFamily(),
-            FontSize = Math.Max(12, ReadingPreferences.FontSize - 2),
-            LineHeight = Math.Max(16, (ReadingPreferences.FontSize - 2) * 1.5),
-            TextWrapping = TextWrapping.NoWrap,
-            UseLayoutRounding = true
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = codeFragment
         });
 
         return new Border
@@ -293,7 +316,7 @@ public sealed class MarkdownDocumentView : UserControl
         };
     }
 
-    private Control BuildTable(MarkdownTableBlock table)
+    private Control BuildTable(MarkdownTableBlock table, string path)
     {
         var columnCount = Math.Max(
             table.Header.Count,
@@ -325,13 +348,13 @@ public sealed class MarkdownDocumentView : UserControl
         var currentRow = 0;
         if (table.Header.Count > 0)
         {
-            AddTableRow(grid, table.Header, currentRow, isHeader: true);
+            AddTableRow(grid, table.Header, currentRow, isHeader: true, pathPrefix: $"{path}.h");
             currentRow++;
         }
 
-        foreach (var row in table.Rows)
+        for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
         {
-            AddTableRow(grid, row, currentRow, isHeader: false);
+            AddTableRow(grid, table.Rows[rowIndex], currentRow, isHeader: false, pathPrefix: $"{path}.r{rowIndex}.c");
             currentRow++;
         }
 
@@ -343,7 +366,7 @@ public sealed class MarkdownDocumentView : UserControl
         };
     }
 
-    private void AddTableRow(Grid grid, IReadOnlyList<MarkdownTableCell> cells, int rowIndex, bool isHeader)
+    private void AddTableRow(Grid grid, IReadOnlyList<MarkdownTableCell> cells, int rowIndex, bool isHeader, string pathPrefix)
     {
         for (var columnIndex = 0; columnIndex < grid.ColumnDefinitions.Count; columnIndex++)
         {
@@ -351,23 +374,20 @@ public sealed class MarkdownDocumentView : UserControl
                 ? cells[columnIndex]
                 : new MarkdownTableCell(Array.Empty<MarkdownInline>());
 
-            var textBlock = new TextBlock
-            {
-                Classes = { isHeader ? "mm-md-table-header" : "mm-md-table-text" },
-                Margin = default,
-                FontFamily = ResolveBodyFontFamily(),
-                FontSize = ReadingPreferences.FontSize,
-                LineHeight = GetBodyLineHeight(),
-                TextWrapping = TextWrapping.Wrap,
-                UseLayoutRounding = true
-            };
-
-            AddInlines(EnsureInlines(textBlock), cell.Inlines);
+            var content = BuildSelectionFragment(
+                $"{pathPrefix}{columnIndex}",
+                cell.Inlines,
+                margin: default,
+                fontSize: ReadingPreferences.FontSize,
+                lineHeight: GetBodyLineHeight(),
+                fontWeight: isHeader ? FontWeight.SemiBold : FontWeight.Normal,
+                fontStyle: FontStyle.Normal,
+                fallbackClassName: isHeader ? "mm-md-table-header" : "mm-md-table-text");
 
             var border = new Border
             {
                 Classes = { isHeader ? "mm-md-table-header-cell" : "mm-md-table-cell" },
-                Child = textBlock
+                Child = content
             };
 
             Grid.SetRow(border, rowIndex);
@@ -398,7 +418,9 @@ public sealed class MarkdownDocumentView : UserControl
         double lineHeight,
         FontWeight fontWeight,
         FontStyle fontStyle,
-        string fallbackClassName)
+        string fallbackClassName,
+        FontFamily? baseFontFamily = null,
+        TextWrapping textWrapping = TextWrapping.Wrap)
     {
         var styled = MarkdownStyledText.FromInlines(inlines);
         if (styled.Text.Length == 0)
@@ -410,18 +432,19 @@ public sealed class MarkdownDocumentView : UserControl
             };
         }
 
+        var resolvedFontFamily = baseFontFamily ?? ResolveBodyFontFamily();
         if (!_textMap.TryGetFragment(path, out var fragment))
         {
             var fallback = new TextBlock
             {
                 Text = styled.Text,
                 Margin = margin,
-                FontFamily = ResolveBodyFontFamily(),
+                FontFamily = resolvedFontFamily,
                 FontSize = fontSize,
                 FontWeight = fontWeight,
                 FontStyle = fontStyle,
                 LineHeight = lineHeight,
-                TextWrapping = TextWrapping.Wrap,
+                TextWrapping = textWrapping,
                 UseLayoutRounding = true,
                 Classes = { fallbackClassName }
             };
@@ -434,12 +457,13 @@ public sealed class MarkdownDocumentView : UserControl
             Margin = margin,
             StyledText = styled,
             DocumentRange = fragment.Range,
-            BaseFontFamily = ResolveBodyFontFamily(),
+            BaseFontFamily = resolvedFontFamily,
             BaseFontSize = fontSize,
             BaseFontWeight = fontWeight,
             BaseFontStyle = fontStyle,
             BaseLineHeight = lineHeight,
-            Cursor = new Cursor(StandardCursorType.Ibeam)
+            LayoutTextWrapping = textWrapping,
+            Cursor = IBeamCursor
         };
 
         control.PointerPressed += OnFragmentPointerPressed;
@@ -447,114 +471,6 @@ public sealed class MarkdownDocumentView : UserControl
         _selectionFragments.Add(control);
         control.SelectionRange = new DocumentTextRange(SelectionStart, SelectionEnd);
         return control;
-    }
-
-    private static InlineCollection EnsureInlines(TextBlock textBlock)
-    {
-        if (textBlock.Inlines is not null)
-        {
-            return textBlock.Inlines;
-        }
-
-        textBlock.Inlines = new InlineCollection();
-        return textBlock.Inlines;
-    }
-
-    private static InlineCollection EnsureInlines(Span span)
-    {
-        if (span.Inlines is not null)
-        {
-            return span.Inlines;
-        }
-
-        span.Inlines = new InlineCollection();
-        return span.Inlines;
-    }
-
-    private void AddInlines(InlineCollection target, IReadOnlyList<MarkdownInline> inlines)
-    {
-        foreach (var inline in inlines)
-        {
-            AddInline(target, inline);
-        }
-    }
-
-    private void AddInline(InlineCollection target, MarkdownInline inline)
-    {
-        switch (inline)
-        {
-            case MarkdownTextInline text:
-                target.Add(new Run(text.Text));
-                break;
-
-            case MarkdownStrongInline strong:
-                var bold = new Bold();
-                AddInlines(EnsureInlines(bold), strong.Inlines);
-                target.Add(bold);
-                break;
-
-            case MarkdownEmphasisInline emphasis:
-                var italic = new Italic();
-                AddInlines(EnsureInlines(italic), emphasis.Inlines);
-                target.Add(italic);
-                break;
-
-            case MarkdownCodeInline code:
-                var codeSpan = new Span
-                {
-                    Classes = { "mm-md-code-inline" },
-                    FontFamily = ResolveMonoFontFamily()
-                };
-                EnsureInlines(codeSpan).Add(new Run(code.Code));
-                target.Add(codeSpan);
-                break;
-
-            case MarkdownLineBreakInline:
-                target.Add(new LineBreak());
-                break;
-
-            case MarkdownLinkInline link:
-                var linkText = link.Inlines.Count > 0
-                    ? MarkdownDocumentTextMap.ExtractPlainText(link.Inlines)
-                    : link.Url;
-
-                if (Uri.TryCreate(link.Url, UriKind.Absolute, out var uri))
-                {
-                    var linkBlock = new TextBlock
-                    {
-                        Text = linkText,
-                        Classes = { "mm-md-link-text" },
-                        FontFamily = ResolveBodyFontFamily(),
-                        FontSize = ReadingPreferences.FontSize,
-                        UseLayoutRounding = true
-                    };
-
-                    var button = new HyperlinkButton
-                    {
-                        Classes = { "mm-md-link" },
-                        Content = linkBlock,
-                        NavigateUri = uri
-                    };
-
-                    ToolTip.SetTip(button, string.IsNullOrWhiteSpace(link.Title) ? link.Url : link.Title);
-
-                    target.Add(new InlineUIContainer
-                    {
-                        BaselineAlignment = BaselineAlignment.Baseline,
-                        Child = button
-                    });
-                }
-                else
-                {
-                    var fallback = new Underline
-                    {
-                        Classes = { "mm-md-link-fallback" }
-                    };
-                    EnsureInlines(fallback).Add(new Run(linkText));
-                    target.Add(fallback);
-                }
-                break;
-        }
     }
 
     private void OnFragmentPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -574,6 +490,10 @@ public sealed class MarkdownDocumentView : UserControl
         _isPointerPressed = true;
         _isDraggingSelection = false;
         _pointerPressOrigin = e.GetPosition(this);
+        _pressedFragment = fragment;
+        _pressedLink = fragment.TryGetLinkAt(e.GetPosition(fragment), out var pressedLink)
+            ? pressedLink
+            : null;
 
         var anchor = fragment.GetDocumentOffset(e.GetPosition(fragment));
         SelectionAnchor = anchor;
@@ -604,12 +524,14 @@ public sealed class MarkdownDocumentView : UserControl
         e.Handled = true;
     }
 
-    private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
+    private async void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (!_isPointerPressed)
         {
             return;
         }
+
+        await TryActivatePressedLinkAsync(e);
 
         if (!_isDraggingSelection)
         {
@@ -686,6 +608,42 @@ public sealed class MarkdownDocumentView : UserControl
             text.Replace("\n", Environment.NewLine, StringComparison.Ordinal));
     }
 
+    private async Task TryActivatePressedLinkAsync(PointerReleasedEventArgs e)
+    {
+        if (_isDraggingSelection
+            || SelectionAnchor is null
+            || SelectionStart != SelectionEnd
+            || _pressedFragment is null
+            || _pressedLink is not MarkdownLinkSpan pressedLink)
+        {
+            return;
+        }
+
+        var releasePosition = e.GetPosition(_pressedFragment);
+        if (!_pressedFragment.TryGetLinkAt(releasePosition, out var releasedLink))
+        {
+            return;
+        }
+
+        if (releasedLink.Range != pressedLink.Range || !string.Equals(releasedLink.Url, pressedLink.Url, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(pressedLink.Url, UriKind.Absolute, out var uri))
+        {
+            return;
+        }
+
+        var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+        if (launcher is null)
+        {
+            return;
+        }
+
+        await launcher.LaunchUriAsync(uri);
+    }
+
     private int ResolveDocumentOffset(Point position)
     {
         if (_selectionFragments.Count == 0)
@@ -748,6 +706,8 @@ public sealed class MarkdownDocumentView : UserControl
         _isPointerPressed = false;
         _isDraggingSelection = false;
         _pointerPressOrigin = default;
+        _pressedFragment = null;
+        _pressedLink = null;
     }
 
     private FontFamily ResolveBodyFontFamily() => ReadingPreferences.FontFamily switch

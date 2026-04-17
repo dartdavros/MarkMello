@@ -21,6 +21,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
     private double _lineHeight = double.NaN;
     private TextLayout? _textLayout;
     private double _layoutWidth = double.NaN;
+    private TextWrapping _textWrapping = TextWrapping.Wrap;
 
     public MarkdownSelectionTextFragment()
     {
@@ -130,6 +131,18 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         }
     }
 
+    public TextWrapping LayoutTextWrapping
+    {
+        get => _textWrapping;
+        set
+        {
+            _textWrapping = value;
+            InvalidateTextLayout();
+            InvalidateMeasure();
+            InvalidateVisual();
+        }
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var layout = GetOrCreateTextLayout(availableSize.Width);
@@ -155,6 +168,39 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         var hit = layout.HitTestPoint(localPoint);
         var localOffset = Math.Clamp(hit.TextPosition, 0, StyledText.Text.Length);
         return Math.Clamp(DocumentRange.Start + localOffset, DocumentRange.Start, DocumentRange.End);
+    }
+
+    public bool TryGetLinkAt(Point localPoint, out MarkdownLinkSpan linkSpan)
+    {
+        linkSpan = default;
+        if (StyledText.Links.Count == 0)
+        {
+            return false;
+        }
+
+        var layout = GetOrCreateTextLayout(Math.Max(Bounds.Width, 1));
+        var hit = layout.HitTestPoint(localPoint);
+        if (!hit.IsInside)
+        {
+            return false;
+        }
+
+        var localOffset = Math.Clamp(hit.TextPosition, 0, StyledText.Text.Length);
+        if (localOffset == StyledText.Text.Length && localOffset > 0)
+        {
+            localOffset--;
+        }
+
+        foreach (var candidate in StyledText.Links)
+        {
+            if (candidate.Range.Contains(localOffset))
+            {
+                linkSpan = candidate;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void DrawSelection(DrawingContext context, TextLayout layout)
@@ -199,7 +245,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             BaseFontSize,
             ResolveTextBrush(),
             TextAlignment.Left,
-            TextWrapping.Wrap,
+            LayoutTextWrapping,
             textTrimming: null,
             textDecorations: null,
             flowDirection: FlowDirection.LeftToRight,

@@ -3,9 +3,15 @@ using MarkMello.Domain;
 
 namespace MarkMello.Presentation.Views.Markdown;
 
-internal sealed record MarkdownStyledText(string Text, IReadOnlyList<MarkdownTextStyleSpan> Spans)
+internal sealed record MarkdownStyledText(
+    string Text,
+    IReadOnlyList<MarkdownTextStyleSpan> Spans,
+    IReadOnlyList<MarkdownLinkSpan> Links)
 {
-    public static MarkdownStyledText Empty { get; } = new(string.Empty, Array.Empty<MarkdownTextStyleSpan>());
+    public static MarkdownStyledText Empty { get; } = new(
+        string.Empty,
+        Array.Empty<MarkdownTextStyleSpan>(),
+        Array.Empty<MarkdownLinkSpan>());
 
     public static MarkdownStyledText FromInlines(IReadOnlyList<MarkdownInline> inlines)
     {
@@ -18,21 +24,23 @@ internal sealed record MarkdownStyledText(string Text, IReadOnlyList<MarkdownTex
 
         var builder = new StringBuilder();
         var spans = new List<MarkdownTextStyleSpan>();
-        AppendInlines(inlines, builder, spans, MarkdownInlineStyleState.Default);
+        var links = new List<MarkdownLinkSpan>();
+        AppendInlines(inlines, builder, spans, links, MarkdownInlineStyleState.Default);
         return builder.Length == 0
             ? Empty
-            : new MarkdownStyledText(builder.ToString(), spans);
+            : new MarkdownStyledText(builder.ToString(), spans, links);
     }
 
     private static void AppendInlines(
         IReadOnlyList<MarkdownInline> inlines,
         StringBuilder builder,
         List<MarkdownTextStyleSpan> spans,
+        List<MarkdownLinkSpan> links,
         MarkdownInlineStyleState style)
     {
         foreach (var inline in inlines)
         {
-            AppendInline(inline, builder, spans, style);
+            AppendInline(inline, builder, spans, links, style);
         }
     }
 
@@ -40,6 +48,7 @@ internal sealed record MarkdownStyledText(string Text, IReadOnlyList<MarkdownTex
         MarkdownInline inline,
         StringBuilder builder,
         List<MarkdownTextStyleSpan> spans,
+        List<MarkdownLinkSpan> links,
         MarkdownInlineStyleState style)
     {
         switch (inline)
@@ -49,11 +58,11 @@ internal sealed record MarkdownStyledText(string Text, IReadOnlyList<MarkdownTex
                 return;
 
             case MarkdownStrongInline strong:
-                AppendInlines(strong.Inlines, builder, spans, style with { IsBold = true });
+                AppendInlines(strong.Inlines, builder, spans, links, style with { IsBold = true });
                 return;
 
             case MarkdownEmphasisInline emphasis:
-                AppendInlines(emphasis.Inlines, builder, spans, style with { IsItalic = true });
+                AppendInlines(emphasis.Inlines, builder, spans, links, style with { IsItalic = true });
                 return;
 
             case MarkdownCodeInline code:
@@ -61,21 +70,53 @@ internal sealed record MarkdownStyledText(string Text, IReadOnlyList<MarkdownTex
                 return;
 
             case MarkdownLinkInline link:
-                var linkStyle = style with { IsLink = true };
-                if (link.Inlines.Count > 0)
-                {
-                    AppendInlines(link.Inlines, builder, spans, linkStyle);
-                }
-                else if (!string.IsNullOrWhiteSpace(link.Url))
-                {
-                    AppendStyledText(link.Url, builder, spans, linkStyle);
-                }
+                AppendLink(link, builder, spans, links, style with { IsLink = true });
                 return;
 
             case MarkdownLineBreakInline:
                 AppendStyledText("\n", builder, spans, style);
                 return;
         }
+    }
+
+    private static void AppendLink(
+        MarkdownLinkInline link,
+        StringBuilder builder,
+        List<MarkdownTextStyleSpan> spans,
+        List<MarkdownLinkSpan> links,
+        MarkdownInlineStyleState style)
+    {
+        var start = builder.Length;
+
+        if (link.Inlines.Count > 0)
+        {
+            AppendInlines(link.Inlines, builder, spans, links, style);
+        }
+        else if (!string.IsNullOrWhiteSpace(link.Url))
+        {
+            AppendStyledText(link.Url, builder, spans, style);
+        }
+
+        var end = builder.Length;
+        if (end <= start || string.IsNullOrWhiteSpace(link.Url))
+        {
+            return;
+        }
+
+        var range = new DocumentTextRange(start, end);
+        if (links.Count > 0)
+        {
+            var last = links[^1];
+            if (last.Range.End == range.Start
+                && string.Equals(last.Url, link.Url, StringComparison.Ordinal)
+                && string.Equals(last.Title, link.Title, StringComparison.Ordinal))
+            {
+                links[^1] = last with { Range = new DocumentTextRange(last.Range.Start, range.End) };
+                return;
+            }
+        }
+
+        links.Add(new MarkdownLinkSpan(range, link.Url, link.Title));
     }
 
     private static void AppendStyledText(
@@ -113,6 +154,8 @@ internal sealed record MarkdownStyledText(string Text, IReadOnlyList<MarkdownTex
 }
 
 internal readonly record struct MarkdownTextStyleSpan(DocumentTextRange Range, MarkdownInlineStyleState Style);
+
+internal readonly record struct MarkdownLinkSpan(DocumentTextRange Range, string Url, string? Title);
 
 internal readonly record struct MarkdownInlineStyleState(bool IsBold, bool IsItalic, bool IsCode, bool IsLink)
 {
