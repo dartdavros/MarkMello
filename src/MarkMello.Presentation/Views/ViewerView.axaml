@@ -10,13 +10,16 @@
 
   <ScrollViewer Name="DocScroll"
                 HorizontalScrollBarVisibility="Disabled"
-                VerticalScrollBarVisibility="Auto">
-    <Grid>
+                VerticalScrollBarVisibility="Auto"
+                UseLayoutRounding="True">
+    <Grid UseLayoutRounding="True">
       <Border MaxWidth="{Binding ReadingPreferences.ContentWidth}"
               HorizontalAlignment="Center"
-              Padding="72,96,72,160">
+              Padding="72,96,72,160"
+              UseLayoutRounding="True">
         <views:MarkdownDocumentView Document="{Binding RenderedDocument}"
-                                    ReadingPreferences="{Binding ReadingPreferences}" />
+                                    ReadingPreferences="{Binding ReadingPreferences}"
+                                    UseLayoutRounding="True" />
       </Border>
     </Grid>
   </ScrollViewer>

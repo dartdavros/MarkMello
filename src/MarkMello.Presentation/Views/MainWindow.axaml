@@ -11,7 +11,8 @@
         MinWidth="640" MinHeight="480"
         Title="{Binding WindowTitle}"
         Background="{DynamicResource MmBackgroundBrush}"
-        DragDrop.AllowDrop="True">
+        DragDrop.AllowDrop="True"
+        UseLayoutRounding="True">
 
   <Design.DataContext>
     <vm:MainWindowViewModel />

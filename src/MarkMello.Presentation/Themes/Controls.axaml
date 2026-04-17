@@ -129,16 +129,31 @@
   </Style>
 
   <Style Selector="TextBlock.mm-md-heading">
+    <Setter Property="UseLayoutRounding" Value="True" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="SelectableTextBlock.mm-md-heading">
+    <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
   <Style Selector="TextBlock.mm-md-paragraph">
+    <Setter Property="UseLayoutRounding" Value="True" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="SelectableTextBlock.mm-md-paragraph">
+    <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
   <Style Selector="TextBlock.mm-md-list-bullet">
+    <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
   </Style>
 
@@ -165,6 +180,7 @@
   </Style>
 
   <Style Selector="TextBlock.mm-md-code-info">
+    <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
     <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
     <Setter Property="FontSize" Value="11" />
@@ -172,6 +188,7 @@
   </Style>
 
   <Style Selector="SelectableTextBlock.mm-md-codeblock-text">
+    <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
 
@@ -196,12 +213,27 @@
   </Style>
 
   <Style Selector="TextBlock.mm-md-table-header">
+    <Setter Property="UseLayoutRounding" Value="True" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="SelectableTextBlock.mm-md-table-header">
+    <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
   <Style Selector="TextBlock.mm-md-table-text">
+    <Setter Property="UseLayoutRounding" Value="True" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="SelectableTextBlock.mm-md-table-text">
+    <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
@@ -215,6 +247,7 @@
   </Style>
 
   <Style Selector="TextBlock.mm-md-link-text">
+    <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
     <Setter Property="TextDecorations" Value="Underline" />
   </Style>

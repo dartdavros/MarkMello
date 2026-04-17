@@ -35,6 +35,8 @@ public sealed class MarkdownDocumentView : UserControl
 
     public MarkdownDocumentView()
     {
+        UseLayoutRounding = true;
+        _root.UseLayoutRounding = true;
         Content = _root;
     }
 
@@ -79,7 +81,7 @@ public sealed class MarkdownDocumentView : UserControl
             _ => BuildFallback(block)
         };
 
-    private TextBlock BuildHeading(MarkdownHeadingBlock block)
+    private SelectableTextBlock BuildHeading(MarkdownHeadingBlock block)
     {
         var textBlock = CreateTextBlock("mm-md-heading");
         textBlock.FontSize = GetHeadingFontSize(block.Level);
@@ -93,7 +95,7 @@ public sealed class MarkdownDocumentView : UserControl
         return textBlock;
     }
 
-    private TextBlock BuildParagraph(MarkdownParagraphBlock block, bool nested)
+    private SelectableTextBlock BuildParagraph(MarkdownParagraphBlock block, bool nested)
     {
         var textBlock = CreateTextBlock("mm-md-paragraph");
         textBlock.Margin = nested
@@ -151,6 +153,7 @@ public sealed class MarkdownDocumentView : UserControl
             FontSize = ReadingPreferences.FontSize,
             FontFamily = ResolveBodyFontFamily(),
             FontWeight = FontWeight.Medium,
+            UseLayoutRounding = true,
             Classes = { "mm-md-list-bullet" }
         };
 
@@ -201,6 +204,7 @@ public sealed class MarkdownDocumentView : UserControl
             body.Children.Add(new TextBlock
             {
                 Text = block.Info,
+                UseLayoutRounding = true,
                 Classes = { "mm-md-code-info" }
             });
         }
@@ -212,7 +216,8 @@ public sealed class MarkdownDocumentView : UserControl
             FontFamily = ResolveMonoFontFamily(),
             FontSize = Math.Max(12, ReadingPreferences.FontSize - 2),
             LineHeight = Math.Max(16, (ReadingPreferences.FontSize - 2) * 1.5),
-            TextWrapping = TextWrapping.NoWrap
+            TextWrapping = TextWrapping.NoWrap,
+            UseLayoutRounding = true
         });
 
         return new Border
@@ -296,15 +301,16 @@ public sealed class MarkdownDocumentView : UserControl
         }
     }
 
-    private TextBlock BuildFallback(MarkdownBlock block)
+    private SelectableTextBlock BuildFallback(MarkdownBlock block)
     {
-        return new TextBlock
+        return new SelectableTextBlock
         {
             Text = block.ToString(),
             Classes = { "mm-md-paragraph" },
             FontFamily = ResolveBodyFontFamily(),
             FontSize = ReadingPreferences.FontSize,
-            LineHeight = GetBodyLineHeight()
+            LineHeight = GetBodyLineHeight(),
+            UseLayoutRounding = true
         };
     }
 
@@ -330,15 +336,16 @@ public sealed class MarkdownDocumentView : UserControl
         return span.Inlines;
     }
 
-    private TextBlock CreateTextBlock(string className)
+    private SelectableTextBlock CreateTextBlock(string className)
     {
-        return new TextBlock
+        return new SelectableTextBlock
         {
             Classes = { className },
             FontFamily = ResolveBodyFontFamily(),
             FontSize = ReadingPreferences.FontSize,
             LineHeight = GetBodyLineHeight(),
-            TextWrapping = TextWrapping.Wrap
+            TextWrapping = TextWrapping.Wrap,
+            UseLayoutRounding = true
         };
     }
 
@@ -392,7 +399,8 @@ public sealed class MarkdownDocumentView : UserControl
                         Text = string.IsNullOrWhiteSpace(link.Text) ? link.Url : link.Text,
                         Classes = { "mm-md-link-text" },
                         FontFamily = ResolveBodyFontFamily(),
-                        FontSize = ReadingPreferences.FontSize
+                        FontSize = ReadingPreferences.FontSize,
+                        UseLayoutRounding = true
                     };
 
                     var button = new HyperlinkButton
