@@ -188,26 +188,10 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             return DocumentTextRange.Empty;
         }
 
-        if (char.IsWhiteSpace(StyledText.Text[localOffset]))
-        {
-            return DocumentTextRange.Empty;
-        }
-
-        var start = localOffset;
-        while (start > 0 && !char.IsWhiteSpace(StyledText.Text[start - 1]))
-        {
-            start--;
-        }
-
-        var end = localOffset + 1;
-        while (end < StyledText.Text.Length && !char.IsWhiteSpace(StyledText.Text[end]))
-        {
-            end++;
-        }
-
-        return start >= end
+        var localRange = MarkdownWordNavigator.GetWordRange(StyledText.Text, localOffset);
+        return localRange.IsEmpty
             ? DocumentTextRange.Empty
-            : new DocumentTextRange(DocumentRange.Start + start, DocumentRange.Start + end);
+            : new DocumentTextRange(DocumentRange.Start + localRange.Start, DocumentRange.Start + localRange.End);
     }
 
     public bool TryGetLinkAt(Point localPoint, out MarkdownLinkSpan linkSpan)

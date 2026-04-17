@@ -574,6 +574,13 @@ public sealed class MarkdownDocumentView : UserControl
 
     private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Key == Key.Escape && HasSelection)
+        {
+            ClearSelection();
+            e.Handled = true;
+            return;
+        }
+
         if (!HasCommandModifier(e.KeyModifiers))
         {
             return;
@@ -634,25 +641,28 @@ public sealed class MarkdownDocumentView : UserControl
 
     private async Task TryActivatePressedLinkAsync(PointerReleasedEventArgs e)
     {
-        if (_isDraggingSelection
-            || SelectionAnchor is null
-            || SelectionStart != SelectionEnd
-            || _pressedFragment is null
-            || _pressedLink is not MarkdownLinkSpan pressedLink)
+        if (_pressedFragment is null)
         {
             return;
         }
 
         var releasePosition = e.GetPosition(_pressedFragment);
-        if (!_pressedFragment.TryGetLinkAt(releasePosition, out var releasedLink))
+        MarkdownLinkSpan? releasedLink = _pressedFragment.TryGetLinkAt(releasePosition, out var hitLink)
+            ? hitLink
+            : null;
+
+        if (!MarkdownLinkActivationPolicy.CanActivateLink(
+                _isDraggingSelection,
+                SelectionAnchor,
+                SelectionStart,
+                SelectionEnd,
+                _pressedLink,
+                releasedLink))
         {
             return;
         }
 
-        if (releasedLink.Range != pressedLink.Range || !string.Equals(releasedLink.Url, pressedLink.Url, StringComparison.Ordinal))
-        {
-            return;
-        }
+        var pressedLink = _pressedLink!.Value;
 
         if (!Uri.TryCreate(pressedLink.Url, UriKind.Absolute, out var uri))
         {
