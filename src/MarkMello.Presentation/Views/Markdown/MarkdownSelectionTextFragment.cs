@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using Avalonia.Utilities;
@@ -11,6 +12,9 @@ namespace MarkMello.Presentation.Views.Markdown;
 
 internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
 {
+    private static readonly Cursor DefaultCursor = new(StandardCursorType.Ibeam);
+    private static readonly Cursor LinkCursor = new(StandardCursorType.Hand);
+
     private MarkdownStyledText _styledText = MarkdownStyledText.Empty;
     private DocumentTextRange _documentRange = DocumentTextRange.Empty;
     private DocumentTextRange _selectionRange = DocumentTextRange.Empty;
@@ -28,10 +32,13 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         ClipToBounds = false;
         Focusable = false;
         UseLayoutRounding = true;
+        Cursor = DefaultCursor;
 
         ActualThemeVariantChanged += OnActualThemeVariantChanged;
         ResourcesChanged += OnResourcesChanged;
         AttachedToVisualTree += OnAttachedToVisualTree;
+        PointerMoved += OnPointerMoved;
+        PointerExited += OnPointerExited;
     }
 
     public MarkdownStyledText StyledText
@@ -164,10 +171,43 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
 
     public int GetDocumentOffset(Point localPoint)
     {
-        var layout = GetOrCreateTextLayout(Math.Max(Bounds.Width, 1));
-        var hit = layout.HitTestPoint(localPoint);
-        var localOffset = Math.Clamp(hit.TextPosition, 0, StyledText.Text.Length);
+        var localOffset = GetLocalTextOffset(localPoint, preferPreviousCharacterAtBoundary: false);
         return Math.Clamp(DocumentRange.Start + localOffset, DocumentRange.Start, DocumentRange.End);
+    }
+
+    public DocumentTextRange GetDocumentWordRange(Point localPoint)
+    {
+        if (StyledText.Text.Length == 0 || DocumentRange.IsEmpty)
+        {
+            return DocumentTextRange.Empty;
+        }
+
+        var localOffset = GetLocalTextOffset(localPoint, preferPreviousCharacterAtBoundary: true);
+        if ((uint)localOffset >= (uint)StyledText.Text.Length)
+        {
+            return DocumentTextRange.Empty;
+        }
+
+        if (char.IsWhiteSpace(StyledText.Text[localOffset]))
+        {
+            return DocumentTextRange.Empty;
+        }
+
+        var start = localOffset;
+        while (start > 0 && !char.IsWhiteSpace(StyledText.Text[start - 1]))
+        {
+            start--;
+        }
+
+        var end = localOffset + 1;
+        while (end < StyledText.Text.Length && !char.IsWhiteSpace(StyledText.Text[end]))
+        {
+            end++;
+        }
+
+        return start >= end
+            ? DocumentTextRange.Empty
+            : new DocumentTextRange(DocumentRange.Start + start, DocumentRange.Start + end);
     }
 
     public bool TryGetLinkAt(Point localPoint, out MarkdownLinkSpan linkSpan)
@@ -185,10 +225,10 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             return false;
         }
 
-        var localOffset = Math.Clamp(hit.TextPosition, 0, StyledText.Text.Length);
-        if (localOffset == StyledText.Text.Length && localOffset > 0)
+        var localOffset = GetLocalTextOffset(localPoint, preferPreviousCharacterAtBoundary: true);
+        if ((uint)localOffset >= (uint)StyledText.Text.Length)
         {
-            localOffset--;
+            return false;
         }
 
         foreach (var candidate in StyledText.Links)
@@ -201,6 +241,25 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         }
 
         return false;
+    }
+
+
+    private int GetLocalTextOffset(Point localPoint, bool preferPreviousCharacterAtBoundary)
+    {
+        if (StyledText.Text.Length == 0)
+        {
+            return 0;
+        }
+
+        var layout = GetOrCreateTextLayout(Math.Max(Bounds.Width, 1));
+        var hit = layout.HitTestPoint(localPoint);
+        var localOffset = Math.Clamp(hit.TextPosition, 0, StyledText.Text.Length);
+        if (preferPreviousCharacterAtBoundary && localOffset == StyledText.Text.Length && localOffset > 0)
+        {
+            localOffset--;
+        }
+
+        return localOffset;
     }
 
     private void DrawSelection(DrawingContext context, TextLayout layout)
@@ -341,6 +400,8 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         ActualThemeVariantChanged -= OnActualThemeVariantChanged;
         ResourcesChanged -= OnResourcesChanged;
         AttachedToVisualTree -= OnAttachedToVisualTree;
+        PointerMoved -= OnPointerMoved;
+        PointerExited -= OnPointerExited;
 
         InvalidateTextLayout();
         GC.SuppressFinalize(this);
@@ -354,6 +415,15 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
 
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
         => InvalidateForAppearanceChange();
+
+
+    private void OnPointerMoved(object? sender, PointerEventArgs e)
+        => Cursor = StyledText.Links.Count > 0 && TryGetLinkAt(e.GetPosition(this), out _)
+            ? LinkCursor
+            : DefaultCursor;
+
+    private void OnPointerExited(object? sender, PointerEventArgs e)
+        => Cursor = DefaultCursor;
 
     private void InvalidateForAppearanceChange()
     {

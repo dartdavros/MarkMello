@@ -42,6 +42,7 @@ public sealed class MarkdownDocumentView : UserControl
     private Point _pointerPressOrigin;
     private MarkdownSelectionTextFragment? _pressedFragment;
     private MarkdownLinkSpan? _pressedLink;
+    private bool _preserveSelectionOnRelease;
 
     static MarkdownDocumentView()
     {
@@ -487,15 +488,38 @@ public sealed class MarkdownDocumentView : UserControl
         }
 
         Focus();
+
+        var localPosition = e.GetPosition(fragment);
+        if (e.ClickCount >= 3)
+        {
+            CommitSelection(fragment.DocumentRange, preserveOnRelease: true);
+            BeginPointerSession(e, fragment, localPosition, allowLinkActivation: false);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.ClickCount == 2)
+        {
+            var wordRange = fragment.GetDocumentWordRange(localPosition);
+            if (!wordRange.IsEmpty)
+            {
+                CommitSelection(wordRange, preserveOnRelease: true);
+                BeginPointerSession(e, fragment, localPosition, allowLinkActivation: false);
+                e.Handled = true;
+                return;
+            }
+        }
+
         _isPointerPressed = true;
         _isDraggingSelection = false;
+        _preserveSelectionOnRelease = false;
         _pointerPressOrigin = e.GetPosition(this);
         _pressedFragment = fragment;
-        _pressedLink = fragment.TryGetLinkAt(e.GetPosition(fragment), out var pressedLink)
+        _pressedLink = fragment.TryGetLinkAt(localPosition, out var pressedLink)
             ? pressedLink
             : null;
 
-        var anchor = fragment.GetDocumentOffset(e.GetPosition(fragment));
+        var anchor = fragment.GetDocumentOffset(localPosition);
         SelectionAnchor = anchor;
         SelectionStart = anchor;
         SelectionEnd = anchor;
@@ -533,7 +557,7 @@ public sealed class MarkdownDocumentView : UserControl
 
         await TryActivatePressedLinkAsync(e);
 
-        if (!_isDraggingSelection)
+        if (!_isDraggingSelection && !_preserveSelectionOnRelease)
         {
             ClearSelection();
         }
@@ -644,6 +668,38 @@ public sealed class MarkdownDocumentView : UserControl
         await launcher.LaunchUriAsync(uri);
     }
 
+
+    private void CommitSelection(DocumentTextRange range, bool preserveOnRelease)
+    {
+        if (range.IsEmpty)
+        {
+            ClearSelection();
+            return;
+        }
+
+        SelectionAnchor = range.Start;
+        SelectionStart = range.Start;
+        SelectionEnd = range.End;
+        _preserveSelectionOnRelease = preserveOnRelease;
+        ApplySelectionToFragments();
+    }
+
+    private void BeginPointerSession(
+        PointerPressedEventArgs e,
+        MarkdownSelectionTextFragment fragment,
+        Point localPosition,
+        bool allowLinkActivation)
+    {
+        _isPointerPressed = true;
+        _isDraggingSelection = false;
+        _pointerPressOrigin = e.GetPosition(this);
+        _pressedFragment = fragment;
+        _pressedLink = allowLinkActivation && fragment.TryGetLinkAt(localPosition, out var pressedLink)
+            ? pressedLink
+            : null;
+        e.Pointer.Capture(this);
+    }
+
     private int ResolveDocumentOffset(Point position)
     {
         if (_selectionFragments.Count == 0)
@@ -705,6 +761,7 @@ public sealed class MarkdownDocumentView : UserControl
     {
         _isPointerPressed = false;
         _isDraggingSelection = false;
+        _preserveSelectionOnRelease = false;
         _pointerPressOrigin = default;
         _pressedFragment = null;
         _pressedLink = null;
