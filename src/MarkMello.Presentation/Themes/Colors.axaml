@@ -1,0 +1,43 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Цвета — приближение oklch-палитры из React-прототипа в стандартный sRGB hex.
+    В M1 при копировании дизайна точные значения будут пересчитаны и сверены визуально.
+  -->
+
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="MmBackgroundBrush">#FAF8F5</SolidColorBrush>
+      <SolidColorBrush x:Key="MmElevatedBackgroundBrush">#FDFBF8</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSurfaceBrush">#F2EEE7</SolidColorBrush>
+      <SolidColorBrush x:Key="MmBorderBrush">#E0DBD2</SolidColorBrush>
+      <SolidColorBrush x:Key="MmBorderSoftBrush">#E8E4DD</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTextBrush">#2A2620</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTextSoftBrush">#665E54</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTextFaintBrush">#9A9388</SolidColorBrush>
+      <SolidColorBrush x:Key="MmAccentBrush">#C45A3D</SolidColorBrush>
+      <SolidColorBrush x:Key="MmAccentSoftBrush">#F5E2D8</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTitleBarBrush">#F6F2EC</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTitleBarTextBrush">#5C5448</SolidColorBrush>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="MmBackgroundBrush">#1F1C18</SolidColorBrush>
+      <SolidColorBrush x:Key="MmElevatedBackgroundBrush">#26221D</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSurfaceBrush">#2A2620</SolidColorBrush>
+      <SolidColorBrush x:Key="MmBorderBrush">#3F392F</SolidColorBrush>
+      <SolidColorBrush x:Key="MmBorderSoftBrush">#332E27</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTextBrush">#E8E4DD</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTextSoftBrush">#A8A199</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTextFaintBrush">#7A746D</SolidColorBrush>
+      <SolidColorBrush x:Key="MmAccentBrush">#D87B5C</SolidColorBrush>
+      <SolidColorBrush x:Key="MmAccentSoftBrush">#3A2B22</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTitleBarBrush">#1A1714</SolidColorBrush>
+      <SolidColorBrush x:Key="MmTitleBarTextBrush">#9A938A</SolidColorBrush>
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+
+</ResourceDictionary>

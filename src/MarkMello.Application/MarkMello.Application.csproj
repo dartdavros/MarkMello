@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>MarkMello.Application</RootNamespace>
+    <AssemblyName>MarkMello.Application</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarkMello.Domain\MarkMello.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

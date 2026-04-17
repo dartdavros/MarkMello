@@ -1,0 +1,21 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="using:System">
+
+  <!--
+    Шрифты на M0 — system fallback. В M1 заменяются на embedded:
+      Source Serif 4 / Inter Tight / JetBrains Mono.
+    Avalonia 12 поддерживает .ttf/.otf через AvaloniaResource + FontFamily uri.
+  -->
+
+  <FontFamily x:Key="MmDocumentSerifFontFamily">Georgia, Iowan Old Style, Cambria, serif</FontFamily>
+  <FontFamily x:Key="MmDocumentSansFontFamily">Segoe UI, Inter, system-ui, sans-serif</FontFamily>
+  <FontFamily x:Key="MmDocumentMonoFontFamily">Cascadia Code, Consolas, Menlo, monospace</FontFamily>
+
+  <sys:Double x:Key="MmDocumentFontSize">18</sys:Double>
+  <sys:Double x:Key="MmDocumentLineHeight">1.7</sys:Double>
+  <sys:Double x:Key="MmDocumentMaxWidth">720</sys:Double>
+
+  <sys:Double x:Key="MmTitleBarHeight">36</sys:Double>
+
+</ResourceDictionary>

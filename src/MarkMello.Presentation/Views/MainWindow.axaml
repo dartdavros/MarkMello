@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:MarkMello.Presentation.ViewModels"
+        mc:Ignorable="d"
+        x:Class="MarkMello.Presentation.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1280" Height="840"
+        MinWidth="640" MinHeight="480"
+        Title="{Binding Title}"
+        Background="{DynamicResource MmBackgroundBrush}">
+
+  <Design.DataContext>
+    <vm:MainWindowViewModel />
+  </Design.DataContext>
+
+  <Grid>
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+      <TextBlock Text="{Binding Greeting}"
+                 FontSize="44"
+                 FontFamily="{DynamicResource MmDocumentSerifFontFamily}"
+                 Foreground="{DynamicResource MmTextBrush}"
+                 HorizontalAlignment="Center" />
+      <TextBlock Text="{Binding Tagline}"
+                 FontSize="13"
+                 FontFamily="{DynamicResource MmDocumentSansFontFamily}"
+                 Foreground="{DynamicResource MmTextFaintBrush}"
+                 HorizontalAlignment="Center" />
+    </StackPanel>
+  </Grid>
+
+</Window>

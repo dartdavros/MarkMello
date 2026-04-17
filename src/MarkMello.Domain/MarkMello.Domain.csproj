@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>MarkMello.Domain</RootNamespace>
+    <AssemblyName>MarkMello.Domain</AssemblyName>
+  </PropertyGroup>
+
+</Project>
