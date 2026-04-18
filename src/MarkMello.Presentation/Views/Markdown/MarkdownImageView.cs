@@ -29,6 +29,7 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
     private readonly CancellationTokenSource _cts = new();
     private IImage? _loadedImage;
     private Stream? _loadedImageBackingStream;
+    private Image? _imageControl;
     private bool _loadStarted;
     private bool _loadCompleted;
     private bool _disposed;
@@ -92,9 +93,16 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
         MarkdownImageLoader.DisposeLoadedImage(_loadedImage, _loadedImageBackingStream);
         _loadedImage = null;
         _loadedImageBackingStream = null;
+        _imageControl = null;
 
         AttachedToVisualTree -= OnAttachedToVisualTree;
         DetachedFromVisualTree -= OnDetachedFromVisualTree;
+    }
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        ApplyImageConstraints(availableSize.Width);
+        return base.MeasureOverride(availableSize);
     }
 
     private async Task LoadAsync(CancellationToken cancellationToken)
@@ -155,15 +163,8 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
             UseLayoutRounding = true,
         };
 
-        if (_width is > 0)
-        {
-            image.Width = _width.Value;
-        }
-
-        if (_height is > 0)
-        {
-            image.Height = _height.Value;
-        }
+        _imageControl = image;
+        ApplyImageConstraints(Bounds.Width);
 
         if (string.IsNullOrWhiteSpace(_altText))
         {
@@ -199,6 +200,7 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
             return;
         }
         _loadCompleted = true;
+        _imageControl = null;
 
         var label = string.IsNullOrWhiteSpace(_altText)
             ? "Image unavailable"
@@ -239,4 +241,36 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
         border.Classes.Add("mm-md-image-placeholder");
         return border;
     }
+
+    private void ApplyImageConstraints(double availableWidth)
+    {
+        if (_imageControl is null)
+        {
+            return;
+        }
+
+        _imageControl.Width = double.NaN;
+        _imageControl.Height = double.NaN;
+        _imageControl.MaxWidth = ResolveMaxWidth(_width, availableWidth);
+        _imageControl.MaxHeight = ResolveMaxHeight(_height);
+    }
+
+    internal static double ResolveMaxWidth(double? requestedWidth, double availableWidth)
+    {
+        var normalizedAvailableWidth = double.IsFinite(availableWidth) && availableWidth > 0
+            ? availableWidth
+            : double.PositiveInfinity;
+
+        if (requestedWidth is > 0)
+        {
+            return Math.Min(requestedWidth.Value, normalizedAvailableWidth);
+        }
+
+        return normalizedAvailableWidth;
+    }
+
+    internal static double ResolveMaxHeight(double? requestedHeight)
+        => requestedHeight is > 0
+            ? requestedHeight.Value
+            : double.PositiveInfinity;
 }

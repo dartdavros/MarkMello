@@ -1,5 +1,7 @@
 using MarkMello.Domain;
 using MarkMello.Presentation.Views;
+using MarkMello.Presentation.Views.Markdown;
+using Avalonia.Controls;
 
 namespace MarkMello.Presentation.Tests;
 
@@ -126,6 +128,35 @@ public sealed class MarkdownDocumentViewTests
 
         Assert.True(view.Focusable);
         Assert.True(view.IsTabStop);
+    }
+
+    [Fact]
+    public void ParagraphOfBadgeImagesUsesImageFlowFragmentInsteadOfAltTextFallback()
+    {
+        var document = new RenderedMarkdownDocument(
+        [
+            new MarkdownParagraphBlock(
+            [
+                new MarkdownImageInline("https://img.shields.io/github/v/release/skarodev/skaro", "GitHub Release", null),
+                new MarkdownLineBreakInline(),
+                new MarkdownImageInline("https://img.shields.io/github/license/skarodev/skaro?style=flat", "GitHub License", null),
+                new MarkdownLineBreakInline(),
+                new MarkdownImageInline("https://img.shields.io/github/stars/skarodev/skaro?style=flat", "GitHub Repo stars", null)
+            ])
+        ]);
+
+        var view = CreateView(document);
+
+        var root = Assert.IsType<StackPanel>(view.Content);
+        var fragment = Assert.IsType<MarkdownImageFlowFragment>(Assert.Single(root.Children));
+
+        view.SelectAll();
+
+        Assert.True(view.HasSelection);
+        Assert.Contains("GitHub Release", view.SelectedText, StringComparison.Ordinal);
+        Assert.Contains("GitHub License", view.SelectedText, StringComparison.Ordinal);
+        Assert.Contains("GitHub Repo stars", view.SelectedText, StringComparison.Ordinal);
+        Assert.False(fragment.SelectionRange.IsEmpty);
     }
 
     private static MarkdownDocumentView CreateView(RenderedMarkdownDocument document)

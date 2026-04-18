@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\drmar\MyProjects\MarkMello\code\MarkMello\src\MarkMello.Presentation\MarkMello.Presentation.csproj" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.1" />
+  </ItemGroup>
+</Project>

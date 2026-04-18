@@ -39,12 +39,12 @@ public sealed class MarkdownDocumentView : UserControl
         Spacing = 0
     };
 
-    private readonly List<MarkdownSelectionTextFragment> _selectionFragments = [];
+    private readonly List<MarkdownDocumentSelectionFragmentBase> _selectionFragments = [];
     private MarkdownDocumentTextMap _textMap = MarkdownDocumentTextMap.Empty;
     private bool _isPointerPressed;
     private bool _isDraggingSelection;
     private Point _pointerPressOrigin;
-    private MarkdownSelectionTextFragment? _pressedFragment;
+    private MarkdownDocumentSelectionFragmentBase? _pressedFragment;
     private MarkdownLinkSpan? _pressedLink;
     private bool _preserveSelectionOnRelease;
     private MenuItem? _copyMenuItem;
@@ -630,6 +630,25 @@ public sealed class MarkdownDocumentView : UserControl
             return fallback;
         }
 
+        if (MarkdownImageFlowFragment.TryCreate(inlines, out var imageItems))
+        {
+            var imageFlow = new MarkdownImageFlowFragment(imageItems)
+            {
+                Margin = margin,
+                DocumentRange = fragment.Range,
+                ImageSourceResolver = ImageSourceResolver,
+                BaseDirectory = Document?.BaseDirectory,
+                BaseFontFamily = resolvedFontFamily,
+                BaseFontSize = fontSize,
+                BaseLineHeight = lineHeight
+            };
+
+            imageFlow.Classes.Add(fallbackClassName);
+            _selectionFragments.Add(imageFlow);
+            imageFlow.SelectionRange = new DocumentTextRange(SelectionStart, SelectionEnd);
+            return imageFlow;
+        }
+
         var control = new MarkdownSelectionTextFragment
         {
             Margin = margin,
@@ -929,7 +948,7 @@ public sealed class MarkdownDocumentView : UserControl
 
     private void BeginPointerSession(
         PointerPressedEventArgs e,
-        MarkdownSelectionTextFragment fragment,
+        MarkdownDocumentSelectionFragmentBase fragment,
         Point localPosition,
         bool allowLinkActivation)
     {
@@ -955,7 +974,7 @@ public sealed class MarkdownDocumentView : UserControl
 
     private bool TryResolveFragment(
         Point position,
-        out MarkdownSelectionTextFragment fragment,
+        out MarkdownDocumentSelectionFragmentBase fragment,
         out Point localPoint)
     {
         fragment = null!;
@@ -966,7 +985,7 @@ public sealed class MarkdownDocumentView : UserControl
             return false;
         }
 
-        var fragments = new List<MarkdownSelectionTextFragment>(_selectionFragments.Count);
+        var fragments = new List<MarkdownDocumentSelectionFragmentBase>(_selectionFragments.Count);
         var candidates = new List<MarkdownFragmentHitTestCandidate>(_selectionFragments.Count);
 
         foreach (var candidateFragment in _selectionFragments)
@@ -994,7 +1013,7 @@ public sealed class MarkdownDocumentView : UserControl
         return true;
     }
 
-    private static Point ClampPointToFragment(MarkdownSelectionTextFragment fragment, Point point)
+    private static Point ClampPointToFragment(MarkdownDocumentSelectionFragmentBase fragment, Point point)
     {
         var width = Math.Max(fragment.Bounds.Width, 1);
         var height = Math.Max(fragment.Bounds.Height, 1);

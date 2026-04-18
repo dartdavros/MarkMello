@@ -8,11 +8,9 @@ using MarkMello.Domain;
 
 namespace MarkMello.Presentation.Views.Markdown;
 
-internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
+internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionFragmentBase
 {
     private MarkdownStyledText _styledText = MarkdownStyledText.Empty;
-    private DocumentTextRange _documentRange = DocumentTextRange.Empty;
-    private DocumentTextRange _selectionRange = DocumentTextRange.Empty;
     private FontFamily _fontFamily = FontFamily.Default;
     private IBrush? _baseForeground;
     private double _letterSpacing;
@@ -46,31 +44,6 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             _styledText = value ?? MarkdownStyledText.Empty;
             InvalidateTextLayout();
             InvalidateMeasure();
-            InvalidateVisual();
-        }
-    }
-
-    public DocumentTextRange DocumentRange
-    {
-        get => _documentRange;
-        set
-        {
-            _documentRange = value;
-            InvalidateVisual();
-        }
-    }
-
-    public DocumentTextRange SelectionRange
-    {
-        get => _selectionRange;
-        set
-        {
-            if (_selectionRange == value)
-            {
-                return;
-            }
-
-            _selectionRange = value;
             InvalidateVisual();
         }
     }
@@ -214,13 +187,13 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         layout.Draw(context);
     }
 
-    public int GetDocumentOffset(Point localPoint)
+    public override int GetDocumentOffset(Point localPoint)
     {
         var localOffset = GetLocalTextOffset(localPoint, preferPreviousCharacterAtBoundary: false);
         return Math.Clamp(DocumentRange.Start + localOffset, DocumentRange.Start, DocumentRange.End);
     }
 
-    public DocumentTextRange GetDocumentWordRange(Point localPoint)
+    public override DocumentTextRange GetDocumentWordRange(Point localPoint)
     {
         if (StyledText.Text.Length == 0 || DocumentRange.IsEmpty)
         {
@@ -239,7 +212,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             : new DocumentTextRange(DocumentRange.Start + localRange.Start, DocumentRange.Start + localRange.End);
     }
 
-    public bool TryGetLinkAt(Point localPoint, out MarkdownLinkSpan linkSpan)
+    public override bool TryGetLinkAt(Point localPoint, out MarkdownLinkSpan linkSpan)
     {
         linkSpan = default;
         if (StyledText.Links.Count == 0)
@@ -425,7 +398,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         return availableWidth;
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         ActualThemeVariantChanged -= OnActualThemeVariantChanged;
         ResourcesChanged -= OnResourcesChanged;

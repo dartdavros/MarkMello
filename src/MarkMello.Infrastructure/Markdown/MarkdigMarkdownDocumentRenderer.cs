@@ -259,6 +259,15 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 target.Add(new MarkdownCodeInline(code.Content.ToString()));
                 return;
 
+            case LinkInline link when link.IsImage:
+                var altInlines = ConvertInlines(link);
+                var altText = ExtractPlainText(altInlines);
+                target.Add(new MarkdownImageInline(
+                    NormalizeNullable(link.Url) ?? string.Empty,
+                    string.IsNullOrWhiteSpace(altText) ? null : altText,
+                    NormalizeNullable(link.Title)));
+                return;
+
             case LinkInline link when !link.IsImage:
                 var linkText = ConvertInlines(link);
                 target.Add(new MarkdownLinkInline(
@@ -366,6 +375,9 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
             case MarkdownCodeInline code:
                 builder.Append(code.Code);
                 break;
+            case MarkdownImageInline image:
+                builder.Append(GetImageInlinePlainText(image));
+                break;
             case MarkdownLinkInline link:
                 if (link.Inlines.Count > 0)
                 {
@@ -388,6 +400,21 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         {
             AppendPlainText(inline, builder);
         }
+    }
+
+    private static string GetImageInlinePlainText(MarkdownImageInline image)
+    {
+        if (!string.IsNullOrWhiteSpace(image.AltText))
+        {
+            return image.AltText;
+        }
+
+        if (!string.IsNullOrWhiteSpace(image.Title))
+        {
+            return image.Title;
+        }
+
+        return string.IsNullOrWhiteSpace(image.Url) ? "image" : image.Url;
     }
 
     private static string? NormalizeNullable(string? value)
