@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.RegularExpressions;
 using Markdig;
 using MarkdigMarkdown = Markdig.Markdown;
 using Markdig.Extensions.Tables;
@@ -85,10 +87,18 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 return;
 
             case HtmlBlock htmlBlock:
-                var htmlText = ExtractLeafText(htmlBlock);
-                if (!string.IsNullOrWhiteSpace(htmlText))
+                // We intentionally do NOT switch on htmlBlock.Type here --
+                // Markdig's HtmlBlockType enum has changed names across
+                // versions (ScriptBlock, ScriptTag, ScriptPreOrStyle...).
+                // Instead, HtmlToPlainText strips scripts, styles, comments
+                // and CDATA blocks by content, which is stable regardless
+                // of Markdig's internal classification.
+                var plainText = HtmlToPlainText(htmlBlock.Lines.ToString());
+                if (!string.IsNullOrWhiteSpace(plainText))
                 {
-                    target.Add(new MarkdownCodeBlock("html", htmlText));
+                    target.Add(new MarkdownParagraphBlock([
+                        new MarkdownTextInline(plainText)
+                    ]));
                 }
                 return;
 
@@ -267,6 +277,18 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 }
                 return;
 
+            case HtmlEntityInline entityInline:
+                var decoded = entityInline.Transcoded.ToString();
+                if (!string.IsNullOrEmpty(decoded))
+                {
+                    target.Add(new MarkdownTextInline(decoded));
+                }
+                return;
+
+            case HtmlInline htmlInline:
+                HandleInlineHtmlTag(htmlInline.Tag, target);
+                return;
+
             case ContainerInline nested:
                 foreach (var child in ConvertInlines(nested))
                 {
@@ -368,4 +390,134 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
 
     private static string? NormalizeNullable(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    // --- HTML handling ----------------------------------------------------
+
+    private static readonly Regex ImgTagPattern = new(
+        @"<img\b[^>]*/?>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex AltAttrPattern = new(
+        @"\balt\s*=\s*(?:""([^""]*)""|'([^']*)')",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex LineBreakTagPattern = new(
+        @"^<br\b[^>]*/?>$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex AnyTagPattern = new(
+        @"<[^>]+>",
+        RegexOptions.Compiled);
+
+    private static readonly Regex WhitespacePattern = new(
+        @"\s+",
+        RegexOptions.Compiled);
+
+    // Patterns that must strip their *entire* body, not just the opening/closing
+    // tags. If we only stripped <script> without its content we would leak
+    // executable code text into the reading view.
+    private static readonly Regex ScriptBodyPattern = new(
+        @"<script\b[^>]*>.*?</script\s*>",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+
+    private static readonly Regex StyleBodyPattern = new(
+        @"<style\b[^>]*>.*?</style\s*>",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+
+    private static readonly Regex CommentBodyPattern = new(
+        @"<!--.*?-->",
+        RegexOptions.Singleline | RegexOptions.Compiled);
+
+    private static readonly Regex CDataBodyPattern = new(
+        @"<!\[CDATA\[.*?\]\]>",
+        RegexOptions.Singleline | RegexOptions.Compiled);
+
+    private static readonly Regex ProcessingInstructionPattern = new(
+        @"<\?.*?\?>",
+        RegexOptions.Singleline | RegexOptions.Compiled);
+
+    private static readonly Regex DoctypePattern = new(
+        @"<!DOCTYPE\b[^>]*>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Converts an HTML block body to plain text suitable for rendering inside a
+    /// Markdown paragraph. Images are preserved as [image: alt] placeholders, all
+    /// other tags are stripped, and HTML entities are decoded. Whitespace collapses.
+    /// </summary>
+    private static string HtmlToPlainText(string html)
+    {
+        if (string.IsNullOrEmpty(html))
+        {
+            return string.Empty;
+        }
+
+        // 0) Drop things whose *content* must not appear in the viewer at all,
+        //    not just their surrounding tags: script bodies, style rules,
+        //    comments, CDATA, processing instructions, doctype.
+        //    Doing this by content (not by Markdig's HtmlBlockType enum) keeps
+        //    the code independent of Markdig version-specific enum names.
+        var scrubbed = html;
+        scrubbed = ScriptBodyPattern.Replace(scrubbed, string.Empty);
+        scrubbed = StyleBodyPattern.Replace(scrubbed, string.Empty);
+        scrubbed = CommentBodyPattern.Replace(scrubbed, string.Empty);
+        scrubbed = CDataBodyPattern.Replace(scrubbed, string.Empty);
+        scrubbed = ProcessingInstructionPattern.Replace(scrubbed, string.Empty);
+        scrubbed = DoctypePattern.Replace(scrubbed, string.Empty);
+
+        // 1) Replace <img> with a readable placeholder so the user sees that an
+        //    image was present even though we don't render images yet.
+        var withImagePlaceholders = ImgTagPattern.Replace(scrubbed, m => FormatImagePlaceholder(m.Value));
+
+        // 2) Strip every remaining tag (including <picture>, <source>, <div>, <p>, ...).
+        var tagsStripped = AnyTagPattern.Replace(withImagePlaceholders, " ");
+
+        // 3) Decode HTML entities (&amp; -> &, &nbsp; -> non-breaking space, ...).
+        var decoded = WebUtility.HtmlDecode(tagsStripped);
+
+        // 4) Collapse runs of whitespace to a single space and trim.
+        return WhitespacePattern.Replace(decoded, " ").Trim();
+    }
+
+    private static void HandleInlineHtmlTag(string tag, List<MarkdownInline> target)
+    {
+        if (string.IsNullOrEmpty(tag))
+        {
+            return;
+        }
+
+        if (LineBreakTagPattern.IsMatch(tag))
+        {
+            // <br>, <br/>, <br /> should preserve the author's intended line break.
+            target.Add(new MarkdownLineBreakInline());
+            return;
+        }
+
+        if (ImgTagPattern.IsMatch(tag))
+        {
+            target.Add(new MarkdownTextInline(FormatImagePlaceholder(tag)));
+            return;
+        }
+
+        // Generic container/opener/closer tags (<b>, </b>, <span>, ...): drop them.
+        // The surrounding literal inlines already carry the visible text, so
+        // skipping the tag text is equivalent to "strip tags, keep content".
+    }
+
+    private static string FormatImagePlaceholder(string imgTag)
+    {
+        var altMatch = AltAttrPattern.Match(imgTag);
+        if (altMatch.Success)
+        {
+            var alt = altMatch.Groups[1].Success
+                ? altMatch.Groups[1].Value
+                : altMatch.Groups[2].Value;
+            if (!string.IsNullOrWhiteSpace(alt))
+            {
+                return $"[image: {alt}]";
+            }
+        }
+
+        return "[image]";
+    }
 }

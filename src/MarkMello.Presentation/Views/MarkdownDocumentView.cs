@@ -64,9 +64,26 @@ public sealed class MarkdownDocumentView : UserControl
         PointerReleased += OnPointerReleased;
         PointerCaptureLost += OnPointerCaptureLost;
 
+        // Suppress outer ScrollViewer auto-scroll that would otherwise happen
+        // when this (document-sized) control becomes focused. The event
+        // bubbles up from the Focus() call; we swallow it ourselves.
+        AddHandler(RequestBringIntoViewEvent, OnRequestBringIntoView, RoutingStrategies.Bubble);
+
         Content = _root;
 
         ContextMenu = BuildContextMenu();
+    }
+
+    private void OnRequestBringIntoView(object? sender, RequestBringIntoViewEventArgs e)
+    {
+        // If the request originates on this control itself (e.g. from focus
+        // change during a selection gesture), there is nothing to bring into
+        // view -- the document already is the scroll content. Allowing it to
+        // bubble causes the ScrollViewer to jump to the top of our bounds.
+        if (ReferenceEquals(e.TargetObject, this))
+        {
+            e.Handled = true;
+        }
     }
 
     public RenderedMarkdownDocument? Document
@@ -169,13 +186,13 @@ public sealed class MarkdownDocumentView : UserControl
         _selectionFragments.Clear();
     }
 
-    private Control BuildBlock(MarkdownBlock block, string path, bool nested)
+    private Control BuildBlock(MarkdownBlock block, string path, bool nested, bool insideQuote = false)
         => block switch
         {
             MarkdownHeadingBlock heading => BuildHeading(heading, path),
-            MarkdownParagraphBlock paragraph => BuildParagraph(paragraph, path, nested),
+            MarkdownParagraphBlock paragraph => BuildParagraph(paragraph, path, nested, insideQuote),
             MarkdownQuoteBlock quote => BuildQuote(quote, path),
-            MarkdownListBlock list => BuildList(list, path),
+            MarkdownListBlock list => BuildList(list, path, insideQuote),
             MarkdownHorizontalRuleBlock => BuildHorizontalRule(),
             MarkdownCodeBlock code => BuildCodeBlock(code, path),
             MarkdownTableBlock table => BuildTable(table, path),
@@ -185,11 +202,27 @@ public sealed class MarkdownDocumentView : UserControl
     private Control BuildHeading(MarkdownHeadingBlock block, string path)
     {
         var fontSize = GetHeadingFontSize(block.Level);
-        var lineHeight = Math.Max(fontSize * 1.2, fontSize + 4);
-        var margin = block.Level <= 2
-            ? new Thickness(0, 0, 0, 22)
-            : new Thickness(0, 10, 0, 16);
-        var weight = block.Level <= 2 ? FontWeight.SemiBold : FontWeight.Bold;
+        var lineHeight = Math.Max(fontSize * 1.25, fontSize + 4);
+        var margin = block.Level == 1
+            ? new Thickness(0, 0, 0, 10)
+            : block.Level == 2
+                ? new Thickness(0, 28, 0, 14)
+                : new Thickness(0, 18, 0, 10);
+
+        // Design: h1 -> 700, h2+ -> 600. Previous code had this inverted.
+        var weight = block.Level == 1 ? FontWeight.Bold : FontWeight.SemiBold;
+
+        // Tighter tracking at larger sizes, matching -0.025em / -0.02em / -0.01em.
+        var letterSpacing = block.Level switch
+        {
+            1 => fontSize * -0.025,
+            2 => fontSize * -0.02,
+            3 => fontSize * -0.01,
+            _ => 0d
+        };
+
+        // h5 / h6 render with the soft text colour in the design.
+        var baseForeground = block.Level >= 5 ? LookupBrush("MmTextSoftBrush") : null;
 
         return BuildSelectionFragment(
             path,
@@ -199,11 +232,16 @@ public sealed class MarkdownDocumentView : UserControl
             lineHeight,
             weight,
             FontStyle.Normal,
-            fallbackClassName: "mm-md-heading");
+            fallbackClassName: "mm-md-heading",
+            baseForeground: baseForeground,
+            letterSpacing: letterSpacing);
     }
 
-    private Control BuildParagraph(MarkdownParagraphBlock block, string path, bool nested)
+    private Control BuildParagraph(MarkdownParagraphBlock block, string path, bool nested, bool insideQuote)
     {
+        var fontStyle = insideQuote ? FontStyle.Italic : FontStyle.Normal;
+        var baseForeground = insideQuote ? LookupBrush("MmTextSoftBrush") : null;
+
         return BuildSelectionFragment(
             path,
             block.Inlines,
@@ -211,8 +249,9 @@ public sealed class MarkdownDocumentView : UserControl
             ReadingPreferences.FontSize,
             GetBodyLineHeight(),
             FontWeight.Normal,
-            FontStyle.Normal,
-            fallbackClassName: "mm-md-paragraph");
+            fontStyle,
+            fallbackClassName: "mm-md-paragraph",
+            baseForeground: baseForeground);
     }
 
     private Border BuildQuote(MarkdownQuoteBlock block, string path)
@@ -225,7 +264,9 @@ public sealed class MarkdownDocumentView : UserControl
 
         for (var index = 0; index < block.Blocks.Count; index++)
         {
-            stack.Children.Add(BuildBlock(block.Blocks[index], $"{path}.b{index}", nested: true));
+            // Every descendant of this quote receives insideQuote: true so
+            // nested lists and paragraphs pick up the italic/soft treatment.
+            stack.Children.Add(BuildBlock(block.Blocks[index], $"{path}.b{index}", nested: true, insideQuote: true));
         }
 
         return new Border
@@ -235,7 +276,7 @@ public sealed class MarkdownDocumentView : UserControl
         };
     }
 
-    private StackPanel BuildList(MarkdownListBlock block, string path)
+    private StackPanel BuildList(MarkdownListBlock block, string path, bool insideQuote = false)
     {
         var panel = new StackPanel
         {
@@ -246,13 +287,13 @@ public sealed class MarkdownDocumentView : UserControl
 
         for (var index = 0; index < block.Items.Count; index++)
         {
-            panel.Children.Add(BuildListItem(block, block.Items[index], index, $"{path}.i{index}"));
+            panel.Children.Add(BuildListItem(block, block.Items[index], index, $"{path}.i{index}", insideQuote));
         }
 
         return panel;
     }
 
-    private Grid BuildListItem(MarkdownListBlock list, MarkdownListItem item, int index, string path)
+    private Grid BuildListItem(MarkdownListBlock list, MarkdownListItem item, int index, string path, bool insideQuote = false)
     {
         var bullet = new TextBlock
         {
@@ -274,7 +315,7 @@ public sealed class MarkdownDocumentView : UserControl
 
         for (var blockIndex = 0; blockIndex < item.Blocks.Count; blockIndex++)
         {
-            content.Children.Add(BuildBlock(item.Blocks[blockIndex], $"{path}.b{blockIndex}", nested: true));
+            content.Children.Add(BuildBlock(item.Blocks[blockIndex], $"{path}.b{blockIndex}", nested: true, insideQuote: insideQuote));
         }
 
         var row = new Grid
@@ -294,11 +335,21 @@ public sealed class MarkdownDocumentView : UserControl
         return row;
     }
 
-    private static Border BuildHorizontalRule()
-        => new()
+    private static Grid BuildHorizontalRule()
+    {
+        // Design: 40% wide, horizontally centered. Avalonia has no percentage
+        // widths, so we model it as a three-column grid in 3*,4*,3* ratio with
+        // the rule in the middle column.
+        var grid = new Grid
         {
-            Classes = { "mm-md-hr" }
+            ColumnDefinitions = new ColumnDefinitions("3*,4*,3*"),
+            Margin = new Thickness(0, 32, 0, 32),
         };
+        var line = new Border { Classes = { "mm-md-hr" } };
+        Grid.SetColumn(line, 1);
+        grid.Children.Add(line);
+        return grid;
+    }
 
     private Border BuildCodeBlock(MarkdownCodeBlock block, string path)
     {
@@ -402,15 +453,40 @@ public sealed class MarkdownDocumentView : UserControl
                 ? cells[columnIndex]
                 : new MarkdownTableCell(Array.Empty<MarkdownInline>());
 
-            var content = BuildSelectionFragment(
-                $"{pathPrefix}{columnIndex}",
-                cell.Inlines,
-                margin: default,
-                fontSize: ReadingPreferences.FontSize,
-                lineHeight: GetBodyLineHeight(),
-                fontWeight: isHeader ? FontWeight.SemiBold : FontWeight.Normal,
-                fontStyle: FontStyle.Normal,
-                fallbackClassName: isHeader ? "mm-md-table-header" : "mm-md-table-text");
+            Control content;
+            if (isHeader)
+            {
+                // Design: 0.85em size, semibold, soft colour, 0.05em letter-spacing.
+                // Note: design also specifies "text-transform: uppercase", which
+                // Avalonia does not support without mutating the characters
+                // themselves (and breaking copy semantics). We therefore keep
+                // the original case and approximate the visual weight via
+                // letter-spacing + soft colour + smaller size.
+                var headerSize = ReadingPreferences.FontSize * 0.85;
+                content = BuildSelectionFragment(
+                    $"{pathPrefix}{columnIndex}",
+                    cell.Inlines,
+                    margin: default,
+                    fontSize: headerSize,
+                    lineHeight: Math.Max(headerSize * 1.45, headerSize + 4),
+                    fontWeight: FontWeight.SemiBold,
+                    fontStyle: FontStyle.Normal,
+                    fallbackClassName: "mm-md-table-header",
+                    baseForeground: LookupBrush("MmTextSoftBrush"),
+                    letterSpacing: headerSize * 0.05);
+            }
+            else
+            {
+                content = BuildSelectionFragment(
+                    $"{pathPrefix}{columnIndex}",
+                    cell.Inlines,
+                    margin: default,
+                    fontSize: ReadingPreferences.FontSize,
+                    lineHeight: GetBodyLineHeight(),
+                    fontWeight: FontWeight.Normal,
+                    fontStyle: FontStyle.Normal,
+                    fallbackClassName: "mm-md-table-text");
+            }
 
             var border = new Border
             {
@@ -448,7 +524,9 @@ public sealed class MarkdownDocumentView : UserControl
         FontStyle fontStyle,
         string fallbackClassName,
         FontFamily? baseFontFamily = null,
-        TextWrapping textWrapping = TextWrapping.Wrap)
+        TextWrapping textWrapping = TextWrapping.Wrap,
+        IBrush? baseForeground = null,
+        double letterSpacing = 0)
     {
         var styled = MarkdownStyledText.FromInlines(inlines);
         if (styled.Text.Length == 0)
@@ -472,10 +550,16 @@ public sealed class MarkdownDocumentView : UserControl
                 FontWeight = fontWeight,
                 FontStyle = fontStyle,
                 LineHeight = lineHeight,
+                LetterSpacing = letterSpacing,
                 TextWrapping = textWrapping,
                 UseLayoutRounding = true,
                 Classes = { fallbackClassName }
             };
+
+            if (baseForeground is not null)
+            {
+                fallback.Foreground = baseForeground;
+            }
 
             return fallback;
         }
@@ -490,6 +574,8 @@ public sealed class MarkdownDocumentView : UserControl
             BaseFontWeight = fontWeight,
             BaseFontStyle = fontStyle,
             BaseLineHeight = lineHeight,
+            BaseForeground = baseForeground,
+            BaseLetterSpacing = letterSpacing,
             LayoutTextWrapping = textWrapping,
             Cursor = TryCreateCursor(StandardCursorType.Ibeam)
         };
@@ -514,7 +600,9 @@ public sealed class MarkdownDocumentView : UserControl
             return;
         }
 
-        Focus();
+        // Focus via NavigationMethod.Pointer so the act of starting a selection
+        // does not raise RequestBringIntoView and make the ScrollViewer jump.
+        Focus(NavigationMethod.Pointer);
 
         var localPosition = e.GetPosition(fragment);
         if (e.ClickCount >= 3)
@@ -716,7 +804,7 @@ public sealed class MarkdownDocumentView : UserControl
 
     private void OnSelectAllMenuItemClick(object? sender, RoutedEventArgs e)
     {
-        Focus();
+        Focus(NavigationMethod.Pointer);
         SelectAll();
     }
 
@@ -904,12 +992,18 @@ public sealed class MarkdownDocumentView : UserControl
         var baseSize = ReadingPreferences.FontSize;
         return level switch
         {
-            1 => baseSize * 2.0,
-            2 => baseSize * 1.65,
-            3 => baseSize * 1.4,
-            4 => baseSize * 1.2,
-            5 => baseSize * 1.05,
+            1 => baseSize * 2.1,
+            2 => baseSize * 1.5,
+            3 => baseSize * 1.2,
+            4 => baseSize * 1.05,
+            5 => baseSize * 0.95,
+            6 => baseSize * 0.95,
             _ => baseSize
         };
     }
+
+    private IBrush? LookupBrush(string resourceKey)
+        => this.TryFindResource(resourceKey, ActualThemeVariant, out var value) && value is IBrush brush
+            ? brush
+            : null;
 }

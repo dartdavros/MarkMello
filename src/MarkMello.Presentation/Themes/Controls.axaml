@@ -159,13 +159,12 @@
 
   <Style Selector="Border.mm-md-quote">
     <Setter Property="Margin" Value="0,0,0,20" />
-    <Setter Property="Padding" Value="16,2,0,2" />
-    <Setter Property="BorderThickness" Value="3,0,0,0" />
+    <Setter Property="Padding" Value="20,4,0,4" />
+    <Setter Property="BorderThickness" Value="2,0,0,0" />
     <Setter Property="BorderBrush" Value="{DynamicResource MmQuoteBarBrush}" />
   </Style>
 
   <Style Selector="Border.mm-md-hr">
-    <Setter Property="Margin" Value="0,6,0,24" />
     <Setter Property="Height" Value="1" />
     <Setter Property="Background" Value="{DynamicResource MmBorderBrush}" />
   </Style>

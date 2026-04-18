@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Themes\**\*.axaml" />
+    <AvaloniaResource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 
 </Project>

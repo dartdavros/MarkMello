@@ -16,6 +16,8 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
     private DocumentTextRange _documentRange = DocumentTextRange.Empty;
     private DocumentTextRange _selectionRange = DocumentTextRange.Empty;
     private FontFamily _fontFamily = FontFamily.Default;
+    private IBrush? _baseForeground;
+    private double _letterSpacing;
     private double _fontSize = 16;
     private FontWeight _fontWeight = FontWeight.Normal;
     private FontStyle _fontStyle = FontStyle.Normal;
@@ -147,6 +149,48 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         }
     }
 
+    /// <summary>
+    /// Optional override for the body text colour. When null, falls back to
+    /// MmTextBrush from the theme. Links always render with this colour;
+    /// their accent comes from the underline stroke only.
+    /// </summary>
+    public IBrush? BaseForeground
+    {
+        get => _baseForeground;
+        set
+        {
+            if (ReferenceEquals(_baseForeground, value))
+            {
+                return;
+            }
+
+            _baseForeground = value;
+            InvalidateTextLayout();
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>
+    /// Letter spacing in pixels applied to the base text run. Per-span overrides
+    /// (e.g. code) inherit it. Positive values expand, negative values tighten.
+    /// </summary>
+    public double BaseLetterSpacing
+    {
+        get => _letterSpacing;
+        set
+        {
+            if (Math.Abs(_letterSpacing - value) < 0.01)
+            {
+                return;
+            }
+
+            _letterSpacing = value;
+            InvalidateTextLayout();
+            InvalidateMeasure();
+            InvalidateVisual();
+        }
+    }
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var layout = GetOrCreateTextLayout(availableSize.Width);
@@ -162,6 +206,12 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         base.Render(context);
 
         var layout = GetOrCreateTextLayout(Bounds.Width);
+
+        // Paint order (bottom -> top):
+        //   1. Inline code "pill" backgrounds (rounded rect per span).
+        //   2. Selection highlight (on top of code backgrounds, behind glyphs).
+        //   3. Text glyphs themselves.
+        DrawInlineCodeBackgrounds(context, layout);
         DrawSelection(context, layout);
         layout.Draw(context, default);
     }
@@ -283,7 +333,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             StyledText.Text,
             new Typeface(BaseFontFamily, BaseFontStyle, BaseFontWeight),
             BaseFontSize,
-            ResolveTextBrush(),
+            ResolveBaseTextBrush(),
             TextAlignment.Left,
             LayoutTextWrapping,
             textTrimming: null,
@@ -292,7 +342,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             maxWidth: normalizedWidth,
             maxHeight: double.PositiveInfinity,
             lineHeight: double.IsNaN(BaseLineHeight) ? double.NaN : BaseLineHeight,
-            letterSpacing: 0,
+            letterSpacing: _letterSpacing,
             maxLines: 0,
             textStyleOverrides: BuildStyleOverrides());
 
@@ -318,9 +368,13 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             var properties = new GenericTextRunProperties(
                 CreateTypeface(span.Style),
                 BaseFontSize,
-                span.Style.IsLink ? TextDecorations.Underline : null,
-                ResolveForegroundBrush(span.Style),
-                ResolveBackgroundBrush(span.Style),
+                span.Style.IsLink ? BuildLinkTextDecorations() : null,
+                // All spans (plain, bold, italic, link, code) share the base
+                // body text colour. Link accent is the underline stroke, and
+                // inline code's pill is painted in Render, not here, so no
+                // per-rune background fill is needed.
+                ResolveBaseTextBrush(),
+                null,
                 BaselineAlignment.Baseline,
                 CultureInfo.CurrentUICulture);
 
@@ -353,18 +407,75 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         return new FontFamily("Cascadia Code, Consolas, Menlo, monospace");
     }
 
-    private IBrush ResolveForegroundBrush(MarkdownInlineStyleState style)
-        => style.IsLink
-            ? ResolveOptionalBrush("MmAccentBrush") ?? ResolveTextBrush()
-            : ResolveTextBrush();
+    /// <summary>
+    /// Links keep the body text colour; their accent is expressed by a 1px
+    /// underline drawn in MmAccentBrush, positioned a bit below the baseline.
+    /// </summary>
+    private TextDecorationCollection BuildLinkTextDecorations()
+    {
+        var stroke = ResolveOptionalBrush("MmAccentBrush") ?? ResolveBaseTextBrush();
+        return new TextDecorationCollection
+        {
+            new TextDecoration
+            {
+                Location = TextDecorationLocation.Underline,
+                Stroke = stroke,
+                StrokeThickness = 1,
+                StrokeThicknessUnit = TextDecorationUnit.Pixel,
+                StrokeOffset = 2,
+                StrokeOffsetUnit = TextDecorationUnit.Pixel,
+            }
+        };
+    }
 
-    private IBrush? ResolveBackgroundBrush(MarkdownInlineStyleState style)
-        => style.IsCode
-            ? ResolveOptionalBrush("MmSurfaceBrush")
-            : null;
+    /// <summary>
+    /// Base text colour for this fragment. If an explicit BaseForeground is
+    /// supplied (e.g. soft text inside a blockquote or a small heading),
+    /// it wins. Otherwise we use the standard body-text brush.
+    /// </summary>
+    private IBrush ResolveBaseTextBrush()
+        => BaseForeground ?? ResolveOptionalBrush("MmTextBrush") ?? Brushes.Black;
 
-    private IBrush ResolveTextBrush()
-        => ResolveOptionalBrush("MmTextBrush") ?? Brushes.Black;
+    private void DrawInlineCodeBackgrounds(DrawingContext context, TextLayout layout)
+    {
+        if (StyledText.Spans.Count == 0)
+        {
+            return;
+        }
+
+        var fill = ResolveOptionalBrush("MmCodeBackgroundBrush");
+        if (fill is null)
+        {
+            return;
+        }
+
+        var borderBrush = ResolveOptionalBrush("MmCodeBorderBrush");
+        var pen = borderBrush is null ? null : new Pen(borderBrush, 1);
+
+        // Horizontal inflation mirrors design's 1px 6px padding on the pill.
+        const double horizontalPad = 4;
+        const double verticalPad = 0.5;
+        const double cornerRadius = 4;
+
+        foreach (var span in StyledText.Spans)
+        {
+            if (!span.Style.IsCode || span.Range.IsEmpty)
+            {
+                continue;
+            }
+
+            foreach (var rect in layout.HitTestTextRange(span.Range.Start, span.Range.Length))
+            {
+                var inflated = new Rect(
+                    rect.X - horizontalPad,
+                    rect.Y - verticalPad,
+                    rect.Width + horizontalPad * 2,
+                    rect.Height + verticalPad * 2);
+
+                context.DrawRectangle(fill, pen, inflated, cornerRadius, cornerRadius);
+            }
+        }
+    }
 
     private IBrush? ResolveOptionalBrush(string resourceKey)
     {
