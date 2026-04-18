@@ -134,6 +134,10 @@ public sealed class MarkdownDocumentTextMap
                 builder.Append(code.Code);
                 break;
 
+            case MarkdownImageInline image:
+                builder.Append(GetImageInlinePlainText(image));
+                break;
+
             case MarkdownLinkInline link:
                 if (link.Inlines.Count > 0)
                 {
@@ -149,6 +153,21 @@ public sealed class MarkdownDocumentTextMap
                 builder.Append('\n');
                 break;
         }
+    }
+
+    private static string GetImageInlinePlainText(MarkdownImageInline image)
+    {
+        if (!string.IsNullOrWhiteSpace(image.AltText))
+        {
+            return image.AltText;
+        }
+
+        if (!string.IsNullOrWhiteSpace(image.Title))
+        {
+            return image.Title;
+        }
+
+        return string.IsNullOrWhiteSpace(image.Url) ? "image" : image.Url;
     }
 
     private sealed class Builder

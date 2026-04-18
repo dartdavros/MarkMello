@@ -69,6 +69,10 @@ internal sealed record MarkdownStyledText(
                 AppendStyledText(code.Code, builder, spans, style with { IsCode = true });
                 return;
 
+            case MarkdownImageInline image:
+                AppendStyledText(GetImageInlinePlainText(image), builder, spans, style);
+                return;
+
             case MarkdownLinkInline link:
                 AppendLink(link, builder, spans, links, style with { IsLink = true });
                 return;
@@ -77,6 +81,21 @@ internal sealed record MarkdownStyledText(
                 AppendStyledText("\n", builder, spans, style);
                 return;
         }
+    }
+
+    private static string GetImageInlinePlainText(MarkdownImageInline image)
+    {
+        if (!string.IsNullOrWhiteSpace(image.AltText))
+        {
+            return image.AltText;
+        }
+
+        if (!string.IsNullOrWhiteSpace(image.Title))
+        {
+            return image.Title;
+        }
+
+        return string.IsNullOrWhiteSpace(image.Url) ? "image" : image.Url;
     }
 
     private static void AppendLink(
