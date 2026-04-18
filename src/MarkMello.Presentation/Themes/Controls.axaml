@@ -197,23 +197,32 @@
   </Style>
 
   <Style Selector="Border.mm-md-table">
-    <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
-    <Setter Property="CornerRadius" Value="8" />
-    <Setter Property="ClipToBounds" Value="True" />
+    <!--
+      Border-collapse model matching MarkMelloDesign/styles.css `.mm-table`:
+      no outer frame, no rounded corners. Visual structure is expressed
+      purely through per-cell bottom borders below.
+    -->
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="ClipToBounds" Value="False" />
   </Style>
 
   <Style Selector="Border.mm-md-table-header-cell">
-    <Setter Property="Padding" Value="12,10" />
-    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
-    <Setter Property="BorderThickness" Value="0,0,1,1" />
+    <Setter Property="Padding" Value="14,10" />
+    <!-- Stronger divider directly under the header row, like `.mm-table th` border-bottom. -->
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
     <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
   </Style>
 
   <Style Selector="Border.mm-md-table-cell">
-    <Setter Property="Padding" Value="12,10" />
-    <Setter Property="BorderThickness" Value="0,0,1,1" />
-    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="Padding" Value="14,10" />
+    <!-- Soft divider between data rows, like `.mm-table td` border-bottom. -->
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+  </Style>
+
+  <!-- Bottom row: no trailing divider. -->
+  <Style Selector="Border.mm-md-table-cell.mm-md-table-cell-last">
+    <Setter Property="BorderThickness" Value="0" />
   </Style>
 
   <Style Selector="TextBlock.mm-md-table-header">

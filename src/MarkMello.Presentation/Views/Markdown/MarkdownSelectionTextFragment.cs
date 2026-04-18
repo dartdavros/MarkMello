@@ -452,10 +452,14 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         var borderBrush = ResolveOptionalBrush("MmCodeBorderBrush");
         var pen = borderBrush is null ? null : new Pen(borderBrush, 1);
 
-        // Horizontal inflation mirrors design's 1px 6px padding on the pill.
-        const double horizontalPad = 4;
-        const double verticalPad = 0.5;
-        const double cornerRadius = 4;
+        // Pill geometry: see ADR-0001 note -- because we can't widen the
+        // surrounding text flow without breaking document-wide selection,
+        // the pill is visually distinct only via a small lateral inflation
+        // of the glyph box. Vertical padding is kept at 0 so the pill
+        // height exactly matches the line box.
+        const double horizontalPad = 6;
+        const double verticalPad = 0;
+        const double cornerRadius = 3;
 
         foreach (var span in StyledText.Spans)
         {

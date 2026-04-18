@@ -22,7 +22,7 @@
   <FontFamily x:Key="MmDocumentSansFontFamily">Inter Tight, Segoe UI Variable, Segoe UI, Inter, system-ui, sans-serif</FontFamily>
   <FontFamily x:Key="MmDocumentMonoFontFamily">JetBrains Mono, Cascadia Code, Consolas, Menlo, monospace</FontFamily>
 
-  <sys:Double x:Key="MmDocumentFontSize">18</sys:Double>
+  <sys:Double x:Key="MmDocumentFontSize">16</sys:Double>
   <sys:Double x:Key="MmDocumentLineHeight">1.7</sys:Double>
   <sys:Double x:Key="MmDocumentMaxWidth">720</sys:Double>
 
