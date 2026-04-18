@@ -4,13 +4,15 @@ using MarkMello.Application.Abstractions;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
+using System.Collections.Generic;
 
 namespace MarkMello.Presentation.ViewModels;
 
 /// <summary>
 /// View model главного окна. Отвечает за state machine (NoDocument/Viewing/LoadError),
-/// тему, команды open/reload, drag-overlay, reading progress, метрики Stage 3.
-/// Editor-specific properties отсутствуют — это constitution §4.
+/// тему, reading preferences, команды open/reload, drag-overlay, reading progress,
+/// метрики Stage 3 и компактную M4 settings panel. Editor-specific properties
+/// по-прежнему отсутствуют — это constitution §4.
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
@@ -75,6 +77,9 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _isDragHovering;
 
     [ObservableProperty]
+    private bool _isSettingsOpen;
+
+    [ObservableProperty]
     private double _readingProgress;
 
     [ObservableProperty]
@@ -111,6 +116,73 @@ public partial class MainWindowViewModel : ObservableObject
     public bool ShowCustomTitleBar => _showCustomTitleBar;
     public bool ShowsMoonThemeIcon => EffectiveTheme == ThemeMode.Light;
     public bool ShowsSunThemeIcon => EffectiveTheme == ThemeMode.Dark;
+    public IReadOnlyList<FontFamilyMode> FontFamilyModes { get; } = Enum.GetValues<FontFamilyMode>();
+
+    public FontFamilyMode SelectedFontFamilyMode
+    {
+        get => ReadingPreferences.FontFamily;
+        set
+        {
+            if (ReadingPreferences.FontFamily == value)
+            {
+                return;
+            }
+
+            ApplyReadingPreferences(ReadingPreferences with { FontFamily = value });
+        }
+    }
+
+    public double FontSizeSetting
+    {
+        get => ReadingPreferences.FontSize;
+        set
+        {
+            var fontSize = (int)Math.Round(value, MidpointRounding.AwayFromZero);
+            if (ReadingPreferences.FontSize == fontSize)
+            {
+                return;
+            }
+
+            ApplyReadingPreferences(ReadingPreferences with { FontSize = fontSize });
+        }
+    }
+
+    public double LineHeightSetting
+    {
+        get => ReadingPreferences.LineHeight;
+        set
+        {
+            var normalized = Math.Round(value / ReadingPreferences.LineHeightStep, MidpointRounding.AwayFromZero) * ReadingPreferences.LineHeightStep;
+            if (Math.Abs(ReadingPreferences.LineHeight - normalized) < 0.0001)
+            {
+                return;
+            }
+
+            ApplyReadingPreferences(ReadingPreferences with { LineHeight = normalized });
+        }
+    }
+
+    public double ContentWidthSetting
+    {
+        get => ReadingPreferences.ContentWidth;
+        set
+        {
+            var contentWidth = (int)Math.Round(value / ReadingPreferences.ContentWidthStep, MidpointRounding.AwayFromZero) * ReadingPreferences.ContentWidthStep;
+            if (ReadingPreferences.ContentWidth == contentWidth)
+            {
+                return;
+            }
+
+            ApplyReadingPreferences(ReadingPreferences with { ContentWidth = contentWidth });
+        }
+    }
+
+    public string FontSizeLabel => $"{ReadingPreferences.FontSize}px";
+    public string LineHeightLabel => $"{ReadingPreferences.LineHeight:0.00}x";
+    public string ContentWidthLabel => $"{ReadingPreferences.ContentWidth}px";
+    public string ThemeDescription => Theme == ThemeMode.System
+        ? "Theme follows the OS on first launch. The top-right toggle pins Light or Dark once you choose."
+        : $"Theme is pinned to {Theme.ToString().ToLowerInvariant()} and restored on startup.";
 
     public int WordCount
     {
@@ -206,8 +278,32 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleSettings()
+    {
+        IsSettingsOpen = !IsSettingsOpen;
+    }
+
+    [RelayCommand]
+    private void CloseSettings()
+    {
+        IsSettingsOpen = false;
+    }
+
+    [RelayCommand]
+    private void ResetReadingPreferences()
+    {
+        ApplyReadingPreferences(ReadingPreferences.Default);
+    }
+
+    [RelayCommand]
     private void ClearError()
     {
+        if (IsSettingsOpen)
+        {
+            IsSettingsOpen = false;
+            return;
+        }
+
         if (State == ViewState.LoadError)
         {
             State = Document is null ? ViewState.NoDocument : ViewState.Viewing;
@@ -303,5 +399,49 @@ public partial class MainWindowViewModel : ObservableObject
             // Invalid characters or permission failure -- not fatal for viewer path.
             return null;
         }
+    }
+
+    partial void OnReadingPreferencesChanged(ReadingPreferences value)
+    {
+        OnPropertyChanged(nameof(SelectedFontFamilyMode));
+        OnPropertyChanged(nameof(FontSizeSetting));
+        OnPropertyChanged(nameof(LineHeightSetting));
+        OnPropertyChanged(nameof(ContentWidthSetting));
+        OnPropertyChanged(nameof(FontSizeLabel));
+        OnPropertyChanged(nameof(LineHeightLabel));
+        OnPropertyChanged(nameof(ContentWidthLabel));
+    }
+
+    partial void OnThemeChanged(ThemeMode value)
+    {
+        OnPropertyChanged(nameof(ThemeDescription));
+    }
+
+    private void ApplyReadingPreferences(ReadingPreferences preferences)
+    {
+        var normalized = ReadingPreferences.Normalize(preferences);
+        if (normalized == ReadingPreferences)
+        {
+            return;
+        }
+
+        ReadingPreferences = normalized;
+        PersistReadingPreferences(normalized);
+    }
+
+    private void PersistReadingPreferences(ReadingPreferences preferences)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _settings.SavePreferencesAsync(preferences).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Persistence is best-effort; a failed save must not interrupt
+                // the viewer interaction loop.
+            }
+        });
     }
 }

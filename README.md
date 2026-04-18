@@ -4,15 +4,17 @@ Fast, viewer-first Markdown reader for the desktop. .NET 9 + Avalonia 12.
 
 ## Status
 
-**M1 + M2 — Viewer shell + file-first open path.**
+**M3 complete, M4 started — native markdown viewer + persisted reading settings.**
 
 - Custom title bar (Windows), native chrome (macOS / Linux)
 - States: Welcome / Viewing / LoadError / DragHovering
-- Hover-reveal top bar (theme toggle), status bar, reading progress
+- Hover-reveal top bar (theme toggle + reading settings), status bar, reading progress
 - Open file: `Ctrl+O`, drag & drop, command-line argument
 - Reload: `F5` / `Ctrl+R`
-- Theme cycle: System → Light → Dark → System (persisted in-memory; disk persistence — M4)
-- Reading surface: centered column + serif typography (raw text placeholder; markdown render — M3)
+- Theme behavior: first launch follows system theme; after explicit user choice the quick toggle switches between Light and Dark and restores that choice on the next launch
+- Native markdown viewer: headings, paragraphs, lists, quotes, hr, code, links, tables, images
+- Reading surface: centered column + serif typography, document-wide text selection, native Avalonia render path
+- Reading settings: `Ctrl+,` / `Cmd+,`, live font mode + size + line height + content width, safe JSON persistence in the platform config directory
 
 ## Solution layout
 
@@ -52,7 +54,7 @@ dotnet run --project .\src\MarkMello.Desktop\MarkMello.Desktop.csproj -- .\sampl
 .\src\MarkMello.Desktop\bin\Debug\net9.0\MarkMello.exe .\sample.md
 ```
 
-## Verification checklist (M1+M2 done when)
+## Verification checklist (viewer baseline)
 
 - [x] Solution собирается без warnings as errors
 - [x] `dotnet run` без аргументов открывает Welcome state
@@ -63,7 +65,9 @@ dotnet run --project .\src\MarkMello.Desktop\MarkMello.Desktop.csproj -- .\sampl
 - [x] `Esc` сбрасывает LoadError → возвращает в Welcome или Viewing
 - [x] `F5` / `Ctrl+R` перечитывает текущий файл
 - [x] Hover над окном проявляет top bar и status bar
-- [x] Theme toggle (◐ кнопка) циклит System → Light → Dark
+- [x] Theme toggle (◐ кнопка) использует системную тему на первом запуске, затем быстро переключает Light / Dark
+- [x] `Ctrl+,` / `Cmd+,` или кнопка `Aa` открывает settings panel
+- [x] Font mode / size / line height / content width применяются live и восстанавливаются при следующем запуске
 - [x] В консоли видны 3 stage'а: `AppBootstrap`, `FirstWindow`, `ReadableDocument`
 - [x] **Editor-зависимостей в графе DI нет** (constitution §4)
 
@@ -94,8 +98,8 @@ dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
 
 ## Roadmap
 
-См. `implementation-plan.md`. Дальше: **M3** — настоящий markdown renderer
-(Markdig parse layer + native Avalonia controls render layer).
+См. `implementation-plan.md`. Текущий следующий шаг: продолжать **M4** —
+дополировать settings UX и theme/preferences flow, затем переходить к **M5**.
 
 ## Architecture references
 

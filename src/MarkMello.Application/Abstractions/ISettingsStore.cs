@@ -3,8 +3,8 @@ using MarkMello.Domain;
 namespace MarkMello.Application.Abstractions;
 
 /// <summary>
-/// Хранилище пользовательских настроек. В M0 — in-memory заглушка.
-/// JSON-persistence в %APPDATA%/MarkMello (или платформенный аналог) приходит в M4.
+/// Хранилище пользовательских настроек. В M4 реализуется как маленький JSON-файл
+/// в платформенном config-каталоге с безопасным fallback на defaults.
 /// </summary>
 public interface ISettingsStore
 {

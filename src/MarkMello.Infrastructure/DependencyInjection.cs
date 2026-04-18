@@ -27,7 +27,7 @@ public static class DependencyInjection
         services.AddSingleton<IDocumentLoader, FileDocumentLoader>();
         services.AddSingleton<IMarkdownDocumentRenderer, MarkdigMarkdownDocumentRenderer>();
         services.AddSingleton<IImageSourceResolver, DefaultImageSourceResolver>();
-        services.AddSingleton<ISettingsStore, InMemorySettingsStore>();
+        services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<IPlatformServices, DefaultPlatformServices>();
         services.AddSingleton<ICommandLineActivation>(_ => new CommandLineActivation(commandLineArgs));
 

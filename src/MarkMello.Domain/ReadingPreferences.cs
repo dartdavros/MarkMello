@@ -13,6 +13,15 @@ public sealed record ReadingPreferences(
     double LineHeight,
     int ContentWidth)
 {
+    public const int MinFontSize = 14;
+    public const int MaxFontSize = 24;
+    public const double MinLineHeight = 1.45;
+    public const double MaxLineHeight = 2.05;
+    public const double LineHeightStep = 0.05;
+    public const int MinContentWidth = 640;
+    public const int MaxContentWidth = 1100;
+    public const int ContentWidthStep = 20;
+
     /// <summary>
     /// Безопасные значения по умолчанию. Используются при отсутствии или повреждении сохранённых настроек.
     /// </summary>
@@ -21,4 +30,47 @@ public sealed record ReadingPreferences(
         FontSize: 17,
         LineHeight: 1.7,
         ContentWidth: 800);
+
+    /// <summary>
+    /// Нормализует пользовательские настройки до безопасного и предсказуемого диапазона.
+    /// Используется для live-обновлений и восстановления из persistence.
+    /// </summary>
+    public static ReadingPreferences Normalize(ReadingPreferences? preferences)
+    {
+        if (preferences is null)
+        {
+            return Default;
+        }
+
+        var fontFamily = Enum.IsDefined(preferences.FontFamily)
+            ? preferences.FontFamily
+            : Default.FontFamily;
+
+        var fontSize = Math.Clamp(preferences.FontSize, MinFontSize, MaxFontSize);
+        var lineHeight = NormalizeLineHeight(preferences.LineHeight);
+        var contentWidth = NormalizeContentWidth(preferences.ContentWidth);
+
+        return new ReadingPreferences(fontFamily, fontSize, lineHeight, contentWidth);
+    }
+
+    public ReadingPreferences Normalize() => Normalize(this);
+
+    private static double NormalizeLineHeight(double value)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+        {
+            return Default.LineHeight;
+        }
+
+        var clamped = Math.Clamp(value, MinLineHeight, MaxLineHeight);
+        var rounded = Math.Round(clamped / LineHeightStep, MidpointRounding.AwayFromZero) * LineHeightStep;
+        return Math.Round(rounded, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static int NormalizeContentWidth(int value)
+    {
+        var clamped = Math.Clamp(value, MinContentWidth, MaxContentWidth);
+        var rounded = (int)Math.Round(clamped / (double)ContentWidthStep, MidpointRounding.AwayFromZero) * ContentWidthStep;
+        return Math.Clamp(rounded, MinContentWidth, MaxContentWidth);
+    }
 }

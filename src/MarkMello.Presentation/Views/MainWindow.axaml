@@ -21,6 +21,8 @@
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}" />
     <KeyBinding Gesture="Cmd+O" Command="{Binding OpenFileCommand}" />
+    <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding ToggleSettingsCommand}" />
+    <KeyBinding Gesture="Cmd+OemComma" Command="{Binding ToggleSettingsCommand}" />
     <KeyBinding Gesture="F5" Command="{Binding ReloadCommand}" />
     <KeyBinding Gesture="Ctrl+R" Command="{Binding ReloadCommand}" />
     <KeyBinding Gesture="Cmd+R" Command="{Binding ReloadCommand}" />
@@ -153,6 +155,15 @@
               Margin="0,12,16,0">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <Button Classes="topbar-ghost"
+                  Command="{Binding ToggleSettingsCommand}"
+                  ToolTip.Tip="Reading settings">
+            <TextBlock Text="Aa"
+                       FontFamily="{DynamicResource MmDocumentSansFontFamily}"
+                       FontSize="12"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource MmTextSoftBrush}" />
+          </Button>
+          <Button Classes="topbar-ghost"
                   Command="{Binding CycleThemeCommand}"
                   ToolTip.Tip="{Binding NextThemeHint}">
             <Grid Width="14" Height="14">
@@ -210,6 +221,114 @@
             </Grid>
           </Button>
         </StackPanel>
+      </Border>
+
+      <!-- Settings panel -->
+      <Border Classes="mm-settings-panel"
+              IsVisible="{Binding IsSettingsOpen}"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Top"
+              Margin="0,52,16,0"
+              Width="332"
+              Padding="16">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      MaxHeight="520">
+          <StackPanel Spacing="14">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="12">
+              <StackPanel Grid.Column="0"
+                          Spacing="4">
+                <TextBlock Classes="mm-settings-title"
+                           Text="Reading settings" />
+                <TextBlock Classes="mm-settings-subtitle"
+                           Text="Typography updates live and is restored safely on the next launch." />
+              </StackPanel>
+
+              <Button Grid.Column="1"
+                      Classes="topbar-ghost"
+                      Command="{Binding CloseSettingsCommand}"
+                      ToolTip.Tip="Close settings">
+                <Path Data="M0,0 L10,10 M10,0 L0,10"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.4"
+                      StrokeLineCap="Round" />
+              </Button>
+            </Grid>
+
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto"
+                    ColumnSpacing="12">
+                <TextBlock Classes="mm-settings-label"
+                           Text="Font mode" />
+                <TextBlock Classes="mm-settings-value"
+                           Text="{Binding SelectedFontFamilyMode}" />
+              </Grid>
+              <ComboBox ItemsSource="{Binding FontFamilyModes}"
+                        SelectedItem="{Binding SelectedFontFamilyMode, Mode=TwoWay}" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto"
+                    ColumnSpacing="12">
+                <TextBlock Classes="mm-settings-label"
+                           Text="Font size" />
+                <TextBlock Classes="mm-settings-value"
+                           Text="{Binding FontSizeLabel}" />
+              </Grid>
+              <Slider Minimum="14"
+                      Maximum="24"
+                      TickFrequency="1"
+                      IsSnapToTickEnabled="True"
+                      Value="{Binding FontSizeSetting, Mode=TwoWay}" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto"
+                    ColumnSpacing="12">
+                <TextBlock Classes="mm-settings-label"
+                           Text="Line height" />
+                <TextBlock Classes="mm-settings-value"
+                           Text="{Binding LineHeightLabel}" />
+              </Grid>
+              <Slider Minimum="1.45"
+                      Maximum="2.05"
+                      TickFrequency="0.05"
+                      IsSnapToTickEnabled="True"
+                      Value="{Binding LineHeightSetting, Mode=TwoWay}" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto"
+                    ColumnSpacing="12">
+                <TextBlock Classes="mm-settings-label"
+                           Text="Content width" />
+                <TextBlock Classes="mm-settings-value"
+                           Text="{Binding ContentWidthLabel}" />
+              </Grid>
+              <Slider Minimum="640"
+                      Maximum="1100"
+                      TickFrequency="20"
+                      IsSnapToTickEnabled="True"
+                      Value="{Binding ContentWidthSetting, Mode=TwoWay}" />
+            </StackPanel>
+
+            <Border Classes="mm-settings-note">
+              <StackPanel Spacing="4">
+                <TextBlock Classes="mm-settings-label"
+                           Text="Theme" />
+                <TextBlock Classes="mm-settings-subtitle"
+                           Text="{Binding ThemeDescription}" />
+              </StackPanel>
+            </Border>
+
+            <Button Classes="ghost"
+                    HorizontalAlignment="Stretch"
+                    Command="{Binding ResetReadingPreferencesCommand}">
+              <TextBlock Text="Reset reading defaults" />
+            </Button>
+          </StackPanel>
+        </ScrollViewer>
       </Border>
 
       <!-- Status bar (hover-reveal) -->
