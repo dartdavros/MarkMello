@@ -530,6 +530,10 @@ internal sealed class MarkdownImageFlowFragment : MarkdownDocumentSelectionFragm
         {
             switch (inline)
             {
+                case MarkdownTextInline text when string.IsNullOrWhiteSpace(text.Text):
+                    localOffset += text.Text.Length;
+                    break;
+
                 case MarkdownLineBreakInline:
                     localOffset++;
                     nextBreakBefore = true;

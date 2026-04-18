@@ -251,8 +251,15 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 }
                 return;
 
-            case LineBreakInline:
-                target.Add(new MarkdownLineBreakInline());
+            case LineBreakInline lineBreak:
+                if (lineBreak.IsHard || lineBreak.IsBackslash)
+                {
+                    target.Add(new MarkdownLineBreakInline());
+                }
+                else
+                {
+                    target.Add(new MarkdownTextInline(" "));
+                }
                 return;
 
             case CodeInline code:

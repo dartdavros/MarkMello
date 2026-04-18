@@ -60,17 +60,45 @@ public sealed class MarkdownHtmlRenderingTests
                 var image = Assert.IsType<MarkdownImageInline>(inline);
                 Assert.Equal("GitHub Release", image.AltText);
             },
-            inline => Assert.IsType<MarkdownLineBreakInline>(inline),
+            inline =>
+            {
+                var text = Assert.IsType<MarkdownTextInline>(inline);
+                Assert.Equal(" ", text.Text);
+            },
             inline =>
             {
                 var image = Assert.IsType<MarkdownImageInline>(inline);
                 Assert.Equal("GitHub License", image.AltText);
             },
-            inline => Assert.IsType<MarkdownLineBreakInline>(inline),
+            inline =>
+            {
+                var text = Assert.IsType<MarkdownTextInline>(inline);
+                Assert.Equal(" ", text.Text);
+            },
             inline =>
             {
                 var image = Assert.IsType<MarkdownImageInline>(inline);
                 Assert.Equal("GitHub Repo stars", image.AltText);
             });
+    }
+
+    [Fact]
+    public void RenderPreservesHardLineBreakAsMarkdownLineBreakInline()
+    {
+        const string markdown = """
+Line one  
+Line two
+""";
+
+        var renderer = new MarkdigMarkdownDocumentRenderer();
+
+        var document = renderer.Render(markdown);
+
+        var paragraph = Assert.IsType<MarkdownParagraphBlock>(Assert.Single(document.Blocks));
+        Assert.Collection(
+            paragraph.Inlines,
+            inline => Assert.Equal("Line one", Assert.IsType<MarkdownTextInline>(inline).Text),
+            inline => Assert.IsType<MarkdownLineBreakInline>(inline),
+            inline => Assert.Equal("Line two", Assert.IsType<MarkdownTextInline>(inline).Text));
     }
 }
