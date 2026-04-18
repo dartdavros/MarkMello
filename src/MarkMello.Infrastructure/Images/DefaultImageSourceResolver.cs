@@ -8,8 +8,8 @@ namespace MarkMello.Infrastructure.Images;
 ///
 /// Supports:
 ///   - absolute http:// and https:// URIs (size-capped, MIME-checked)
-///   - data: URIs (image/png, image/jpeg, image/gif, image/webp, image/bmp),
-///     base64-encoded only
+///   - data: URIs (image/png, image/jpeg, image/gif, image/webp, image/bmp,
+///     image/svg+xml), base64-encoded only
 ///   - absolute local file paths and file:// URIs
 ///   - paths relative to the markdown's base directory
 ///
@@ -30,6 +30,7 @@ public sealed class DefaultImageSourceResolver : IImageSourceResolver
         "image/gif",
         "image/webp",
         "image/bmp",
+        "image/svg+xml",
     };
 
     // Single HttpClient per process. Idle connections are pooled by SocketsHttpHandler.

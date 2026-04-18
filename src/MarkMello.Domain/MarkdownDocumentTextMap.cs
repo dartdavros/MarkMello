@@ -214,6 +214,11 @@ public sealed class MarkdownDocumentTextMap
                     for (var itemIndex = 0; itemIndex < list.Items.Count; itemIndex++)
                     {
                         var item = list.Items[itemIndex];
+                        AppendTextFragment(
+                            $"{path}.i{itemIndex}.m",
+                            MarkdownDocumentTextFragmentKind.ListMarker,
+                            GetListMarkerText(list, itemIndex));
+
                         for (var blockIndex = 0; blockIndex < item.Blocks.Count; blockIndex++)
                         {
                             AppendBlock(item.Blocks[blockIndex], $"{path}.i{itemIndex}.b{blockIndex}", isTopLevel: false);
@@ -291,6 +296,11 @@ public sealed class MarkdownDocumentTextMap
         private void AppendInlineFragment(string key, MarkdownDocumentTextFragmentKind kind, IReadOnlyList<MarkdownInline> inlines)
             => AppendTextFragment(key, kind, ExtractPlainText(inlines));
 
+        private static string GetListMarkerText(MarkdownListBlock list, int itemIndex)
+            => list.IsOrdered
+                ? $"{itemIndex + 1}. "
+                : "• ";
+
         private void AppendTextFragment(string key, MarkdownDocumentTextFragmentKind kind, string text)
         {
             if (string.IsNullOrEmpty(text))
@@ -349,19 +359,4 @@ public sealed class MarkdownDocumentTextMap
             }
         }
     }
-}
-
-public sealed record MarkdownDocumentTextFragment(
-    string Key,
-    MarkdownDocumentTextFragmentKind Kind,
-    DocumentTextRange Range,
-    string Text);
-
-public enum MarkdownDocumentTextFragmentKind
-{
-    Heading,
-    Paragraph,
-    CodeBlock,
-    TableCell,
-    Fallback
 }

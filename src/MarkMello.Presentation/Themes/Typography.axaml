@@ -11,16 +11,20 @@
       UI/document sans:  Inter Tight, Segoe UI Variable, Segoe UI, system-ui, sans-serif
       Mono:              JetBrains Mono, Consolas, monospace
 
-    Дизайн-шрифты идут первыми. Если они установлены в системе, они и будут
-    использованы. Если нет, работает системный fallback.
+    Дизайн-шрифты встроены в сборку через AvaloniaResource
+    (Assets/Fonts/**/*.ttf) и подгружаются первыми; системные fallback идут
+    следом на случай, если ресурс не зарегистрирован (например, в design-time).
 
-    Встраивание .ttf через AvaloniaResource — отдельная задача
-    (licensing review + package size impact), в этой итерации не делается.
+      Source Serif 4  — Assets/Fonts/*.ttf        (static: Regular/Bold/Italic/BoldIt)
+      Inter Tight     — Assets/Fonts/InterTight   (variable: wght + italic)
+      JetBrains Mono  — Assets/Fonts/JetBrainsMono (static: Regular/Bold)
+
+    Лицензии (OFL) лежат рядом со шрифтами.
   -->
 
   <FontFamily x:Key="MmDocumentSerifFontFamily">avares://MarkMello.Presentation/Assets/Fonts#Source Serif 4, Source Serif Pro, Iowan Old Style, Georgia, Cambria, serif</FontFamily>
-  <FontFamily x:Key="MmDocumentSansFontFamily">Inter Tight, Segoe UI Variable, Segoe UI, Inter, system-ui, sans-serif</FontFamily>
-  <FontFamily x:Key="MmDocumentMonoFontFamily">JetBrains Mono, Cascadia Code, Consolas, Menlo, monospace</FontFamily>
+  <FontFamily x:Key="MmDocumentSansFontFamily">avares://MarkMello.Presentation/Assets/Fonts/InterTight#Inter Tight, Segoe UI Variable, Segoe UI, Inter, system-ui, sans-serif</FontFamily>
+  <FontFamily x:Key="MmDocumentMonoFontFamily">avares://MarkMello.Presentation/Assets/Fonts/JetBrainsMono#JetBrains Mono, Cascadia Code, Consolas, Menlo, monospace</FontFamily>
 
   <sys:Double x:Key="MmDocumentFontSize">17</sys:Double>
   <sys:Double x:Key="MmDocumentLineHeight">1.7</sys:Double>

@@ -63,6 +63,7 @@ public sealed class MarkdownDocumentView : UserControl
         UseLayoutRounding = true;
         _root.UseLayoutRounding = true;
 
+        AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
         KeyDown += OnKeyDown;
         PointerMoved += OnPointerMoved;
         PointerReleased += OnPointerReleased;
@@ -189,7 +190,6 @@ public sealed class MarkdownDocumentView : UserControl
     {
         foreach (var fragment in _selectionFragments)
         {
-            fragment.PointerPressed -= OnFragmentPointerPressed;
             fragment.Dispose();
         }
 
@@ -216,6 +216,8 @@ public sealed class MarkdownDocumentView : UserControl
             url: block.Url,
             altText: block.AltText,
             title: block.Title,
+            width: block.Width,
+            height: block.Height,
             baseDirectory: Document?.BaseDirectory)
         {
             Margin = new Thickness(0, 12, 0, 22),
@@ -319,17 +321,18 @@ public sealed class MarkdownDocumentView : UserControl
 
     private Grid BuildListItem(MarkdownListBlock list, MarkdownListItem item, int index, string path, bool insideQuote = false)
     {
-        var bullet = new TextBlock
-        {
-            Text = list.IsOrdered ? $"{index + 1}." : "•",
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 2, 0, 0),
-            FontSize = ReadingPreferences.FontSize,
-            FontFamily = ResolveBodyFontFamily(),
-            FontWeight = FontWeight.Medium,
-            UseLayoutRounding = true,
-            Classes = { "mm-md-list-bullet" }
-        };
+        var bullet = BuildSelectionFragment(
+            $"{path}.m",
+            [new MarkdownTextInline(list.IsOrdered ? $"{index + 1}. " : "• ")],
+            new Thickness(0, 2, 0, 0),
+            ReadingPreferences.FontSize,
+            GetBodyLineHeight(),
+            FontWeight.Medium,
+            FontStyle.Normal,
+            fallbackClassName: "mm-md-list-bullet",
+            textWrapping: TextWrapping.NoWrap);
+
+        bullet.VerticalAlignment = VerticalAlignment.Top;
 
         var content = new StackPanel
         {
@@ -402,7 +405,7 @@ public sealed class MarkdownDocumentView : UserControl
             fontWeight: FontWeight.Normal,
             fontStyle: FontStyle.Normal,
             fallbackClassName: "mm-md-codeblock-text",
-            baseFontFamily: ResolveMonoFontFamily(),
+            baseFontFamily: ResolveSansFontFamily(),
             textWrapping: TextWrapping.NoWrap);
 
         body.Children.Add(new ScrollViewer
@@ -643,16 +646,15 @@ public sealed class MarkdownDocumentView : UserControl
             Cursor = TryCreateCursor(StandardCursorType.Ibeam)
         };
 
-        control.PointerPressed += OnFragmentPointerPressed;
         control.Classes.Add(fallbackClassName);
         _selectionFragments.Add(control);
         control.SelectionRange = new DocumentTextRange(SelectionStart, SelectionEnd);
         return control;
     }
 
-    private void OnFragmentPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (sender is not MarkdownSelectionTextFragment fragment)
+        if (!TryResolveFragment(e.GetPosition(this), out var fragment, out var localPosition))
         {
             return;
         }
@@ -667,7 +669,6 @@ public sealed class MarkdownDocumentView : UserControl
         // does not raise RequestBringIntoView and make the ScrollViewer jump.
         Focus(NavigationMethod.Pointer);
 
-        var localPosition = e.GetPosition(fragment);
         if (e.ClickCount >= 3)
         {
             CommitSelection(fragment.DocumentRange, preserveOnRelease: true);
@@ -944,47 +945,53 @@ public sealed class MarkdownDocumentView : UserControl
 
     private int ResolveDocumentOffset(Point position)
     {
-        if (_selectionFragments.Count == 0)
+        if (!TryResolveFragment(position, out var fragment, out var localPoint))
         {
             return 0;
         }
 
-        MarkdownSelectionTextFragment? nearestFragment = null;
-        Point nearestLocalPoint = default;
-        double nearestDistance = double.PositiveInfinity;
+        return fragment.GetDocumentOffset(localPoint);
+    }
 
-        foreach (var fragment in _selectionFragments)
+    private bool TryResolveFragment(
+        Point position,
+        out MarkdownSelectionTextFragment fragment,
+        out Point localPoint)
+    {
+        fragment = null!;
+        localPoint = default;
+
+        if (_selectionFragments.Count == 0)
         {
-            var localPoint = this.TranslatePoint(position, fragment);
-            if (localPoint is null)
+            return false;
+        }
+
+        var fragments = new List<MarkdownSelectionTextFragment>(_selectionFragments.Count);
+        var candidates = new List<MarkdownFragmentHitTestCandidate>(_selectionFragments.Count);
+
+        foreach (var candidateFragment in _selectionFragments)
+        {
+            var translated = this.TranslatePoint(position, candidateFragment);
+            if (translated is null)
             {
                 continue;
             }
 
-            var local = localPoint.Value;
-            if (local.Y >= 0 && local.Y <= fragment.Bounds.Height)
-            {
-                return fragment.GetDocumentOffset(ClampPointToFragment(fragment, local));
-            }
-
-            var distance = local.Y < 0
-                ? -local.Y
-                : local.Y - fragment.Bounds.Height;
-
-            if (distance < nearestDistance)
-            {
-                nearestDistance = distance;
-                nearestFragment = fragment;
-                nearestLocalPoint = local;
-            }
+            fragments.Add(candidateFragment);
+            candidates.Add(new MarkdownFragmentHitTestCandidate(
+                new Rect(0, 0, Math.Max(candidateFragment.Bounds.Width, 1), Math.Max(candidateFragment.Bounds.Height, 1)),
+                translated.Value));
         }
 
-        if (nearestFragment is null)
+        var bestIndex = MarkdownFragmentHitTester.FindBestIndex(candidates);
+        if (bestIndex < 0)
         {
-            return 0;
+            return false;
         }
 
-        return nearestFragment.GetDocumentOffset(ClampPointToFragment(nearestFragment, nearestLocalPoint));
+        fragment = fragments[bestIndex];
+        localPoint = ClampPointToFragment(fragment, candidates[bestIndex].LocalPoint);
+        return true;
     }
 
     private static Point ClampPointToFragment(MarkdownSelectionTextFragment fragment, Point point)
@@ -1027,6 +1034,8 @@ public sealed class MarkdownDocumentView : UserControl
         FontFamilyMode.Mono => LookupFontFamily("MmDocumentMonoFontFamily"),
         _ => LookupFontFamily("MmDocumentSerifFontFamily")
     };
+
+    private FontFamily ResolveSansFontFamily() => LookupFontFamily("MmDocumentSansFontFamily");
 
     private FontFamily ResolveMonoFontFamily() => LookupFontFamily("MmDocumentMonoFontFamily");
 

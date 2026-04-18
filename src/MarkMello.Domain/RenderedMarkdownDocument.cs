@@ -63,7 +63,12 @@ public sealed record MarkdownTableCell(IReadOnlyList<MarkdownInline> Inlines);
 /// map. Alt text is shown as a caption below the image, or as a
 /// placeholder when the image cannot be loaded.
 /// </summary>
-public sealed record MarkdownImageBlock(string Url, string? AltText, string? Title) : MarkdownBlock;
+public sealed record MarkdownImageBlock(
+    string Url,
+    string? AltText,
+    string? Title,
+    double? Width = null,
+    double? Height = null) : MarkdownBlock;
 
 public abstract record MarkdownInline;
 

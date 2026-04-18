@@ -69,6 +69,27 @@ public sealed class MarkdownDocumentViewTests
     }
 
     [Fact]
+    public void SelectRangeIncludesListMarkerWhenSelectingListItem()
+    {
+        var document = new RenderedMarkdownDocument(
+        [
+            new MarkdownListBlock(false,
+            [
+                new MarkdownListItem([new MarkdownParagraphBlock([new MarkdownTextInline("One")])])
+            ])
+        ]);
+
+        var textMap = MarkdownDocumentTextMap.Create(document);
+        var view = CreateView(document);
+        var range = new DocumentTextRange(0, "• One".Length);
+
+        view.SelectRange(range);
+
+        Assert.Equal("• One", view.SelectedText);
+        Assert.Equal(textMap.GetText(range), view.SelectedText);
+    }
+
+    [Fact]
     public void ClearSelectionResetsStateAfterProgrammaticSelection()
     {
         var document = CreateCompositeDocument();

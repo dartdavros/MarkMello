@@ -1,4 +1,5 @@
 using System.Net;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Markdig;
 using MarkdigMarkdown = Markdig.Markdown;
@@ -98,22 +99,9 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 // We intentionally do NOT switch on htmlBlock.Type here --
                 // Markdig's HtmlBlockType enum has changed names across
                 // versions (ScriptBlock, ScriptTag, ScriptPreOrStyle...).
-                // Instead, HtmlToPlainText strips scripts, styles, comments
-                // and CDATA blocks by content, which is stable regardless
-                // of Markdig's internal classification.
-                var htmlRaw = htmlBlock.Lines.ToString();
-                if (TryExtractStandaloneImgTag(htmlRaw, out var imgBlock))
-                {
-                    target.Add(imgBlock);
-                    return;
-                }
-                var plainText = HtmlToPlainText(htmlRaw);
-                if (!string.IsNullOrWhiteSpace(plainText))
-                {
-                    target.Add(new MarkdownParagraphBlock([
-                        new MarkdownTextInline(plainText)
-                    ]));
-                }
+                // Instead we strip scripts/styles/comments/CDATA by content,
+                // which is stable regardless of Markdig's internal classification.
+                AppendHtmlBlock(htmlBlock.Lines.ToString(), target);
                 return;
 
             case ContainerBlock nested:
@@ -423,6 +411,14 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         @"\btitle\s*=\s*(?:""([^""]*)""|'([^']*)')",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private static readonly Regex WidthAttrPattern = new(
+        @"\bwidth\s*=\s*(?:""([^""]*)""|'([^']*)'|([^\s""'>/]+))",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex HeightAttrPattern = new(
+        @"\bheight\s*=\s*(?:""([^""]*)""|'([^']*)'|([^\s""'>/]+))",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static readonly Regex LineBreakTagPattern = new(
         @"^<br\b[^>]*/?>$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -463,22 +459,26 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>
-    /// Converts an HTML block body to plain text suitable for rendering inside a
-    /// Markdown paragraph. Images are preserved as [image: alt] placeholders, all
-    /// other tags are stripped, and HTML entities are decoded. Whitespace collapses.
+    /// Splits an HTML block body into a sequence of document blocks. Each
+    /// &lt;img&gt; in the source becomes its own <see cref="MarkdownImageBlock"/>;
+    /// the surrounding HTML fragments (with container tags like &lt;p&gt;,
+    /// &lt;div&gt;, &lt;picture&gt; stripped and entities decoded) become
+    /// paragraphs when they carry any visible text. This lets common README
+    /// patterns -- "figure with caption", "centered picture", etc. -- render
+    /// as image + caption rather than a literal "[image: alt] caption" line.
     /// </summary>
-    private static string HtmlToPlainText(string html)
+    private static void AppendHtmlBlock(string html, List<MarkdownBlock> target)
     {
         if (string.IsNullOrEmpty(html))
         {
-            return string.Empty;
+            return;
         }
 
-        // 0) Drop things whose *content* must not appear in the viewer at all,
-        //    not just their surrounding tags: script bodies, style rules,
-        //    comments, CDATA, processing instructions, doctype.
-        //    Doing this by content (not by Markdig's HtmlBlockType enum) keeps
-        //    the code independent of Markdig version-specific enum names.
+        // Drop things whose *content* must not appear in the viewer at all,
+        // not just their surrounding tags: script bodies, style rules,
+        // comments, CDATA, processing instructions, doctype. Doing this by
+        // content (not by Markdig's HtmlBlockType enum) keeps the code
+        // independent of Markdig version-specific enum names.
         var scrubbed = html;
         scrubbed = ScriptBodyPattern.Replace(scrubbed, string.Empty);
         scrubbed = StyleBodyPattern.Replace(scrubbed, string.Empty);
@@ -487,18 +487,78 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         scrubbed = ProcessingInstructionPattern.Replace(scrubbed, string.Empty);
         scrubbed = DoctypePattern.Replace(scrubbed, string.Empty);
 
-        // 1) Replace <img> with a readable placeholder so the user sees that an
-        //    image was present even though we don't render images yet.
-        var withImagePlaceholders = ImgTagPattern.Replace(scrubbed, m => FormatImagePlaceholder(m.Value));
+        var imgMatches = ImgTagPattern.Matches(scrubbed);
+        if (imgMatches.Count == 0)
+        {
+            AppendHtmlTextParagraph(scrubbed, target);
+            return;
+        }
 
-        // 2) Strip every remaining tag (including <picture>, <source>, <div>, <p>, ...).
-        var tagsStripped = AnyTagPattern.Replace(withImagePlaceholders, " ");
+        var cursor = 0;
+        foreach (Match match in imgMatches)
+        {
+            AppendHtmlTextParagraph(scrubbed[cursor..match.Index], target);
 
-        // 3) Decode HTML entities (&amp; -> &, &nbsp; -> non-breaking space, ...).
-        var decoded = WebUtility.HtmlDecode(tagsStripped);
+            if (TryBuildImageBlockFromImgTag(match.Value, out var imageBlock))
+            {
+                target.Add(imageBlock);
+            }
+            else
+            {
+                // Malformed <img> (no src) -- keep the alt-text placeholder
+                // so the author still sees that something was intended here.
+                target.Add(new MarkdownParagraphBlock([
+                    new MarkdownTextInline(FormatImagePlaceholder(match.Value))
+                ]));
+            }
 
-        // 4) Collapse runs of whitespace to a single space and trim.
-        return WhitespacePattern.Replace(decoded, " ").Trim();
+            cursor = match.Index + match.Length;
+        }
+
+        AppendHtmlTextParagraph(scrubbed[cursor..], target);
+    }
+
+    private static void AppendHtmlTextParagraph(string htmlFragment, List<MarkdownBlock> target)
+    {
+        if (string.IsNullOrEmpty(htmlFragment))
+        {
+            return;
+        }
+
+        // Strip every remaining tag (<picture>, <source>, <div>, <p>, <br>, ...),
+        // decode HTML entities, collapse whitespace.
+        var text = AnyTagPattern.Replace(htmlFragment, " ");
+        text = WebUtility.HtmlDecode(text);
+        text = WhitespacePattern.Replace(text, " ").Trim();
+
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        target.Add(new MarkdownParagraphBlock([new MarkdownTextInline(text)]));
+    }
+
+    private static bool TryBuildImageBlockFromImgTag(string imgTag, out MarkdownImageBlock imageBlock)
+    {
+        imageBlock = null!;
+        var src = ExtractAttr(SrcAttrPattern, imgTag);
+        if (string.IsNullOrWhiteSpace(src))
+        {
+            return false;
+        }
+
+        var alt = ExtractAttr(AltAttrPattern, imgTag);
+        var title = ExtractAttr(TitleAttrPattern, imgTag);
+        var width = TryParseHtmlPixelDimension(ExtractAttr(WidthAttrPattern, imgTag));
+        var height = TryParseHtmlPixelDimension(ExtractAttr(HeightAttrPattern, imgTag));
+        imageBlock = new MarkdownImageBlock(
+            Url: src,
+            AltText: string.IsNullOrWhiteSpace(alt) ? null : alt,
+            Title: string.IsNullOrWhiteSpace(title) ? null : title,
+            Width: width,
+            Height: height);
+        return true;
     }
 
     private static void HandleInlineHtmlTag(string tag, List<MarkdownInline> target)
@@ -606,55 +666,6 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         return true;
     }
 
-    /// <summary>
-    /// Detects an HTML block whose only meaningful content is a single
-    /// &lt;img&gt; tag (optionally wrapped in picture/source/figure/figcaption/div).
-    /// Returns the extracted image block with the inner src/alt/title.
-    /// </summary>
-    private static bool TryExtractStandaloneImgTag(string html, out MarkdownImageBlock imageBlock)
-    {
-        imageBlock = null!;
-        if (string.IsNullOrWhiteSpace(html))
-        {
-            return false;
-        }
-
-        var imgMatches = ImgTagPattern.Matches(html);
-        if (imgMatches.Count != 1)
-        {
-            // Zero or many -- not a figure, fall back to plain-text handling.
-            return false;
-        }
-
-        var imgTag = imgMatches[0].Value;
-
-        // Everything EXCEPT that single <img> must reduce to just tags and
-        // whitespace -- no visible text belongs next to the image when we
-        // promote it. Remove the img itself, then strip surrounding tags;
-        // what's left should be empty.
-        var withoutImg = html.Replace(imgTag, string.Empty, StringComparison.Ordinal);
-        var textAround = AnyTagPattern.Replace(withoutImg, " ").Trim();
-        if (!string.IsNullOrWhiteSpace(textAround))
-        {
-            return false;
-        }
-
-        var src = ExtractAttr(SrcAttrPattern, imgTag);
-        if (string.IsNullOrWhiteSpace(src))
-        {
-            return false;
-        }
-
-        var alt = ExtractAttr(AltAttrPattern, imgTag);
-        var title = ExtractAttr(TitleAttrPattern, imgTag);
-
-        imageBlock = new MarkdownImageBlock(
-            Url: src,
-            AltText: string.IsNullOrWhiteSpace(alt) ? null : alt,
-            Title: string.IsNullOrWhiteSpace(title) ? null : title);
-        return true;
-    }
-
     private static string? ExtractAttr(Regex pattern, string tag)
     {
         var m = pattern.Match(tag);
@@ -662,7 +673,48 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         {
             return null;
         }
-        var value = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
-        return string.IsNullOrWhiteSpace(value) ? null : value;
+
+        for (var groupIndex = 1; groupIndex < m.Groups.Count; groupIndex++)
+        {
+            var group = m.Groups[groupIndex];
+            if (!group.Success || string.IsNullOrWhiteSpace(group.Value))
+            {
+                continue;
+            }
+
+            return group.Value;
+        }
+
+        return null;
+    }
+
+    private static double? TryParseHtmlPixelDimension(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.EndsWith("px", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[..^2].TrimEnd();
+        }
+
+        if (normalized.Contains('%', StringComparison.Ordinal)
+            || normalized.Contains("calc(", StringComparison.OrdinalIgnoreCase)
+            || normalized.Contains("var(", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return double.TryParse(
+                normalized,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var parsed)
+            && parsed > 0
+                ? parsed
+                : null;
     }
 }

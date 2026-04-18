@@ -1,10 +1,8 @@
-using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
-using Avalonia.Utilities;
 using Avalonia.VisualTree;
 using MarkMello.Domain;
 
@@ -22,7 +20,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
     private FontWeight _fontWeight = FontWeight.Normal;
     private FontStyle _fontStyle = FontStyle.Normal;
     private double _lineHeight = double.NaN;
-    private TextLayout? _textLayout;
+    private MarkdownFormattedTextLayout? _textLayout;
     private double _layoutWidth = double.NaN;
     private TextWrapping _textWrapping = TextWrapping.Wrap;
 
@@ -213,7 +211,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         //   3. Text glyphs themselves.
         DrawInlineCodeBackgrounds(context, layout);
         DrawSelection(context, layout);
-        layout.Draw(context, default);
+        layout.Draw(context);
     }
 
     public int GetDocumentOffset(Point localPoint)
@@ -250,8 +248,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         }
 
         var layout = GetOrCreateTextLayout(Math.Max(Bounds.Width, 1));
-        var hit = layout.HitTestPoint(localPoint);
-        if (!hit.IsInside)
+        if (!layout.IsPointInsideText(localPoint))
         {
             return false;
         }
@@ -283,8 +280,7 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         }
 
         var layout = GetOrCreateTextLayout(Math.Max(Bounds.Width, 1));
-        var hit = layout.HitTestPoint(localPoint);
-        var localOffset = Math.Clamp(hit.TextPosition, 0, StyledText.Text.Length);
+        var localOffset = Math.Clamp(layout.GetCanonicalCaretOffset(localPoint), 0, StyledText.Text.Length);
         if (preferPreviousCharacterAtBoundary && localOffset == StyledText.Text.Length && localOffset > 0)
         {
             localOffset--;
@@ -293,18 +289,10 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         return localOffset;
     }
 
-    private void DrawSelection(DrawingContext context, TextLayout layout)
+    private void DrawSelection(DrawingContext context, MarkdownFormattedTextLayout layout)
     {
         var selection = DocumentRange.Intersection(SelectionRange);
         if (selection.IsEmpty)
-        {
-            return;
-        }
-
-        var localStart = Math.Clamp(selection.Start - DocumentRange.Start, 0, StyledText.Text.Length);
-        var localEnd = Math.Clamp(selection.End - DocumentRange.Start, localStart, StyledText.Text.Length);
-        var selectionLength = localEnd - localStart;
-        if (selectionLength <= 0)
         {
             return;
         }
@@ -313,13 +301,15 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
             ?? ResolveOptionalBrush("MmAccentSoftBrush")
             ?? Brushes.LightBlue;
 
-        foreach (var rect in layout.HitTestTextRange(localStart, selectionLength))
+        foreach (var rect in layout.GetSelectionRects(new DocumentTextRange(
+                     Math.Clamp(selection.Start - DocumentRange.Start, 0, StyledText.Text.Length),
+                     Math.Clamp(selection.End - DocumentRange.Start, 0, StyledText.Text.Length))))
         {
             context.FillRectangle(selectionBrush, rect);
         }
     }
 
-    private TextLayout GetOrCreateTextLayout(double availableWidth)
+    private MarkdownFormattedTextLayout GetOrCreateTextLayout(double availableWidth)
     {
         var normalizedWidth = NormalizeLayoutWidth(availableWidth);
         if (_textLayout is not null && Math.Abs(_layoutWidth - normalizedWidth) < 0.5)
@@ -329,82 +319,32 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
 
         InvalidateTextLayout();
         _layoutWidth = normalizedWidth;
-        _textLayout = new TextLayout(
-            StyledText.Text,
-            new Typeface(BaseFontFamily, BaseFontStyle, BaseFontWeight),
+        _textLayout = new MarkdownFormattedTextLayout(
+            StyledText,
+            BaseFontFamily,
+            ResolveInlineCodeFontFamily(),
             BaseFontSize,
-            ResolveBaseTextBrush(),
-            TextAlignment.Left,
+            BaseFontWeight,
+            BaseFontStyle,
+            double.IsNaN(BaseLineHeight) ? double.NaN : BaseLineHeight,
+            _letterSpacing,
             LayoutTextWrapping,
-            textTrimming: null,
-            textDecorations: null,
-            flowDirection: FlowDirection.LeftToRight,
-            maxWidth: normalizedWidth,
-            maxHeight: double.PositiveInfinity,
-            lineHeight: double.IsNaN(BaseLineHeight) ? double.NaN : BaseLineHeight,
-            letterSpacing: _letterSpacing,
-            maxLines: 0,
-            textStyleOverrides: BuildStyleOverrides());
+            normalizedWidth,
+            ResolveBaseTextBrush(),
+            BuildLinkTextDecorations());
 
         return _textLayout;
     }
 
-    private List<ValueSpan<TextRunProperties>>? BuildStyleOverrides()
-    {
-        if (StyledText.Spans.Count == 0)
-        {
-            return null;
-        }
-
-        var overrides = new List<ValueSpan<TextRunProperties>>(StyledText.Spans.Count);
-        foreach (var span in StyledText.Spans)
-        {
-            var range = span.Range;
-            if (range.IsEmpty)
-            {
-                continue;
-            }
-
-            var properties = new GenericTextRunProperties(
-                CreateTypeface(span.Style),
-                BaseFontSize,
-                span.Style.IsLink ? BuildLinkTextDecorations() : null,
-                // All spans (plain, bold, italic, link, code) share the base
-                // body text colour. Link accent is the underline stroke, and
-                // inline code's pill is painted in Render, not here, so no
-                // per-rune background fill is needed.
-                ResolveBaseTextBrush(),
-                null,
-                BaselineAlignment.Baseline,
-                CultureInfo.CurrentUICulture);
-
-            overrides.Add(new ValueSpan<TextRunProperties>(range.Start, range.Length, properties));
-        }
-
-        return overrides.Count == 0 ? null : overrides;
-    }
-
-    private Typeface CreateTypeface(MarkdownInlineStyleState style)
-    {
-        var family = style.IsCode
-            ? ResolveInlineCodeFontFamily()
-            : BaseFontFamily;
-
-        var weight = style.IsBold ? FontWeight.Bold : BaseFontWeight;
-        var fontStyle = style.IsItalic ? FontStyle.Italic : BaseFontStyle;
-        return new Typeface(family, fontStyle, weight);
-    }
-
     private FontFamily ResolveInlineCodeFontFamily()
     {
-        if (this.TryFindResource("MmDocumentMonoFontFamily", ActualThemeVariant, out var value)
+        if (this.TryFindResource("MmDocumentSansFontFamily", ActualThemeVariant, out var value)
             && value is FontFamily family)
         {
             return family;
         }
 
-        // Fallback stack is a subset of what MmDocumentMonoFontFamily declares.
-        return new FontFamily("Cascadia Code, Consolas, Menlo, monospace");
+        return new FontFamily("Segoe UI, system-ui, sans-serif");
     }
 
     /// <summary>
@@ -436,9 +376,9 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
     private IBrush ResolveBaseTextBrush()
         => BaseForeground ?? ResolveOptionalBrush("MmTextBrush") ?? Brushes.Black;
 
-    private void DrawInlineCodeBackgrounds(DrawingContext context, TextLayout layout)
+    private void DrawInlineCodeBackgrounds(DrawingContext context, MarkdownFormattedTextLayout layout)
     {
-        if (StyledText.Spans.Count == 0)
+        if (layout.CodeBoxes.Count == 0)
         {
             return;
         }
@@ -452,31 +392,13 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         var borderBrush = ResolveOptionalBrush("MmCodeBorderBrush");
         var pen = borderBrush is null ? null : new Pen(borderBrush, 1);
 
-        // Pill geometry: see ADR-0001 note -- we can't widen the surrounding
-        // text flow without breaking document-wide selection, so the pill is
-        // visually distinct only via lateral inflation of the glyph box.
-        // The value is a trade-off: too small and the pill hugs the glyphs
-        // inside/outside; too large and the fill visibly overlaps neighbours.
-        const double horizontalPad = 8;
-        const double verticalPad = 0;
         const double cornerRadius = 3;
 
-        foreach (var span in StyledText.Spans)
+        foreach (var codeBox in layout.CodeBoxes)
         {
-            if (!span.Style.IsCode || span.Range.IsEmpty)
+            foreach (var rect in layout.GetCodeBoxRects(codeBox))
             {
-                continue;
-            }
-
-            foreach (var rect in layout.HitTestTextRange(span.Range.Start, span.Range.Length))
-            {
-                var inflated = new Rect(
-                    rect.X - horizontalPad,
-                    rect.Y - verticalPad,
-                    rect.Width + horizontalPad * 2,
-                    rect.Height + verticalPad * 2);
-
-                context.DrawRectangle(fill, pen, inflated, cornerRadius, cornerRadius);
+                context.DrawRectangle(fill, pen, rect, cornerRadius, cornerRadius);
             }
         }
     }

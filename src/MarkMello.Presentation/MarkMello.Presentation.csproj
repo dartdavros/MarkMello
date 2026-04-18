@@ -21,7 +21,8 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Themes\**\*.axaml" />
-    <AvaloniaResource Include="Assets\Fonts\*.ttf" />
+    <AvaloniaResource Include="Assets\Fonts\**\*.ttf" />
+    <AvaloniaResource Include="Assets\Images\**\*.png" />
   </ItemGroup>
 
 </Project>

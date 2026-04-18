@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using MarkMello.Application.Abstractions;
 
@@ -24,9 +23,12 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
     private readonly IImageSourceResolver? _resolver;
     private readonly string _url;
     private readonly string? _altText;
+    private readonly double? _width;
+    private readonly double? _height;
     private readonly string? _baseDirectory;
     private readonly CancellationTokenSource _cts = new();
-    private Bitmap? _loadedBitmap;
+    private IImage? _loadedImage;
+    private Stream? _loadedImageBackingStream;
     private bool _loadStarted;
     private bool _loadCompleted;
     private bool _disposed;
@@ -36,11 +38,15 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
         string url,
         string? altText,
         string? title,
+        double? width,
+        double? height,
         string? baseDirectory)
     {
         _resolver = resolver;
         _url = url ?? string.Empty;
         _altText = altText;
+        _width = width;
+        _height = height;
         _baseDirectory = baseDirectory;
 
         HorizontalAlignment = HorizontalAlignment.Center;
@@ -83,8 +89,9 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
 
         _cts.Cancel();
         _cts.Dispose();
-        _loadedBitmap?.Dispose();
-        _loadedBitmap = null;
+        MarkdownImageLoader.DisposeLoadedImage(_loadedImage, _loadedImageBackingStream);
+        _loadedImage = null;
+        _loadedImageBackingStream = null;
 
         AttachedToVisualTree -= OnAttachedToVisualTree;
         DetachedFromVisualTree -= OnDetachedFromVisualTree;
@@ -98,38 +105,24 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
             return;
         }
 
-        Stream? stream = null;
         try
         {
-            stream = await _resolver
-                .TryOpenAsync(_url, _baseDirectory, cancellationToken)
+            var loaded = await MarkdownImageLoader
+                .TryLoadAsync(_resolver, _url, _baseDirectory, cancellationToken)
                 .ConfigureAwait(false);
-
-            if (stream is null)
-            {
-                await Dispatcher.UIThread.InvokeAsync(ShowFailurePlaceholder);
-                return;
-            }
-
-            Bitmap bitmap;
-            try
-            {
-                bitmap = await Task.Run(() => new Bitmap(stream), cancellationToken).ConfigureAwait(false);
-            }
-            catch
-            {
-                // Decoder failure (unsupported format, truncated file, SVG...).
-                await Dispatcher.UIThread.InvokeAsync(ShowFailurePlaceholder);
-                return;
-            }
 
             if (cancellationToken.IsCancellationRequested)
             {
-                bitmap.Dispose();
                 return;
             }
 
-            await Dispatcher.UIThread.InvokeAsync(() => ShowBitmap(bitmap));
+            if (loaded is null)
+            {
+                await Dispatcher.UIThread.InvokeAsync(ShowFailurePlaceholder);
+                return;
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() => ShowImage(loaded.Value.Image, loaded.Value.BackingStream));
         }
         catch (OperationCanceledException)
         {
@@ -139,34 +132,38 @@ internal sealed class MarkdownImageView : ContentControl, IDisposable
         {
             await Dispatcher.UIThread.InvokeAsync(ShowFailurePlaceholder);
         }
-        finally
-        {
-            if (stream is not null)
-            {
-                await stream.DisposeAsync().ConfigureAwait(false);
-            }
-        }
     }
 
-    private void ShowBitmap(Bitmap bitmap)
+    private void ShowImage(IImage imageSource, Stream backingStream)
     {
         if (_loadCompleted)
         {
-            bitmap.Dispose();
+            MarkdownImageLoader.DisposeLoadedImage(imageSource, backingStream);
             return;
         }
 
-        _loadedBitmap = bitmap;
+        _loadedImage = imageSource;
+        _loadedImageBackingStream = backingStream;
         _loadCompleted = true;
 
         var image = new Image
         {
-            Source = bitmap,
+            Source = imageSource,
             Stretch = Stretch.Uniform,
             StretchDirection = StretchDirection.DownOnly,
             HorizontalAlignment = HorizontalAlignment.Center,
             UseLayoutRounding = true,
         };
+
+        if (_width is > 0)
+        {
+            image.Width = _width.Value;
+        }
+
+        if (_height is > 0)
+        {
+            image.Height = _height.Value;
+        }
 
         if (string.IsNullOrWhiteSpace(_altText))
         {

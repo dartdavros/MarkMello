@@ -181,7 +181,7 @@
   <Style Selector="TextBlock.mm-md-code-info">
     <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
-    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="Margin" Value="0,0,0,4" />
   </Style>

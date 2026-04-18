@@ -20,5 +20,5 @@ public sealed record ReadingPreferences(
         FontFamily: FontFamilyMode.Serif,
         FontSize: 17,
         LineHeight: 1.7,
-        ContentWidth: 720);
+        ContentWidth: 800);
 }
