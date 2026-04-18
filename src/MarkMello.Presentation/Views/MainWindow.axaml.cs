@@ -3,8 +3,11 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
+using Avalonia.Controls.Primitives;
 using MarkMello.Domain;
 using MarkMello.Presentation.ViewModels;
+using System.ComponentModel;
 
 namespace MarkMello.Presentation.Views;
 
@@ -24,8 +27,11 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
         AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(PointerPressedEvent, OnWindowPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
 
         Opened += OnWindowOpened;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
     /// <summary>
@@ -66,6 +72,12 @@ public partial class MainWindow : Window
         }
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        base.OnClosed(e);
+    }
+
     // ---------- Window control buttons (Windows only path) ----------
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e)
@@ -99,6 +111,46 @@ public partial class MainWindow : Window
         {
             // На неподдерживаемых платформах/состояниях окно просто не начнёт drag.
         }
+    }
+
+    private void OnWindowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!_viewModel.IsSettingsOpen || e.Source is not Visual source)
+        {
+            return;
+        }
+
+        var settingsPanel = this.FindControl<Border>("SettingsPanel");
+        if (settingsPanel is not null && IsWithinVisual(source, settingsPanel))
+        {
+            return;
+        }
+
+        var settingsTrigger = this.FindControl<ToggleButton>("SettingsTriggerButton");
+        if (settingsTrigger is not null && IsWithinVisual(source, settingsTrigger))
+        {
+            return;
+        }
+
+        _viewModel.CloseSettingsCommand.Execute(null);
+    }
+
+    private void OnWindowKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (!HasSettingsShortcutModifier(e.KeyModifiers))
+        {
+            return;
+        }
+
+        if (e.PhysicalKey != PhysicalKey.Comma
+            && e.Key != Key.OemComma
+            && !string.Equals(e.KeySymbol, ",", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _viewModel.ToggleSettingsCommand.Execute(null);
+        e.Handled = true;
     }
 
     // ---------- Drag & drop ----------
@@ -169,4 +221,28 @@ public partial class MainWindow : Window
 
         return null;
     }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainWindowViewModel.IsSettingsOpen))
+        {
+            Classes.Set("mm-settings-open", _viewModel.IsSettingsOpen);
+        }
+    }
+
+    private static bool IsWithinVisual(Visual source, Visual target)
+    {
+        for (Visual? current = source; current is not null; current = current.GetVisualParent())
+        {
+            if (ReferenceEquals(current, target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasSettingsShortcutModifier(KeyModifiers modifiers)
+        => modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Meta);
 }

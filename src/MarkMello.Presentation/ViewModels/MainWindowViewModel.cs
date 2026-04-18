@@ -4,15 +4,14 @@ using MarkMello.Application.Abstractions;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
-using System.Collections.Generic;
 
 namespace MarkMello.Presentation.ViewModels;
 
 /// <summary>
 /// View model главного окна. Отвечает за state machine (NoDocument/Viewing/LoadError),
-/// тему, reading preferences, команды open/reload, drag-overlay, reading progress,
-/// метрики Stage 3 и компактную M4 settings panel. Editor-specific properties
-/// по-прежнему отсутствуют — это constitution §4.
+/// тему, reading preferences, команды open/reload, drag-overlay, reading progress
+/// и компактный settings popover в духе design prototype. Editor-specific
+/// properties по-прежнему отсутствуют — это constitution §4.
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
@@ -116,7 +115,6 @@ public partial class MainWindowViewModel : ObservableObject
     public bool ShowCustomTitleBar => _showCustomTitleBar;
     public bool ShowsMoonThemeIcon => EffectiveTheme == ThemeMode.Light;
     public bool ShowsSunThemeIcon => EffectiveTheme == ThemeMode.Dark;
-    public IReadOnlyList<FontFamilyMode> FontFamilyModes { get; } = Enum.GetValues<FontFamilyMode>();
 
     public FontFamilyMode SelectedFontFamilyMode
     {
@@ -178,11 +176,97 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     public string FontSizeLabel => $"{ReadingPreferences.FontSize}px";
-    public string LineHeightLabel => $"{ReadingPreferences.LineHeight:0.00}x";
-    public string ContentWidthLabel => $"{ReadingPreferences.ContentWidth}px";
-    public string ThemeDescription => Theme == ThemeMode.System
-        ? "Theme follows the OS on first launch. The top-right toggle pins Light or Dark once you choose."
-        : $"Theme is pinned to {Theme.ToString().ToLowerInvariant()} and restored on startup.";
+    public string LineHeightLabel => $"{ReadingPreferences.LineHeight:0.00}";
+
+    public bool IsSerifFontSelected
+    {
+        get => ReadingPreferences.FontFamily == FontFamilyMode.Serif;
+        set
+        {
+            if (!value)
+            {
+                OnPropertyChanged(nameof(IsSerifFontSelected));
+                return;
+            }
+
+            SelectedFontFamilyMode = FontFamilyMode.Serif;
+        }
+    }
+
+    public bool IsSansFontSelected
+    {
+        get => ReadingPreferences.FontFamily == FontFamilyMode.Sans;
+        set
+        {
+            if (!value)
+            {
+                OnPropertyChanged(nameof(IsSansFontSelected));
+                return;
+            }
+
+            SelectedFontFamilyMode = FontFamilyMode.Sans;
+        }
+    }
+
+    public bool IsMonoFontSelected
+    {
+        get => ReadingPreferences.FontFamily == FontFamilyMode.Mono;
+        set
+        {
+            if (!value)
+            {
+                OnPropertyChanged(nameof(IsMonoFontSelected));
+                return;
+            }
+
+            SelectedFontFamilyMode = FontFamilyMode.Mono;
+        }
+    }
+
+    public bool IsNarrowWidthSelected
+    {
+        get => ReadingPreferences.ContentWidth == 580;
+        set
+        {
+            if (!value)
+            {
+                OnPropertyChanged(nameof(IsNarrowWidthSelected));
+                return;
+            }
+
+            ContentWidthSetting = 580;
+        }
+    }
+
+    public bool IsMediumWidthSelected
+    {
+        get => ReadingPreferences.ContentWidth == 720;
+        set
+        {
+            if (!value)
+            {
+                OnPropertyChanged(nameof(IsMediumWidthSelected));
+                return;
+            }
+
+            ContentWidthSetting = 720;
+        }
+    }
+
+    public bool IsWideWidthSelected
+    {
+        get => ReadingPreferences.ContentWidth == 860;
+        set
+        {
+            if (!value)
+            {
+                OnPropertyChanged(nameof(IsWideWidthSelected));
+                return;
+            }
+
+            ContentWidthSetting = 860;
+        }
+    }
 
     public int WordCount
     {
@@ -287,12 +371,6 @@ public partial class MainWindowViewModel : ObservableObject
     private void CloseSettings()
     {
         IsSettingsOpen = false;
-    }
-
-    [RelayCommand]
-    private void ResetReadingPreferences()
-    {
-        ApplyReadingPreferences(ReadingPreferences.Default);
     }
 
     [RelayCommand]
@@ -409,12 +487,12 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(ContentWidthSetting));
         OnPropertyChanged(nameof(FontSizeLabel));
         OnPropertyChanged(nameof(LineHeightLabel));
-        OnPropertyChanged(nameof(ContentWidthLabel));
-    }
-
-    partial void OnThemeChanged(ThemeMode value)
-    {
-        OnPropertyChanged(nameof(ThemeDescription));
+        OnPropertyChanged(nameof(IsSerifFontSelected));
+        OnPropertyChanged(nameof(IsSansFontSelected));
+        OnPropertyChanged(nameof(IsMonoFontSelected));
+        OnPropertyChanged(nameof(IsNarrowWidthSelected));
+        OnPropertyChanged(nameof(IsMediumWidthSelected));
+        OnPropertyChanged(nameof(IsWideWidthSelected));
     }
 
     private void ApplyReadingPreferences(ReadingPreferences preferences)

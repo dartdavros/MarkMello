@@ -15,11 +15,11 @@ public sealed record ReadingPreferences(
 {
     public const int MinFontSize = 14;
     public const int MaxFontSize = 24;
-    public const double MinLineHeight = 1.45;
-    public const double MaxLineHeight = 2.05;
+    public const double MinLineHeight = 1.4;
+    public const double MaxLineHeight = 2.0;
     public const double LineHeightStep = 0.05;
-    public const int MinContentWidth = 640;
-    public const int MaxContentWidth = 1100;
+    public const int MinContentWidth = 580;
+    public const int MaxContentWidth = 860;
     public const int ContentWidthStep = 20;
 
     /// <summary>
@@ -27,9 +27,9 @@ public sealed record ReadingPreferences(
     /// </summary>
     public static ReadingPreferences Default { get; } = new(
         FontFamily: FontFamilyMode.Serif,
-        FontSize: 17,
+        FontSize: 18,
         LineHeight: 1.7,
-        ContentWidth: 800);
+        ContentWidth: 720);
 
     /// <summary>
     /// Нормализует пользовательские настройки до безопасного и предсказуемого диапазона.

@@ -21,8 +21,6 @@
   <Window.KeyBindings>
     <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}" />
     <KeyBinding Gesture="Cmd+O" Command="{Binding OpenFileCommand}" />
-    <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding ToggleSettingsCommand}" />
-    <KeyBinding Gesture="Cmd+OemComma" Command="{Binding ToggleSettingsCommand}" />
     <KeyBinding Gesture="F5" Command="{Binding ReloadCommand}" />
     <KeyBinding Gesture="Ctrl+R" Command="{Binding ReloadCommand}" />
     <KeyBinding Gesture="Cmd+R" Command="{Binding ReloadCommand}" />
@@ -33,14 +31,21 @@
     <!-- Hover-reveal chrome via :pointerover on Window -->
     <Style Selector="Border.mm-top-chrome">
       <Setter Property="Opacity" Value="0" />
+      <Setter Property="RenderTransform" Value="translate(0px,-4px)" />
       <Setter Property="Transitions">
         <Transitions>
           <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
         </Transitions>
       </Setter>
     </Style>
     <Style Selector="Window:pointerover Border.mm-top-chrome">
       <Setter Property="Opacity" Value="1" />
+      <Setter Property="RenderTransform" Value="translate(0px,0px)" />
+    </Style>
+    <Style Selector="Window.mm-settings-open Border.mm-top-chrome">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="RenderTransform" Value="translate(0px,0px)" />
     </Style>
 
     <Style Selector="Border.mm-status">
@@ -155,15 +160,6 @@
               Margin="0,12,16,0">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <Button Classes="topbar-ghost"
-                  Command="{Binding ToggleSettingsCommand}"
-                  ToolTip.Tip="Reading settings">
-            <TextBlock Text="Aa"
-                       FontFamily="{DynamicResource MmDocumentSansFontFamily}"
-                       FontSize="12"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource MmTextSoftBrush}" />
-          </Button>
-          <Button Classes="topbar-ghost"
                   Command="{Binding CycleThemeCommand}"
                   ToolTip.Tip="{Binding NextThemeHint}">
             <Grid Width="14" Height="14">
@@ -220,115 +216,199 @@
               </Canvas>
             </Grid>
           </Button>
+          <ToggleButton Name="SettingsTriggerButton"
+                        Classes="topbar-ghost"
+                        IsChecked="{Binding IsSettingsOpen}"
+                        ToolTip.Tip="Reading preferences (Ctrl+,)">
+            <Grid Width="14"
+                  Height="14">
+              <Viewbox Stretch="Uniform">
+                <Canvas Width="24"
+                        Height="24">
+                  <Path Data="M14,17 L5,17"
+                        Stroke="{DynamicResource MmTextSoftBrush}"
+                        StrokeThickness="2"
+                        StrokeLineCap="Round"
+                        StrokeJoin="Round"
+                        Fill="Transparent" />
+                  <Path Data="M19,7 L10,7"
+                        Stroke="{DynamicResource MmTextSoftBrush}"
+                        StrokeThickness="2"
+                        StrokeLineCap="Round"
+                        StrokeJoin="Round"
+                        Fill="Transparent" />
+                  <Ellipse Canvas.Left="14"
+                           Canvas.Top="14"
+                           Width="6"
+                           Height="6"
+                           Stroke="{DynamicResource MmTextSoftBrush}"
+                           StrokeThickness="2"
+                           Fill="Transparent" />
+                  <Ellipse Canvas.Left="4"
+                           Canvas.Top="4"
+                           Width="6"
+                           Height="6"
+                           Stroke="{DynamicResource MmTextSoftBrush}"
+                           StrokeThickness="2"
+                           Fill="Transparent" />
+                </Canvas>
+              </Viewbox>
+            </Grid>
+          </ToggleButton>
         </StackPanel>
       </Border>
 
       <!-- Settings panel -->
-      <Border Classes="mm-settings-panel"
+      <Border Name="SettingsPanel"
+              Classes="mm-settings-panel"
               IsVisible="{Binding IsSettingsOpen}"
               HorizontalAlignment="Right"
               VerticalAlignment="Top"
-              Margin="0,52,16,0"
-              Width="332"
-              Padding="16">
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      MaxHeight="520">
-          <StackPanel Spacing="14">
-            <Grid ColumnDefinitions="*,Auto"
-                  ColumnSpacing="12">
-              <StackPanel Grid.Column="0"
-                          Spacing="4">
-                <TextBlock Classes="mm-settings-title"
-                           Text="Reading settings" />
-                <TextBlock Classes="mm-settings-subtitle"
-                           Text="Typography updates live and is restored safely on the next launch." />
-              </StackPanel>
+              Margin="0,54,16,0"
+              Width="320">
+        <StackPanel>
+          <Grid Classes="mm-settings-head"
+                ColumnDefinitions="*,Auto"
+                ColumnSpacing="12">
+            <TextBlock Classes="mm-settings-title"
+                       Grid.Column="0"
+                       Text="READING" />
+            <Button Grid.Column="1"
+                    Classes="mm-settings-close"
+                    Command="{Binding CloseSettingsCommand}"
+                    ToolTip.Tip="Close settings">
+              <Path Data="M0,0 L10,10 M10,0 L0,10"
+                    Stroke="{DynamicResource MmTextFaintBrush}"
+                    StrokeThickness="1.4"
+                    StrokeLineCap="Round" />
+            </Button>
+          </Grid>
 
-              <Button Grid.Column="1"
-                      Classes="topbar-ghost"
-                      Command="{Binding CloseSettingsCommand}"
-                      ToolTip.Tip="Close settings">
-                <Path Data="M0,0 L10,10 M10,0 L0,10"
-                      Stroke="{DynamicResource MmTextSoftBrush}"
-                      StrokeThickness="1.4"
-                      StrokeLineCap="Round" />
-              </Button>
-            </Grid>
-
-            <StackPanel Spacing="6">
-              <Grid ColumnDefinitions="*,Auto"
+          <StackPanel Classes="mm-settings-body"
+                      Spacing="0">
+            <Border Classes="mm-setting-row">
+              <Grid ColumnDefinitions="Auto,*"
                     ColumnSpacing="12">
-                <TextBlock Classes="mm-settings-label"
-                           Text="Font mode" />
-                <TextBlock Classes="mm-settings-value"
-                           Text="{Binding SelectedFontFamilyMode}" />
+                <StackPanel Grid.Column="0"
+                            Spacing="2"
+                            VerticalAlignment="Center">
+                  <TextBlock Classes="mm-setting-label"
+                             Text="Font" />
+                  <TextBlock Classes="mm-setting-hint"
+                             Text="Document typeface" />
+                </StackPanel>
+                <Border Grid.Column="1"
+                        Classes="mm-segmented"
+                        HorizontalAlignment="Right">
+                  <StackPanel Orientation="Horizontal"
+                              Spacing="1">
+                    <ToggleButton Classes="mm-segmented-item"
+                                  IsChecked="{Binding IsSerifFontSelected}">
+                      <TextBlock Text="Serif" />
+                    </ToggleButton>
+                    <ToggleButton Classes="mm-segmented-item"
+                                  IsChecked="{Binding IsSansFontSelected}">
+                      <TextBlock Text="Sans" />
+                    </ToggleButton>
+                    <ToggleButton Classes="mm-segmented-item"
+                                  IsChecked="{Binding IsMonoFontSelected}">
+                      <TextBlock Text="Mono" />
+                    </ToggleButton>
+                  </StackPanel>
+                </Border>
               </Grid>
-              <ComboBox ItemsSource="{Binding FontFamilyModes}"
-                        SelectedItem="{Binding SelectedFontFamilyMode, Mode=TwoWay}" />
-            </StackPanel>
-
-            <StackPanel Spacing="6">
-              <Grid ColumnDefinitions="*,Auto"
-                    ColumnSpacing="12">
-                <TextBlock Classes="mm-settings-label"
-                           Text="Font size" />
-                <TextBlock Classes="mm-settings-value"
-                           Text="{Binding FontSizeLabel}" />
-              </Grid>
-              <Slider Minimum="14"
-                      Maximum="24"
-                      TickFrequency="1"
-                      IsSnapToTickEnabled="True"
-                      Value="{Binding FontSizeSetting, Mode=TwoWay}" />
-            </StackPanel>
-
-            <StackPanel Spacing="6">
-              <Grid ColumnDefinitions="*,Auto"
-                    ColumnSpacing="12">
-                <TextBlock Classes="mm-settings-label"
-                           Text="Line height" />
-                <TextBlock Classes="mm-settings-value"
-                           Text="{Binding LineHeightLabel}" />
-              </Grid>
-              <Slider Minimum="1.45"
-                      Maximum="2.05"
-                      TickFrequency="0.05"
-                      IsSnapToTickEnabled="True"
-                      Value="{Binding LineHeightSetting, Mode=TwoWay}" />
-            </StackPanel>
-
-            <StackPanel Spacing="6">
-              <Grid ColumnDefinitions="*,Auto"
-                    ColumnSpacing="12">
-                <TextBlock Classes="mm-settings-label"
-                           Text="Content width" />
-                <TextBlock Classes="mm-settings-value"
-                           Text="{Binding ContentWidthLabel}" />
-              </Grid>
-              <Slider Minimum="640"
-                      Maximum="1100"
-                      TickFrequency="20"
-                      IsSnapToTickEnabled="True"
-                      Value="{Binding ContentWidthSetting, Mode=TwoWay}" />
-            </StackPanel>
-
-            <Border Classes="mm-settings-note">
-              <StackPanel Spacing="4">
-                <TextBlock Classes="mm-settings-label"
-                           Text="Theme" />
-                <TextBlock Classes="mm-settings-subtitle"
-                           Text="{Binding ThemeDescription}" />
-              </StackPanel>
             </Border>
 
-            <Button Classes="ghost"
-                    HorizontalAlignment="Stretch"
-                    Command="{Binding ResetReadingPreferencesCommand}">
-              <TextBlock Text="Reset reading defaults" />
-            </Button>
+            <Border Classes="mm-setting-row mm-setting-row-divider">
+              <Grid ColumnDefinitions="Auto,*"
+                    ColumnSpacing="12">
+                <StackPanel Grid.Column="0"
+                            Spacing="2"
+                            VerticalAlignment="Center">
+                  <TextBlock Classes="mm-setting-label"
+                             Text="Size" />
+                  <TextBlock Classes="mm-setting-hint"
+                             Text="Base font size" />
+                </StackPanel>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="10"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                  <Slider Classes="mm-settings-slider"
+                          Minimum="14"
+                          Maximum="24"
+                          TickFrequency="1"
+                          IsSnapToTickEnabled="True"
+                          Value="{Binding FontSizeSetting, Mode=TwoWay}" />
+                  <TextBlock Classes="mm-slider-value"
+                             Text="{Binding FontSizeLabel}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="mm-setting-row mm-setting-row-divider">
+              <Grid ColumnDefinitions="Auto,*"
+                    ColumnSpacing="12">
+                <StackPanel Grid.Column="0"
+                            Spacing="2"
+                            VerticalAlignment="Center">
+                  <TextBlock Classes="mm-setting-label"
+                             Text="Line height" />
+                  <TextBlock Classes="mm-setting-hint"
+                             Text="Reading comfort" />
+                </StackPanel>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="10"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                  <Slider Classes="mm-settings-slider"
+                          Minimum="1.4"
+                          Maximum="2.0"
+                          TickFrequency="0.05"
+                          IsSnapToTickEnabled="True"
+                          Value="{Binding LineHeightSetting, Mode=TwoWay}" />
+                  <TextBlock Classes="mm-slider-value"
+                             Text="{Binding LineHeightLabel}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Border Classes="mm-setting-row mm-setting-row-divider">
+              <Grid ColumnDefinitions="Auto,*"
+                    ColumnSpacing="12">
+                <StackPanel Grid.Column="0"
+                            Spacing="2"
+                            VerticalAlignment="Center">
+                  <TextBlock Classes="mm-setting-label"
+                             Text="Width" />
+                  <TextBlock Classes="mm-setting-hint"
+                             Text="Measure of a line" />
+                </StackPanel>
+                <Border Grid.Column="1"
+                        Classes="mm-segmented"
+                        HorizontalAlignment="Right">
+                  <StackPanel Orientation="Horizontal"
+                              Spacing="1">
+                    <ToggleButton Classes="mm-segmented-item"
+                                  IsChecked="{Binding IsNarrowWidthSelected}">
+                      <TextBlock Text="Narrow" />
+                    </ToggleButton>
+                    <ToggleButton Classes="mm-segmented-item"
+                                  IsChecked="{Binding IsMediumWidthSelected}">
+                      <TextBlock Text="Medium" />
+                    </ToggleButton>
+                    <ToggleButton Classes="mm-segmented-item"
+                                  IsChecked="{Binding IsWideWidthSelected}">
+                      <TextBlock Text="Wide" />
+                    </ToggleButton>
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </Border>
           </StackPanel>
-        </ScrollViewer>
+        </StackPanel>
       </Border>
 
       <!-- Status bar (hover-reveal) -->
@@ -371,6 +451,15 @@
                 <TextBlock Text="F5" FontFamily="{DynamicResource MmDocumentMonoFontFamily}" FontSize="10" />
               </Border>
               <TextBlock Text="reload" FontSize="11" Foreground="{DynamicResource MmTextFaintBrush}" VerticalAlignment="Center" Margin="2,0,0,0" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <Border Classes="kbd">
+                <TextBlock Text="Ctrl" FontFamily="{DynamicResource MmDocumentMonoFontFamily}" FontSize="10" />
+              </Border>
+              <Border Classes="kbd">
+                <TextBlock Text="," FontFamily="{DynamicResource MmDocumentMonoFontFamily}" FontSize="10" />
+              </Border>
+              <TextBlock Text="prefs" FontSize="11" Foreground="{DynamicResource MmTextFaintBrush}" VerticalAlignment="Center" Margin="2,0,0,0" />
             </StackPanel>
           </StackPanel>
 

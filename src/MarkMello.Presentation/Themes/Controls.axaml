@@ -41,30 +41,71 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
+  <Style Selector="ToggleButton.topbar-ghost">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="MinWidth" Value="28" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
   <Style Selector="Button.topbar-ghost:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-ghost:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
   </Style>
   <Style Selector="Button.topbar-ghost:pointerover Path">
     <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
   </Style>
+  <Style Selector="ToggleButton.topbar-ghost:pointerover Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
   <Style Selector="Button.topbar-ghost:pointerover Ellipse">
     <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
   </Style>
+  <Style Selector="ToggleButton.topbar-ghost:pointerover Ellipse">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
   <Style Selector="Button.topbar-ghost:pointerover Line">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-ghost:pointerover Line">
     <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
   </Style>
   <Style Selector="Button.topbar-ghost:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource MmAccentSoftBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
   </Style>
+  <Style Selector="ToggleButton.topbar-ghost:checked /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmAccentSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
   <Style Selector="Button.topbar-ghost:pressed Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-ghost:checked Path">
     <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
   </Style>
   <Style Selector="Button.topbar-ghost:pressed Ellipse">
     <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
   </Style>
+  <Style Selector="ToggleButton.topbar-ghost:checked Ellipse">
+    <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
   <Style Selector="Button.topbar-ghost:pressed Line">
+    <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-ghost:checked Line">
     <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
   </Style>
 
@@ -133,37 +174,96 @@
     <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <Style Selector="Grid.mm-settings-head">
+    <Setter Property="Margin" Value="14,18,10,18" />
   </Style>
 
   <Style Selector="TextBlock.mm-settings-title">
-    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
-    <Setter Property="FontSize" Value="15" />
-    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="LetterSpacing" Value="1" />
   </Style>
 
-  <Style Selector="TextBlock.mm-settings-subtitle">
+  <Style Selector="Button.mm-settings-close">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="4" />
+    <Setter Property="Width" Value="24" />
+    <Setter Property="Height" Value="24" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.mm-settings-close:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+  </Style>
+
+  <Style Selector="Button.mm-settings-close:pointerover Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
+  <Style Selector="StackPanel.mm-settings-body">
+    <Setter Property="Margin" Value="8,0,14,12" />
+  </Style>
+
+  <Style Selector="Border.mm-setting-row">
+    <Setter Property="Padding" Value="10,6" />
+  </Style>
+  <Style Selector="Border.mm-setting-row-divider">
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-setting-label">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-setting-hint">
     <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
     <Setter Property="FontSize" Value="11" />
-    <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
-  <Style Selector="TextBlock.mm-settings-label">
-    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
-    <Setter Property="FontSize" Value="11" />
-    <Setter Property="FontWeight" Value="SemiBold" />
-  </Style>
-
-  <Style Selector="TextBlock.mm-settings-value">
-    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
-    <Setter Property="FontSize" Value="11" />
-  </Style>
-
-  <Style Selector="Border.mm-settings-note">
+  <Style Selector="Border.mm-segmented">
     <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="8" />
-    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="2" />
+  </Style>
+
+  <Style Selector="ToggleButton.mm-segmented-item">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="10" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="ToggleButton.mm-segmented-item:pointerover /template/ ContentPresenter">
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.mm-segmented-item:checked /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
+  <Style Selector="Slider.mm-settings-slider">
+    <Setter Property="Width" Value="130" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-slider-value">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinWidth" Value="32" />
+    <Setter Property="TextAlignment" Value="Right" />
   </Style>
 
   <Style Selector="TextBlock.mm-md-heading">
