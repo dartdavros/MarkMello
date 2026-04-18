@@ -57,6 +57,14 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 return;
 
             case ParagraphBlock paragraph:
+                // A paragraph whose only meaningful inline node is an image
+                // becomes a block-level image. This matches how authors write
+                // "figure" style images as a standalone paragraph.
+                if (TryExtractStandaloneImage(paragraph.Inline, out var standaloneImage))
+                {
+                    target.Add(standaloneImage);
+                    return;
+                }
                 target.Add(new MarkdownParagraphBlock(ConvertInlines(paragraph.Inline)));
                 return;
 
@@ -93,7 +101,13 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 // Instead, HtmlToPlainText strips scripts, styles, comments
                 // and CDATA blocks by content, which is stable regardless
                 // of Markdig's internal classification.
-                var plainText = HtmlToPlainText(htmlBlock.Lines.ToString());
+                var htmlRaw = htmlBlock.Lines.ToString();
+                if (TryExtractStandaloneImgTag(htmlRaw, out var imgBlock))
+                {
+                    target.Add(imgBlock);
+                    return;
+                }
+                var plainText = HtmlToPlainText(htmlRaw);
                 if (!string.IsNullOrWhiteSpace(plainText))
                 {
                     target.Add(new MarkdownParagraphBlock([
@@ -401,6 +415,14 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         @"\balt\s*=\s*(?:""([^""]*)""|'([^']*)')",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private static readonly Regex SrcAttrPattern = new(
+        @"\bsrc\s*=\s*(?:""([^""]*)""|'([^']*)')",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex TitleAttrPattern = new(
+        @"\btitle\s*=\s*(?:""([^""]*)""|'([^']*)')",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static readonly Regex LineBreakTagPattern = new(
         @"^<br\b[^>]*/?>$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -519,5 +541,128 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         }
 
         return "[image]";
+    }
+
+    /// <summary>
+    /// Detects the "figure" pattern: a paragraph whose only visible content
+    /// is a single markdown image (![alt](url) optionally preceded/followed
+    /// by whitespace or a line break). Returns the extracted image block.
+    /// </summary>
+    private static bool TryExtractStandaloneImage(
+        ContainerInline? container,
+        out MarkdownImageBlock imageBlock)
+    {
+        imageBlock = null!;
+        if (container is null)
+        {
+            return false;
+        }
+
+        LinkInline? onlyImage = null;
+        foreach (var inline in container)
+        {
+            switch (inline)
+            {
+                case LiteralInline literal:
+                    // Allow whitespace-only literals around the image.
+                    var text = literal.Content.ToString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        return false;
+                    }
+                    break;
+
+                case LineBreakInline:
+                    // A trailing soft break doesn't disqualify the figure pattern.
+                    break;
+
+                case LinkInline link when link.IsImage:
+                    if (onlyImage is not null)
+                    {
+                        // Two or more images in the same paragraph -- keep
+                        // them inline so the user's layout intent is clear.
+                        return false;
+                    }
+                    onlyImage = link;
+                    break;
+
+                default:
+                    // Anything else (emphasis, other links, code, nested HTML)
+                    // means this paragraph is a real paragraph, not a figure.
+                    return false;
+            }
+        }
+
+        if (onlyImage is null)
+        {
+            return false;
+        }
+
+        var altText = ExtractPlainText(ConvertInlines(onlyImage));
+        imageBlock = new MarkdownImageBlock(
+            Url: NormalizeNullable(onlyImage.Url) ?? string.Empty,
+            AltText: string.IsNullOrWhiteSpace(altText) ? null : altText,
+            Title: NormalizeNullable(onlyImage.Title));
+        return true;
+    }
+
+    /// <summary>
+    /// Detects an HTML block whose only meaningful content is a single
+    /// &lt;img&gt; tag (optionally wrapped in picture/source/figure/figcaption/div).
+    /// Returns the extracted image block with the inner src/alt/title.
+    /// </summary>
+    private static bool TryExtractStandaloneImgTag(string html, out MarkdownImageBlock imageBlock)
+    {
+        imageBlock = null!;
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return false;
+        }
+
+        var imgMatches = ImgTagPattern.Matches(html);
+        if (imgMatches.Count != 1)
+        {
+            // Zero or many -- not a figure, fall back to plain-text handling.
+            return false;
+        }
+
+        var imgTag = imgMatches[0].Value;
+
+        // Everything EXCEPT that single <img> must reduce to just tags and
+        // whitespace -- no visible text belongs next to the image when we
+        // promote it. Remove the img itself, then strip surrounding tags;
+        // what's left should be empty.
+        var withoutImg = html.Replace(imgTag, string.Empty, StringComparison.Ordinal);
+        var textAround = AnyTagPattern.Replace(withoutImg, " ").Trim();
+        if (!string.IsNullOrWhiteSpace(textAround))
+        {
+            return false;
+        }
+
+        var src = ExtractAttr(SrcAttrPattern, imgTag);
+        if (string.IsNullOrWhiteSpace(src))
+        {
+            return false;
+        }
+
+        var alt = ExtractAttr(AltAttrPattern, imgTag);
+        var title = ExtractAttr(TitleAttrPattern, imgTag);
+
+        imageBlock = new MarkdownImageBlock(
+            Url: src,
+            AltText: string.IsNullOrWhiteSpace(alt) ? null : alt,
+            Title: string.IsNullOrWhiteSpace(title) ? null : title);
+        return true;
+    }
+
+    private static string? ExtractAttr(Regex pattern, string tag)
+    {
+        var m = pattern.Match(tag);
+        if (!m.Success)
+        {
+            return null;
+        }
+        var value = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 }

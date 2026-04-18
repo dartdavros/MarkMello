@@ -18,14 +18,18 @@ public sealed class RenderMarkdownDocumentUseCase
     }
 
     public RenderedMarkdownDocument Execute(string markdown)
+        => Execute(markdown, baseDirectory: null);
+
+    public RenderedMarkdownDocument Execute(string markdown, string? baseDirectory)
     {
         try
         {
-            return _renderer.Render(markdown);
+            return _renderer.Render(markdown, baseDirectory);
         }
         catch
         {
-            return RenderedMarkdownDocument.PlainText(markdown);
+            var fallback = RenderedMarkdownDocument.PlainText(markdown);
+            return baseDirectory is null ? fallback : fallback with { BaseDirectory = baseDirectory };
         }
     }
 }

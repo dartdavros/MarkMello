@@ -278,4 +278,15 @@
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
 
+  <Style Selector="Border.mm-md-image-placeholder">
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-md-image-caption">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+  </Style>
+
 </Styles>

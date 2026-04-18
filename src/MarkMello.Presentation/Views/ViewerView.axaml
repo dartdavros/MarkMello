@@ -19,6 +19,7 @@
               UseLayoutRounding="True">
         <views:MarkdownDocumentView Document="{Binding RenderedDocument}"
                                     ReadingPreferences="{Binding ReadingPreferences}"
+                                    ImageSourceResolver="{Binding ImageSourceResolver}"
                                     UseLayoutRounding="True" />
       </Border>
     </Grid>

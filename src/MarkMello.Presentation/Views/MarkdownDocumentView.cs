@@ -6,6 +6,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
 using MarkMello.Presentation.Views.Markdown;
 
@@ -26,6 +27,9 @@ public sealed class MarkdownDocumentView : UserControl
         AvaloniaProperty.Register<MarkdownDocumentView, ReadingPreferences>(
             nameof(ReadingPreferences),
             ReadingPreferences.Default);
+
+    public static readonly StyledProperty<IImageSourceResolver?> ImageSourceResolverProperty =
+        AvaloniaProperty.Register<MarkdownDocumentView, IImageSourceResolver?>(nameof(ImageSourceResolver));
 
     private const double DragSelectionThreshold = 4;
 
@@ -96,6 +100,12 @@ public sealed class MarkdownDocumentView : UserControl
     {
         get => GetValue(ReadingPreferencesProperty);
         set => SetValue(ReadingPreferencesProperty, value);
+    }
+
+    public IImageSourceResolver? ImageSourceResolver
+    {
+        get => GetValue(ImageSourceResolverProperty);
+        set => SetValue(ImageSourceResolverProperty, value);
     }
 
     public int? SelectionAnchor { get; private set; }
@@ -196,7 +206,21 @@ public sealed class MarkdownDocumentView : UserControl
             MarkdownHorizontalRuleBlock => BuildHorizontalRule(),
             MarkdownCodeBlock code => BuildCodeBlock(code, path),
             MarkdownTableBlock table => BuildTable(table, path),
+            MarkdownImageBlock image => BuildImageBlock(image),
             _ => BuildFallback(block)
+        };
+
+    private MarkdownImageView BuildImageBlock(MarkdownImageBlock block)
+        => new(
+            resolver: ImageSourceResolver,
+            url: block.Url,
+            altText: block.AltText,
+            title: block.Title,
+            baseDirectory: Document?.BaseDirectory)
+        {
+            Margin = new Thickness(0, 12, 0, 22),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MaxWidth = 1200,
         };
 
     private Control BuildHeading(MarkdownHeadingBlock block, string path)

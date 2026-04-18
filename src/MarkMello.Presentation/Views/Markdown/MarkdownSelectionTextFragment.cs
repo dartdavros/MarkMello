@@ -452,12 +452,12 @@ internal sealed class MarkdownSelectionTextFragment : Control, IDisposable
         var borderBrush = ResolveOptionalBrush("MmCodeBorderBrush");
         var pen = borderBrush is null ? null : new Pen(borderBrush, 1);
 
-        // Pill geometry: see ADR-0001 note -- because we can't widen the
-        // surrounding text flow without breaking document-wide selection,
-        // the pill is visually distinct only via a small lateral inflation
-        // of the glyph box. Vertical padding is kept at 0 so the pill
-        // height exactly matches the line box.
-        const double horizontalPad = 6;
+        // Pill geometry: see ADR-0001 note -- we can't widen the surrounding
+        // text flow without breaking document-wide selection, so the pill is
+        // visually distinct only via lateral inflation of the glyph box.
+        // The value is a trade-off: too small and the pill hugs the glyphs
+        // inside/outside; too large and the fill visibly overlaps neighbours.
+        const double horizontalPad = 8;
         const double verticalPad = 0;
         const double cornerRadius = 3;
 

@@ -82,6 +82,7 @@ public sealed class MarkdownDocumentTextMap
             MarkdownQuoteBlock quote => string.Join(Environment.NewLine, quote.Blocks.Select(ExtractPlainText)),
             MarkdownListBlock list => string.Join(Environment.NewLine, list.Items.Select(static item => string.Join(Environment.NewLine, item.Blocks.Select(ExtractPlainText)))),
             MarkdownHorizontalRuleBlock => string.Empty,
+            MarkdownImageBlock => string.Empty,
             MarkdownCodeBlock code => code.Code,
             MarkdownTableBlock table => ExtractPlainText(table),
             _ => block.ToString() ?? string.Empty
@@ -219,6 +220,13 @@ public sealed class MarkdownDocumentTextMap
 
                 case MarkdownTableBlock table:
                     AppendTable(table, path);
+                    AppendBlockSeparator(doubleBreak: true);
+                    return;
+
+                case MarkdownImageBlock:
+                    // Image blocks participate in vertical rhythm but not in
+                    // the text stream. Copying "para above, image, para below"
+                    // yields the two paragraphs joined by a paragraph break.
                     AppendBlockSeparator(doubleBreak: true);
                     return;
 

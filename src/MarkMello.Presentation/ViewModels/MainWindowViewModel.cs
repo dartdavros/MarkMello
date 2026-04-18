@@ -21,6 +21,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly IStartupMetrics _startupMetrics;
     private readonly RenderMarkdownDocumentUseCase _renderMarkdown;
+    private readonly IImageSourceResolver? _imageSourceResolver;
 
     private bool _stage3Marked;
     private string? _currentPath;
@@ -33,7 +34,8 @@ public partial class MainWindowViewModel : ObservableObject
         ISettingsStore settings,
         IThemeService themeService,
         IStartupMetrics startupMetrics,
-        RenderMarkdownDocumentUseCase renderMarkdown)
+        RenderMarkdownDocumentUseCase renderMarkdown,
+        IImageSourceResolver? imageSourceResolver = null)
     {
         _openDocument = openDocument;
         _filePicker = filePicker;
@@ -42,7 +44,15 @@ public partial class MainWindowViewModel : ObservableObject
         _themeService = themeService;
         _startupMetrics = startupMetrics;
         _renderMarkdown = renderMarkdown;
+        _imageSourceResolver = imageSourceResolver;
     }
+
+    /// <summary>
+    /// Resolver used by the markdown view to load image block content. Null
+    /// in design-time or tests; the view renders "Image unavailable"
+    /// placeholders in that case.
+    /// </summary>
+    public IImageSourceResolver? ImageSourceResolver => _imageSourceResolver;
 
     // ---------- State ----------
 
@@ -224,7 +234,9 @@ public partial class MainWindowViewModel : ObservableObject
         {
             case OpenDocumentResult.Success success:
                 Document = success.Source;
-                RenderedDocument = _renderMarkdown.Execute(success.Source.Content);
+                RenderedDocument = _renderMarkdown.Execute(
+                    success.Source.Content,
+                    baseDirectory: TryGetDirectory(success.Source.Path));
                 _currentPath = success.Source.Path;
                 State = ViewState.Viewing;
                 WindowTitle = $"{success.Source.FileName} — MarkMello";
@@ -273,5 +285,23 @@ public partial class MainWindowViewModel : ObservableObject
         ErrorDetails = details;
         State = ViewState.LoadError;
         WindowTitle = "MarkMello";
+    }
+
+    private static string? TryGetDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return System.IO.Path.GetDirectoryName(path);
+        }
+        catch
+        {
+            // Invalid characters or permission failure -- not fatal for viewer path.
+            return null;
+        }
     }
 }

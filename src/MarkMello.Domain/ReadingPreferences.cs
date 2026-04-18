@@ -18,7 +18,7 @@ public sealed record ReadingPreferences(
     /// </summary>
     public static ReadingPreferences Default { get; } = new(
         FontFamily: FontFamilyMode.Serif,
-        FontSize: 16,
+        FontSize: 17,
         LineHeight: 1.7,
         ContentWidth: 720);
 }
