@@ -26,6 +26,11 @@ public sealed class MarkdownDocumentView : UserControl
     public static readonly StyledProperty<RenderedMarkdownDocument?> DocumentProperty =
         AvaloniaProperty.Register<MarkdownDocumentView, RenderedMarkdownDocument?>(nameof(Document));
 
+    public static readonly StyledProperty<Thickness> DocumentPaddingProperty =
+        AvaloniaProperty.Register<MarkdownDocumentView, Thickness>(
+            nameof(DocumentPadding),
+            new Thickness(0));
+
     public static readonly StyledProperty<ReadingPreferences> ReadingPreferencesProperty =
         AvaloniaProperty.Register<MarkdownDocumentView, ReadingPreferences>(
             nameof(ReadingPreferences),
@@ -40,6 +45,10 @@ public sealed class MarkdownDocumentView : UserControl
     {
         Orientation = Orientation.Vertical,
         Spacing = 0
+    };
+    private readonly Border _viewport = new()
+    {
+        Background = Brushes.Transparent
     };
 
     private readonly List<MarkdownDocumentSelectionFragmentBase> _selectionFragments = [];
@@ -57,6 +66,7 @@ public sealed class MarkdownDocumentView : UserControl
     static MarkdownDocumentView()
     {
         DocumentProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.Rebuild());
+        DocumentPaddingProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.ApplyDocumentPadding());
         ReadingPreferencesProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.RefreshForReadingPreferencesChange());
     }
 
@@ -87,7 +97,9 @@ public sealed class MarkdownDocumentView : UserControl
         // bubbles up from the Focus() call; we swallow it ourselves.
         AddHandler(RequestBringIntoViewEvent, OnRequestBringIntoView, RoutingStrategies.Bubble);
 
-        Content = _root;
+        _viewport.Child = _root;
+        ApplyDocumentPadding();
+        Content = _viewport;
 
         ContextMenu = BuildContextMenu();
     }
@@ -114,6 +126,12 @@ public sealed class MarkdownDocumentView : UserControl
     {
         get => GetValue(ReadingPreferencesProperty);
         set => SetValue(ReadingPreferencesProperty, value);
+    }
+
+    public Thickness DocumentPadding
+    {
+        get => GetValue(DocumentPaddingProperty);
+        set => SetValue(DocumentPaddingProperty, value);
     }
 
     public IImageSourceResolver? ImageSourceResolver
@@ -227,6 +245,11 @@ public sealed class MarkdownDocumentView : UserControl
 
         Rebuild();
         _root.Opacity = 1;
+    }
+
+    private void ApplyDocumentPadding()
+    {
+        _viewport.Padding = DocumentPadding;
     }
 
     private void DisposeSelectionFragments()

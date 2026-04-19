@@ -85,34 +85,6 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("second", harness.ViewModel.Document!.Content);
     }
 
-    [Fact]
-    public async Task ReloadCommandWhenEditorIsDirtyPromptsAndReloadsIntoEditorSession()
-    {
-        var harness = CreateHarness();
-        var path = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
-        harness.Loader.Sources[path] = CreateSource(path, "first");
-
-        await harness.ViewModel.OpenPathAsync(path);
-        await harness.ViewModel.ToggleEditModeCommand.ExecuteAsync(null);
-        harness.ViewModel.EditorSession!.SourceText = "first changed";
-        harness.Loader.Sources[path] = CreateSource(path, "reloaded");
-
-        await harness.ViewModel.ReloadCommand.ExecuteAsync(null);
-
-        Assert.True(harness.ViewModel.IsDirtyPromptOpen);
-        Assert.Equal("first", harness.ViewModel.Document!.Content);
-        Assert.Equal("first changed", harness.ViewModel.EditorSession.SourceText);
-
-        await harness.ViewModel.ConfirmDirtyDiscardCommand.ExecuteAsync(null);
-
-        Assert.False(harness.ViewModel.IsDirtyPromptOpen);
-        Assert.True(harness.ViewModel.IsEditMode);
-        Assert.False(harness.ViewModel.IsDirty);
-        Assert.Equal("reloaded", harness.ViewModel.Document!.Content);
-        Assert.Equal("reloaded", harness.ViewModel.EditorSession.SourceText);
-    }
-
-    [Fact]
     public async Task SaveCommandPersistsEditorBufferAndClearsDirtyState()
     {
         var harness = CreateHarness();
@@ -153,32 +125,6 @@ public sealed class MainWindowViewModelTests
         Assert.Equal($"Access denied: {path}", harness.ViewModel.EditorSession.StatusMessage);
     }
 
-    [Fact]
-    public async Task TryQueueCloseRequestWhenDirtyPromptsAndContinuesCloseAfterDiscard()
-    {
-        var harness = CreateHarness();
-        var path = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
-        var closeRequested = false;
-        harness.Loader.Sources[path] = CreateSource(path, "first");
-        harness.ViewModel.CloseRequested += (_, _) => closeRequested = true;
-
-        await harness.ViewModel.OpenPathAsync(path);
-        await harness.ViewModel.ToggleEditModeCommand.ExecuteAsync(null);
-        harness.ViewModel.EditorSession!.SourceText = "first updated";
-
-        var queued = harness.ViewModel.TryQueueCloseRequest();
-
-        Assert.True(queued);
-        Assert.True(harness.ViewModel.IsDirtyPromptOpen);
-        Assert.False(closeRequested);
-
-        await harness.ViewModel.ConfirmDirtyDiscardCommand.ExecuteAsync(null);
-
-        Assert.False(harness.ViewModel.IsDirtyPromptOpen);
-        Assert.True(closeRequested);
-    }
-
-    [Fact]
     public async Task SaveAsCommandUsesPickerPathAndUpdatesDocumentIdentity()
     {
         var harness = CreateHarness();

@@ -443,8 +443,8 @@
 
   <Style Selector="Border.mm-editor-pane">
     <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
-    <Setter Property="BorderThickness" Value="0,0,1,0" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
     <Setter Property="ClipToBounds" Value="True" />
     <Setter Property="MinWidth" Value="200" />
   </Style>
@@ -494,8 +494,11 @@
   </Style>
 
   <Style Selector="Border.mm-editor-status-shell">
-    <Setter Property="Padding" Value="14,8,14,0" />
-    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="Background" Value="{DynamicResource MmBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
   </Style>
 
   <Style Selector="TextBlock.mm-editor-status-text">
@@ -505,22 +508,43 @@
   </Style>
 
   <Style Selector="TextBox.mm-editor-textarea">
-    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Padding" Value="36,28" />
+    <Setter Property="Padding" Value="0" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
     <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
     <Setter Property="FontSize" Value="14" />
     <Setter Property="LineHeight" Value="23.8" />
     <Setter Property="CaretBrush" Value="{DynamicResource MmTextBrush}" />
     <Setter Property="SelectionBrush" Value="{DynamicResource MmAccentSoftBrush}" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+  </Style>
+  <Style Selector="TextBox.mm-editor-textarea /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.mm-editor-textarea:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.mm-editor-textarea:focus /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.mm-editor-textarea /template/ TextPresenter#PART_TextPresenter">
+    <Setter Property="Margin" Value="36,28,36,28" />
+    <Setter Property="Background" Value="Transparent" />
   </Style>
 
   <Style Selector="GridSplitter.mm-editor-splitter">
     <Setter Property="Width" Value="9" />
+    <Setter Property="Margin" Value="-4,0" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Cursor" Value="SizeWestEast" />
-    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
     <Setter Property="VerticalAlignment" Value="Stretch" />
     <Setter Property="Template">
       <ControlTemplate>
@@ -533,7 +557,10 @@
     </Setter>
   </Style>
   <Style Selector="GridSplitter.mm-editor-splitter:pointerover /template/ Border">
-    <Setter Property="Background" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="GridSplitter.mm-editor-splitter.dragging /template/ Border">
+    <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
   </Style>
 
   <Style Selector="Border.mm-dialog-card">

@@ -39,7 +39,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         _sourceText = source.Content;
         _renderedPreview = RenderPreview(source.Content, source.Path);
         _statusMessage = string.Empty;
-        _splitRatio = 0.45;
+        _splitRatio = 0.5;
     }
 
     public IImageSourceResolver? ImageSourceResolver { get; }

@@ -134,8 +134,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool HasDocumentTitle => State == ViewState.Viewing && !string.IsNullOrWhiteSpace(FileName);
 
-    public bool ShowsStandaloneAppTitle => !HasDocumentTitle;
-
     public bool IsWelcome => State == ViewState.NoDocument;
 
     public bool IsViewer => State == ViewState.Viewing;
@@ -548,7 +546,6 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnStateChanged(ViewState value)
     {
         OnPropertyChanged(nameof(HasDocumentTitle));
-        OnPropertyChanged(nameof(ShowsStandaloneAppTitle));
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -931,7 +928,6 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(FileName));
         OnPropertyChanged(nameof(TitleFileDisplayName));
         OnPropertyChanged(nameof(HasDocumentTitle));
-        OnPropertyChanged(nameof(ShowsStandaloneAppTitle));
         OnPropertyChanged(nameof(WordCount));
         OnPropertyChanged(nameof(ReadTimeMinutes));
         OnPropertyChanged(nameof(IsDirty));

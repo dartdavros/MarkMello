@@ -33,7 +33,6 @@ public partial class EditWorkspaceView : UserControl
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         ApplySplitRatio();
-        FocusEditorAsync();
     }
 
     private void OnFormatButtonClick(object? sender, RoutedEventArgs e)
@@ -72,6 +71,8 @@ public partial class EditWorkspaceView : UserControl
 
     private void OnSplitterDragCompleted(object? sender, VectorEventArgs e)
     {
+        SetSplitterDraggingState(sender, isDragging: false);
+
         if (DataContext is not EditorSessionViewModel session)
         {
             return;
@@ -93,6 +94,15 @@ public partial class EditWorkspaceView : UserControl
 
         session.SplitRatio = leftWidth / totalWidth;
     }
+
+    private void OnSplitterPointerPressed(object? sender, PointerPressedEventArgs e)
+        => SetSplitterDraggingState(sender, isDragging: true);
+
+    private void OnSplitterPointerReleased(object? sender, PointerReleasedEventArgs e)
+        => SetSplitterDraggingState(sender, isDragging: false);
+
+    private void OnSplitterPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+        => SetSplitterDraggingState(sender, isDragging: false);
 
     private void ApplySplitRatio()
     {
@@ -118,10 +128,14 @@ public partial class EditWorkspaceView : UserControl
         {
             var editor = this.FindControl<TextBox>("EditorTextBox");
             editor?.Focus();
-            if (editor is not null)
-            {
-                editor.CaretIndex = editor.Text?.Length ?? 0;
-            }
         }, DispatcherPriority.Background);
+    }
+
+    private static void SetSplitterDraggingState(object? sender, bool isDragging)
+    {
+        if (sender is Control control)
+        {
+            control.Classes.Set("dragging", isDragging);
+        }
     }
 }

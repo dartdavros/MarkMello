@@ -81,7 +81,7 @@ MarkMello is built around a small set of rules:
 2. **Instant open beats feature richness.** If it slows cold start, it doesn't belong in the fast path.
 3. **The document is the interface.** Chrome should fade when you're not looking at it.
 4. **Local-first.** No account, no sync, no network requests to read a file on your disk.
-
+5. тест
 ---
 
 *MarkMello · v1.0 · MIT License*

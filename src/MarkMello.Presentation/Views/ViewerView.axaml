@@ -15,7 +15,6 @@
     <Grid UseLayoutRounding="True">
       <Border MaxWidth="{Binding ReadingPreferences.ContentWidth}"
               HorizontalAlignment="Center"
-              Padding="72,96,72,160"
               UseLayoutRounding="True">
         <Border.Transitions>
           <Transitions>
@@ -24,6 +23,7 @@
           </Transitions>
         </Border.Transitions>
         <views:MarkdownDocumentView Document="{Binding RenderedDocument}"
+                                    DocumentPadding="72,96,72,160"
                                     ReadingPreferences="{Binding ReadingPreferences}"
                                     ImageSourceResolver="{Binding ImageSourceResolver}"
                                     UseLayoutRounding="True" />
