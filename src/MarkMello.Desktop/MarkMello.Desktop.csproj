@@ -6,6 +6,8 @@
     <AssemblyName>MarkMello</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <MarkMelloReleaseOwner Condition="'$(MarkMelloReleaseOwner)' == ''">dartdavros</MarkMelloReleaseOwner>
+    <MarkMelloReleaseRepo Condition="'$(MarkMelloReleaseRepo)' == ''">MarkMello</MarkMelloReleaseRepo>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +21,17 @@
     <ProjectReference Include="..\MarkMello.Domain\MarkMello.Domain.csproj" />
     <ProjectReference Include="..\MarkMello.Infrastructure\MarkMello.Infrastructure.csproj" />
     <ProjectReference Include="..\MarkMello.Presentation\MarkMello.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>MarkMelloReleaseOwner</_Parameter1>
+      <_Parameter2>$(MarkMelloReleaseOwner)</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>MarkMelloReleaseRepo</_Parameter1>
+      <_Parameter2>$(MarkMelloReleaseRepo)</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

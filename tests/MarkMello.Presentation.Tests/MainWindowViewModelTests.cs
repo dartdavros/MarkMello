@@ -1,7 +1,9 @@
 using MarkMello.Application.UseCases;
+using MarkMello.Application.Updates;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
 using MarkMello.Presentation.ViewModels;
+using System.Globalization;
 
 namespace MarkMello.Presentation.Tests;
 
@@ -131,6 +133,25 @@ public sealed class MainWindowViewModelTests
 
         Assert.True(harness.ViewModel.IsAppMenuOpen);
         Assert.False(harness.ViewModel.IsAppSettingsOpen);
+    }
+
+    [Fact]
+    public void OpenAboutCommandSwitchesFromSettingsToAboutAndBack()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.ToggleAppMenuCommand.Execute(null);
+        harness.ViewModel.OpenAppSettingsCommand.Execute(null);
+        harness.ViewModel.OpenAboutCommand.Execute(null);
+
+        Assert.True(harness.ViewModel.IsAppAboutOpen);
+        Assert.True(harness.ViewModel.IsAppOverlayOpen);
+        Assert.False(harness.ViewModel.IsAppSettingsOpen);
+
+        harness.ViewModel.ReturnToAppSettingsCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsAppAboutOpen);
+        Assert.True(harness.ViewModel.IsAppSettingsOpen);
     }
 
     [Fact]
@@ -306,8 +327,79 @@ public sealed class MainWindowViewModelTests
         Assert.False(harness.ViewModel.IsDirty);
     }
 
+    [Fact]
+    public async Task CheckForUpdatesCommandWhenUpdateAvailableShowsDownloadAction()
+    {
+        var harness = CreateHarness();
+        var package = CreateUpdatePackage();
+        harness.UpdateService.NextCheckResult = new UpdateCheckResult.UpdateAvailable(package);
+
+        await harness.ViewModel.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        Assert.Equal("Update 1.2.3 available", harness.ViewModel.UpdateStatusTitle);
+        Assert.Contains(package.AssetName, harness.ViewModel.UpdateStatusMessage, StringComparison.Ordinal);
+        Assert.True(harness.ViewModel.CanDownloadAvailableUpdate);
+        Assert.False(harness.ViewModel.CanOpenDownloadedUpdate);
+        Assert.Equal("Available", harness.ViewModel.UpdateStateBadge);
+    }
+
+    [Fact]
+    public async Task DownloadUpdateCommandWhenSuccessfulShowsNativeAction()
+    {
+        var harness = CreateHarness();
+        var package = CreateUpdatePackage();
+        var downloadedPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", package.AssetName);
+        harness.UpdateService.NextCheckResult = new UpdateCheckResult.UpdateAvailable(package);
+        harness.UpdateService.NextDownloadResult = new UpdateDownloadResult.Success(package, downloadedPath);
+
+        await harness.ViewModel.CheckForUpdatesCommand.ExecuteAsync(null);
+        await harness.ViewModel.DownloadUpdateCommand.ExecuteAsync(null);
+
+        Assert.Equal("Update ready", harness.ViewModel.UpdateStatusTitle);
+        Assert.Contains(package.AssetName, harness.ViewModel.UpdateStatusMessage, StringComparison.Ordinal);
+        Assert.False(harness.ViewModel.CanDownloadAvailableUpdate);
+        Assert.True(harness.ViewModel.CanOpenDownloadedUpdate);
+        Assert.Equal("Launch installer", harness.ViewModel.DownloadedUpdateActionLabel);
+        Assert.Equal(downloadedPath, harness.ViewModel.DownloadedUpdatePath);
+        Assert.Equal("Ready", harness.ViewModel.UpdateStateBadge);
+    }
+
+    [Fact]
+    public async Task OpenDownloadedUpdateCommandWhenSuccessfulUpdatesStatus()
+    {
+        var harness = CreateHarness();
+        var package = CreateUpdatePackage();
+        var downloadedPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", package.AssetName);
+        harness.UpdateService.NextCheckResult = new UpdateCheckResult.UpdateAvailable(package);
+        harness.UpdateService.NextDownloadResult = new UpdateDownloadResult.Success(package, downloadedPath);
+        harness.UpdateService.NextPrepareResult =
+            new UpdatePrepareResult.Success("Installer launched. Follow the native upgrade flow.");
+
+        await harness.ViewModel.CheckForUpdatesCommand.ExecuteAsync(null);
+        await harness.ViewModel.DownloadUpdateCommand.ExecuteAsync(null);
+        await harness.ViewModel.OpenDownloadedUpdateCommand.ExecuteAsync(null);
+
+        Assert.Equal("Native update flow started", harness.ViewModel.UpdateStatusTitle);
+        Assert.Equal(
+            "Installer launched. Follow the native upgrade flow.",
+            harness.ViewModel.UpdateStatusMessage);
+    }
+
     private static MarkdownSource CreateSource(string path, string content)
         => new(path, Path.GetFileName(path), content);
+
+    private static AppUpdatePackage CreateUpdatePackage()
+        => new(
+            CurrentVersion: "1.0.0",
+            ReleaseVersion: "1.2.3",
+            ReleaseTag: "v1.2.3",
+            PublishedAt: DateTimeOffset.Parse("2026-04-19T12:00:00Z", CultureInfo.InvariantCulture),
+            ReleasePageUrl: "https://github.com/dartdavros/MarkMello/releases/tag/v1.2.3",
+            AssetName: "MarkMello-setup-win-x64.exe",
+            DownloadUrl: "https://github.com/dartdavros/MarkMello/releases/download/v1.2.3/MarkMello-setup-win-x64.exe",
+            PlatformName: "Windows",
+            ArchitectureName: "x64",
+            InstallAction: AppUpdateInstallAction.LaunchInstaller);
 
     private static TestHarness CreateHarness()
     {
@@ -317,6 +409,7 @@ public sealed class MainWindowViewModelTests
         var settings = new InMemorySettingsStore();
         var themeService = new RecordingThemeService();
         var startupMetrics = new RecordingStartupMetrics();
+        var updateService = new StubUpdateService();
         var viewModel = new MainWindowViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(saver),
@@ -325,9 +418,10 @@ public sealed class MainWindowViewModelTests
             settings,
             themeService,
             startupMetrics,
-            new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer()));
+            new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer()),
+            updateService);
 
-        return new TestHarness(loader, saver, picker, startupMetrics, viewModel);
+        return new TestHarness(loader, saver, picker, startupMetrics, updateService, viewModel);
     }
 
     private sealed record TestHarness(
@@ -335,5 +429,6 @@ public sealed class MainWindowViewModelTests
         RecordingDocumentSaver DocumentSaver,
         StubFilePicker FilePicker,
         RecordingStartupMetrics StartupMetrics,
+        StubUpdateService UpdateService,
         MainWindowViewModel ViewModel);
 }

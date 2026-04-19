@@ -234,6 +234,7 @@ public partial class MainWindow : Window
             or nameof(MainWindowViewModel.IsSettingsOpen)
             or nameof(MainWindowViewModel.IsAppMenuOpen)
             or nameof(MainWindowViewModel.IsAppSettingsOpen)
+            or nameof(MainWindowViewModel.IsAppAboutOpen)
             or nameof(MainWindowViewModel.HasOpenOverlay))
         {
             SyncOverlayWindowClasses();
@@ -337,6 +338,15 @@ public partial class MainWindow : Window
             }
         }
 
+        if (_viewModel.IsAppAboutOpen)
+        {
+            var appAboutPanel = this.FindControl<Border>("AppAboutPanel");
+            if (appAboutPanel is not null && IsWithinVisual(source, appAboutPanel))
+            {
+                return true;
+            }
+        }
+
         var appMenuTrigger = this.FindControl<ToggleButton>("AppMenuTriggerButton");
         return appMenuTrigger is not null && IsWithinVisual(source, appMenuTrigger);
     }
@@ -347,6 +357,28 @@ public partial class MainWindow : Window
         Classes.Set("mm-reading-settings-open", _viewModel.IsSettingsOpen);
         Classes.Set("mm-app-menu-open", _viewModel.IsAppMenuOpen);
         Classes.Set("mm-app-settings-open", _viewModel.IsAppSettingsOpen);
+        Classes.Set("mm-app-about-open", _viewModel.IsAppAboutOpen);
+    }
+
+    private async void OnAboutLinkClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control { Tag: string rawUrl })
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var uri))
+        {
+            return;
+        }
+
+        var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+        if (launcher is null)
+        {
+            return;
+        }
+
+        await launcher.LaunchUriAsync(uri);
     }
 
     private void OnViewModelCloseRequested(object? sender, EventArgs e)

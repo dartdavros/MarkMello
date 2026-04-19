@@ -264,6 +264,11 @@
     <Setter Property="IsHitTestVisible" Value="True" />
     <Setter Property="RenderTransform" Value="translate(0px,0px) scale(1)" />
   </Style>
+  <Style Selector="Window.mm-app-about-open Border.mm-settings-panel.mm-app-about-panel">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="IsHitTestVisible" Value="True" />
+    <Setter Property="RenderTransform" Value="translate(0px,0px) scale(1)" />
+  </Style>
 
   <Style Selector="Border.mm-settings-head-shell">
     <Setter Property="Padding" Value="18,14,18,10" />
@@ -322,6 +327,12 @@
     <Setter Property="FontSize" Value="11" />
   </Style>
 
+  <Style Selector="TextBlock.mm-setting-body">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
   <Style Selector="TextBlock.mm-setting-meta">
     <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
     <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
@@ -346,6 +357,24 @@
   </Style>
   <Style Selector="Button.mm-menu-item:disabled">
     <Setter Property="Opacity" Value="0.55" />
+  </Style>
+
+  <Style Selector="Button.mm-inline-link">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.mm-inline-link /template/ ContentPresenter">
+    <Setter Property="TextBlock.TextDecorations" Value="Underline" />
+  </Style>
+  <Style Selector="Button.mm-inline-link:pointerover /template/ ContentPresenter">
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
 
     <Style Selector="Border.mm-segmented">

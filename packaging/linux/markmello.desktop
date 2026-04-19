@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=MarkMello
+GenericName=Markdown Viewer
+Comment=Fast viewer-first Markdown reader
+Exec=MarkMello %f
+TryExec=MarkMello
+Icon=markmello
+Terminal=false
+StartupNotify=true
+StartupWMClass=MarkMello
+Categories=Office;Utility;Viewer;
+Keywords=markdown;viewer;reader;editor;
+MimeType=text/markdown;
+X-AppImage-Name=MarkMello
+X-AppImage-Version=@VERSION@
+X-AppImage-Arch=@ARCH@

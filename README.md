@@ -16,6 +16,7 @@ Fast, viewer-first Markdown reader for the desktop. .NET 9 + Avalonia 12.
 - Reading surface: centered column + serif typography, document-wide text selection, native Avalonia render path
 - Reading settings: `Ctrl+,` / `Cmd+,`, live font mode + size + line height + content width, safe JSON persistence in the platform config directory
 - Lazy edit mode: `Ctrl+E`, split source/preview layout, dirty tracking, `Ctrl+S` / `Ctrl+Shift+S`, lightweight formatting toolbar
+- App-level updates: `Settings -> Updates`, manual GitHub Releases check, platform-specific asset download, native install handoff
 
 ## Solution layout
 
@@ -71,6 +72,7 @@ dotnet run --project .\src\MarkMello.Desktop\MarkMello.Desktop.csproj -- .\sampl
 - [x] Font mode / size / line height / content width применяются live и восстанавливаются при следующем запуске
 - [x] `Ctrl+E` лениво включает edit mode со split layout и возвращает в reading mode
 - [x] `Ctrl+S` сохраняет текущий markdown, `Ctrl+Shift+S` / `Cmd+Shift+S` запускает `Save As`
+- [x] `Settings -> Updates` вручную проверяет GitHub Releases и предлагает правильный артефакт для текущей платформы
 - [x] В консоли видны 3 stage'а: `AppBootstrap`, `FirstWindow`, `ReadableDocument`
 - [x] **Editor-зависимостей в графе DI нет** (constitution §4)
 
@@ -105,6 +107,8 @@ dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
 Текущий следующий шаг: короткий stabilization pass, затем вход в **M6** —
 platform polish, packaging, file associations/activation, optional syntax highlighting
 и recent files только если они действительно нужны продукту.
+
+Packaging baseline for ADR-0004 lives in [packaging/README.md](packaging/README.md).
 
 ## Architecture references
 

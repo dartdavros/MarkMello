@@ -4,6 +4,7 @@ using MarkMello.Infrastructure.Images;
 using MarkMello.Infrastructure.Markdown;
 using MarkMello.Infrastructure.Platform;
 using MarkMello.Infrastructure.Settings;
+using MarkMello.Infrastructure.Updates;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MarkMello.Infrastructure;
@@ -31,6 +32,15 @@ public static class DependencyInjection
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<IPlatformServices, DefaultPlatformServices>();
         services.AddSingleton<ICommandLineActivation>(_ => new CommandLineActivation(commandLineArgs));
+        services.AddSingleton(static _ =>
+        {
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("MarkMello/updates");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2026-03-10");
+            return client;
+        });
+        services.AddSingleton<IUpdateService, GitHubReleaseUpdateService>();
 
         return services;
     }

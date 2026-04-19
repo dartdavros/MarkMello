@@ -489,18 +489,128 @@
                     EndPoint="1,0.5" />
 
               <Border Classes="mm-setting-row">
+                <StackPanel Spacing="12">
+                  <Grid ColumnDefinitions="*,Auto"
+                        ColumnSpacing="12">
+                    <StackPanel Grid.Column="0"
+                                Spacing="2">
+                      <TextBlock Classes="mm-setting-label"
+                                 Text="Updates" />
+                      <TextBlock Classes="mm-setting-hint"
+                                 Text="Manual GitHub release checks" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1"
+                               Classes="mm-setting-meta"
+                               Text="{Binding UpdateStateBadge}" />
+                  </Grid>
+
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="mm-setting-label"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Text="{Binding UpdateStatusTitle}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Classes="mm-setting-body"
+                               Text="{Binding UpdateStatusMessage}"
+                               TextWrapping="Wrap" />
+                  </StackPanel>
+
+                  <StackPanel Orientation="Horizontal"
+                              Spacing="8">
+                    <Button Classes="mm-dialog-secondary"
+                            Content="{Binding CheckForUpdatesLabel}"
+                            Command="{Binding CheckForUpdatesCommand}" />
+                    <Button Classes="mm-dialog-primary"
+                            Content="{Binding DownloadUpdateLabel}"
+                            Command="{Binding DownloadUpdateCommand}"
+                            IsVisible="{Binding CanDownloadAvailableUpdate}" />
+                  </StackPanel>
+
+                  <Button Classes="mm-dialog-secondary"
+                          HorizontalAlignment="Left"
+                          Content="{Binding DownloadedUpdateActionLabel}"
+                          Command="{Binding OpenDownloadedUpdateCommand}"
+                          IsVisible="{Binding CanOpenDownloadedUpdate}" />
+                </StackPanel>
+              </Border>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
+                      Command="{Binding OpenAboutCommand}">
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="12">
                   <StackPanel Grid.Column="0"
                               Spacing="2">
                     <TextBlock Classes="mm-setting-label"
-                               Text="Updates" />
+                               Text="About" />
                     <TextBlock Classes="mm-setting-hint"
-                               Text="Manual GitHub release checks" />
+                               Text="Version and product info" />
                   </StackPanel>
                   <TextBlock Grid.Column="1"
                              Classes="mm-setting-meta"
-                             Text="Soon" />
+                             Text="Open" />
+                </Grid>
+              </Button>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <Border Name="AppAboutPanel"
+              Classes="mm-settings-panel mm-popover-left mm-app-about-panel"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              Margin="16,54,0,0"
+              Width="320">
+        <StackPanel>
+          <Border Classes="mm-settings-head-shell">
+            <Grid ColumnDefinitions="Auto,*,Auto"
+                  ColumnSpacing="12">
+              <Button Grid.Column="0"
+                      Classes="mm-settings-close"
+                      Command="{Binding ReturnToAppSettingsCommand}"
+                      ToolTip.Tip="Back to settings">
+                <Path Data="M9.5,1.5 L2.5,5.5 L9.5,9.5"
+                      Stroke="{DynamicResource MmTextFaintBrush}"
+                      StrokeThickness="1.4"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent" />
+              </Button>
+              <TextBlock Classes="mm-settings-title"
+                         Grid.Column="1"
+                         VerticalAlignment="Center"
+                         Text="ABOUT" />
+              <Button Grid.Column="2"
+                      Classes="mm-settings-close"
+                      Command="{Binding CloseOverlayCommand}"
+                      ToolTip.Tip="Close about">
+                <Path Data="M0,0 L10,10 M10,0 L0,10"
+                      Stroke="{DynamicResource MmTextFaintBrush}"
+                      StrokeThickness="1.4"
+                      StrokeLineCap="Round" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <Border Classes="mm-settings-body-shell">
+            <StackPanel Spacing="0">
+              <Border Classes="mm-setting-row">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="Version" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="Current product build" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="{Binding AboutVersion}" />
                 </Grid>
               </Border>
 
@@ -514,14 +624,42 @@
                   <StackPanel Grid.Column="0"
                               Spacing="2">
                     <TextBlock Classes="mm-setting-label"
-                               Text="About" />
+                               Text="License" />
                     <TextBlock Classes="mm-setting-hint"
-                               Text="Version and product info" />
+                               Text="Project license" />
                   </StackPanel>
                   <TextBlock Grid.Column="1"
                              Classes="mm-setting-meta"
-                             Text="Soon" />
+                             Text="{Binding AboutLicense}" />
                 </Grid>
+              </Border>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Border Classes="mm-setting-row">
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="mm-setting-label"
+                             Text="Credits" />
+                  <WrapPanel Orientation="Horizontal"
+                             ItemHeight="22">
+                    <TextBlock Classes="mm-setting-body"
+                               Text="Created by " />
+                    <Button Classes="mm-inline-link"
+                            Tag="https://ermolaev.tech"
+                            Click="OnAboutLinkClick"
+                            Content="Andrey Ermolaev" />
+                    <TextBlock Classes="mm-setting-body"
+                               Text=" with " />
+                    <Button Classes="mm-inline-link"
+                            Tag="https://skaro.dev"
+                            Click="OnAboutLinkClick"
+                            Content="Skaro" />
+                    <TextBlock Classes="mm-setting-body"
+                               Text="." />
+                  </WrapPanel>
+                </StackPanel>
               </Border>
             </StackPanel>
           </Border>

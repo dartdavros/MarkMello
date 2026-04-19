@@ -1,9 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MarkMello.Application.Abstractions;
+using MarkMello.Application.Updates;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
+using System.Reflection;
 using System.ComponentModel;
 
 namespace MarkMello.Presentation.ViewModels;
@@ -24,6 +26,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly IStartupMetrics _startupMetrics;
     private readonly RenderMarkdownDocumentUseCase _renderMarkdown;
+    private readonly IUpdateService _updateService;
     private readonly IImageSourceResolver? _imageSourceResolver;
 
     private bool _stage3Marked;
@@ -31,6 +34,9 @@ public partial class MainWindowViewModel : ObservableObject
     private string? _currentPath;
     private Func<Task>? _pendingDirtyAction;
     private readonly bool _showCustomTitleBar = OperatingSystem.IsWindows();
+    private readonly string _aboutVersion;
+    private readonly string _aboutLicense = "GPLv3";
+    private AppUpdatePackage? _availableUpdatePackage;
 
     public event EventHandler? CloseRequested;
 
@@ -43,6 +49,7 @@ public partial class MainWindowViewModel : ObservableObject
         IThemeService themeService,
         IStartupMetrics startupMetrics,
         RenderMarkdownDocumentUseCase renderMarkdown,
+        IUpdateService updateService,
         IImageSourceResolver? imageSourceResolver = null)
     {
         _openDocument = openDocument;
@@ -53,7 +60,9 @@ public partial class MainWindowViewModel : ObservableObject
         _themeService = themeService;
         _startupMetrics = startupMetrics;
         _renderMarkdown = renderMarkdown;
+        _updateService = updateService;
         _imageSourceResolver = imageSourceResolver;
+        _aboutVersion = GetProductVersion();
     }
 
     public IImageSourceResolver? ImageSourceResolver => _imageSourceResolver;
@@ -77,6 +86,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsSettingsOpen))]
     [NotifyPropertyChangedFor(nameof(IsAppMenuOpen))]
     [NotifyPropertyChangedFor(nameof(IsAppSettingsOpen))]
+    [NotifyPropertyChangedFor(nameof(IsAppAboutOpen))]
     [NotifyPropertyChangedFor(nameof(IsAppOverlayOpen))]
     [NotifyPropertyChangedFor(nameof(HasOpenOverlay))]
     private ShellOverlayKind _shellOverlay = ShellOverlayKind.None;
@@ -131,6 +141,21 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _errorDetails = string.Empty;
 
+    [ObservableProperty]
+    private bool _isCheckingForUpdates;
+
+    [ObservableProperty]
+    private bool _isDownloadingUpdate;
+
+    [ObservableProperty]
+    private string _updateStatusTitle = "Updates";
+
+    [ObservableProperty]
+    private string _updateStatusMessage = "Manual GitHub release checks keep the startup path offline.";
+
+    [ObservableProperty]
+    private string? _downloadedUpdatePath;
+
     public object ActiveDocumentContent => IsEditMode && EditorSession is not null ? EditorSession : this;
 
     public string FileName => EditorSession?.FileName ?? Document?.FileName ?? string.Empty;
@@ -157,7 +182,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool IsAppSettingsOpen => ShellOverlay == ShellOverlayKind.AppSettings;
 
-    public bool IsAppOverlayOpen => ShellOverlay is ShellOverlayKind.AppMenu or ShellOverlayKind.AppSettings;
+    public bool IsAppAboutOpen => ShellOverlay == ShellOverlayKind.AppAbout;
+
+    public bool IsAppOverlayOpen => ShellOverlay is ShellOverlayKind.AppMenu or ShellOverlayKind.AppSettings or ShellOverlayKind.AppAbout;
 
     public bool HasOpenOverlay => ShellOverlay != ShellOverlayKind.None;
 
@@ -177,7 +204,49 @@ public partial class MainWindowViewModel : ObservableObject
 
     public string EditShortcutLabel => IsEditMode ? "read" : "edit";
 
+    public string AboutVersion => _aboutVersion;
+
+    public string AboutLicense => _aboutLicense;
+
     public bool HasDirtyPromptError => !string.IsNullOrWhiteSpace(DirtyPromptErrorMessage);
+
+    public bool CanCheckForUpdates => !IsCheckingForUpdates && !IsDownloadingUpdate;
+
+    public bool CanDownloadAvailableUpdate
+        => _availableUpdatePackage is not null
+           && string.IsNullOrWhiteSpace(DownloadedUpdatePath)
+           && !IsCheckingForUpdates
+           && !IsDownloadingUpdate;
+
+    public bool CanOpenDownloadedUpdate
+        => _availableUpdatePackage is not null
+           && !string.IsNullOrWhiteSpace(DownloadedUpdatePath)
+           && !IsCheckingForUpdates
+           && !IsDownloadingUpdate;
+
+    public string CheckForUpdatesLabel => IsCheckingForUpdates ? "Checking..." : "Check now";
+
+    public string DownloadUpdateLabel => IsDownloadingUpdate ? "Downloading..." : "Download update";
+
+    public string DownloadedUpdateActionLabel
+        => _availableUpdatePackage?.InstallAction switch
+        {
+            AppUpdateInstallAction.LaunchInstaller => "Launch installer",
+            AppUpdateInstallAction.OpenDiskImage => "Open DMG",
+            AppUpdateInstallAction.RevealFile => "Reveal AppImage",
+            _ => "Open update"
+        };
+
+    public string UpdateStateBadge
+        => IsCheckingForUpdates
+            ? "Checking"
+            : IsDownloadingUpdate
+                ? "Downloading"
+                : CanOpenDownloadedUpdate
+                    ? "Ready"
+                    : CanDownloadAvailableUpdate
+                        ? "Available"
+                        : "Manual";
 
     public FontFamilyMode SelectedFontFamilyMode
     {
@@ -546,15 +615,150 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenAbout()
+    {
+        ShellOverlay = ShellOverlayKind.AppAbout;
+    }
+
+    [RelayCommand]
     private void ReturnToAppMenu()
     {
         ShellOverlay = ShellOverlayKind.AppMenu;
     }
 
     [RelayCommand]
+    private void ReturnToAppSettings()
+    {
+        ShellOverlay = ShellOverlayKind.AppSettings;
+    }
+
+    [RelayCommand]
     private void CloseOverlay()
     {
         CloseOverlayCore();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCheckForUpdates))]
+    private async Task CheckForUpdatesAsync()
+    {
+        IsCheckingForUpdates = true;
+        IsDownloadingUpdate = false;
+        _availableUpdatePackage = null;
+        DownloadedUpdatePath = null;
+        UpdateStatusTitle = "Checking GitHub Releases";
+        UpdateStatusMessage = "Looking for a newer packaged build for this device.";
+        UpdateCommandStates();
+
+        try
+        {
+            var result = await _updateService.CheckForUpdatesAsync().ConfigureAwait(true);
+            switch (result)
+            {
+                case UpdateCheckResult.SourceNotConfigured sourceNotConfigured:
+                    UpdateStatusTitle = "Updates unavailable";
+                    UpdateStatusMessage = sourceNotConfigured.Message;
+                    break;
+
+                case UpdateCheckResult.UnsupportedPlatform unsupportedPlatform:
+                    UpdateStatusTitle = "No packaged update for this runtime";
+                    UpdateStatusMessage =
+                        $"{unsupportedPlatform.PlatformName} {unsupportedPlatform.ArchitectureName} is not in the current release matrix.";
+                    break;
+
+                case UpdateCheckResult.UpToDate upToDate:
+                    UpdateStatusTitle = "You're up to date";
+                    UpdateStatusMessage =
+                        $"Current build {upToDate.CurrentVersion} already matches the latest published release ({upToDate.LatestVersion}).";
+                    break;
+
+                case UpdateCheckResult.UpdateAvailable updateAvailable:
+                    _availableUpdatePackage = updateAvailable.Package;
+                    UpdateStatusTitle = $"Update {updateAvailable.Package.ReleaseVersion} available";
+                    UpdateStatusMessage =
+                        $"{updateAvailable.Package.AssetName} is ready for {updateAvailable.Package.PlatformName} {updateAvailable.Package.ArchitectureName}.";
+                    break;
+
+                case UpdateCheckResult.Failed failed:
+                    UpdateStatusTitle = "Couldn't check for updates";
+                    UpdateStatusMessage = failed.Message;
+                    break;
+            }
+        }
+        finally
+        {
+            IsCheckingForUpdates = false;
+            UpdateCommandStates();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDownloadAvailableUpdate))]
+    private async Task DownloadUpdateAsync()
+    {
+        if (_availableUpdatePackage is null)
+        {
+            return;
+        }
+
+        IsDownloadingUpdate = true;
+        UpdateStatusTitle = $"Downloading {_availableUpdatePackage.ReleaseVersion}";
+        UpdateStatusMessage = $"Saving {_availableUpdatePackage.AssetName} from GitHub Releases.";
+        UpdateCommandStates();
+
+        try
+        {
+            var result = await _updateService
+                .DownloadUpdateAsync(_availableUpdatePackage)
+                .ConfigureAwait(true);
+
+            switch (result)
+            {
+                case UpdateDownloadResult.Success success:
+                    _availableUpdatePackage = success.Package;
+                    DownloadedUpdatePath = success.DownloadedFilePath;
+                    UpdateStatusTitle = "Update ready";
+                    UpdateStatusMessage = GetUpdateReadyMessage(success.Package, success.DownloadedFilePath);
+                    break;
+
+                case UpdateDownloadResult.Failed failed:
+                    DownloadedUpdatePath = null;
+                    UpdateStatusTitle = "Download failed";
+                    UpdateStatusMessage = failed.Message;
+                    break;
+            }
+        }
+        finally
+        {
+            IsDownloadingUpdate = false;
+            UpdateCommandStates();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpenDownloadedUpdate))]
+    private async Task OpenDownloadedUpdateAsync()
+    {
+        if (_availableUpdatePackage is null || string.IsNullOrWhiteSpace(DownloadedUpdatePath))
+        {
+            return;
+        }
+
+        var result = await _updateService
+            .PrepareDownloadedUpdateAsync(_availableUpdatePackage, DownloadedUpdatePath)
+            .ConfigureAwait(true);
+
+        switch (result)
+        {
+            case UpdatePrepareResult.Success success:
+                UpdateStatusTitle = "Native update flow started";
+                UpdateStatusMessage = success.Message;
+                break;
+
+            case UpdatePrepareResult.Failed failed:
+                UpdateStatusTitle = "Couldn't open the downloaded update";
+                UpdateStatusMessage = failed.Message;
+                break;
+        }
+
+        UpdateCommandStates();
     }
 
     [RelayCommand]
@@ -1095,6 +1299,17 @@ public partial class MainWindowViewModel : ObservableObject
         ToggleEditModeCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
         SaveAsCommand.NotifyCanExecuteChanged();
+        CheckForUpdatesCommand.NotifyCanExecuteChanged();
+        DownloadUpdateCommand.NotifyCanExecuteChanged();
+        OpenDownloadedUpdateCommand.NotifyCanExecuteChanged();
+
+        OnPropertyChanged(nameof(CanCheckForUpdates));
+        OnPropertyChanged(nameof(CanDownloadAvailableUpdate));
+        OnPropertyChanged(nameof(CanOpenDownloadedUpdate));
+        OnPropertyChanged(nameof(CheckForUpdatesLabel));
+        OnPropertyChanged(nameof(DownloadUpdateLabel));
+        OnPropertyChanged(nameof(DownloadedUpdateActionLabel));
+        OnPropertyChanged(nameof(UpdateStateBadge));
     }
 
     private static string NormalizeSuggestedFileName(string? fileName)
@@ -1107,6 +1322,28 @@ public partial class MainWindowViewModel : ObservableObject
         return SupportedDocumentTypes.IsSupportedPath(fileName)
             ? fileName
             : $"{fileName}.md";
+    }
+
+    private static string GetProductVersion()
+    {
+        var assembly = Assembly.GetEntryAssembly() ?? typeof(MainWindowViewModel).Assembly;
+
+        var informationalVersion = assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+
+        if (!string.IsNullOrWhiteSpace(informationalVersion))
+        {
+            var buildMetadataIndex = informationalVersion.IndexOf('+');
+            return buildMetadataIndex >= 0
+                ? informationalVersion[..buildMetadataIndex]
+                : informationalVersion;
+        }
+
+        var version = assembly.GetName().Version;
+        return version is null
+            ? "1.0.0"
+            : $"{version.Major}.{Math.Max(version.Minor, 0)}.{Math.Max(version.Build, 0)}";
     }
 
     private void CloseOverlayCore()
@@ -1171,6 +1408,23 @@ public partial class MainWindowViewModel : ObservableObject
         {
             return null;
         }
+    }
+
+    private static string GetUpdateReadyMessage(AppUpdatePackage package, string downloadedFilePath)
+    {
+        var downloadedFileName = Path.GetFileName(downloadedFilePath);
+
+        return package.InstallAction switch
+        {
+            AppUpdateInstallAction.LaunchInstaller =>
+                $"{downloadedFileName} downloaded. Launch the installer to continue the native Windows upgrade flow.",
+            AppUpdateInstallAction.OpenDiskImage =>
+                $"{downloadedFileName} downloaded. Open the DMG to continue with the native macOS install flow.",
+            AppUpdateInstallAction.RevealFile =>
+                $"{downloadedFileName} downloaded. Reveal the AppImage, then replace your previous binary when you're ready.",
+            _ =>
+                $"{downloadedFileName} downloaded."
+        };
     }
 
     private enum PendingDirtyActionKind
