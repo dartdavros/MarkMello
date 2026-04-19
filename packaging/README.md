@@ -15,6 +15,7 @@ This folder captures the first release baseline from `ADR-0004`.
 - `windows/MarkMello.iss` is the per-user Inno Setup installer.
 - `windows/build-installer.ps1` compiles the installer from a published app folder.
 - `windows/sign-files.ps1` signs published binaries and installers when a PFX certificate is provided.
+- `windows/markmello-installer.ico` is the installer icon generated from the shared master icon.
 - The installer registers MarkMello as an available `.md` handler and adds `Open with MarkMello`-style shell integration without forcing a system-wide default.
 - `.github/workflows/release-windows.yml` is the Windows-first GitHub Releases pipeline.
 
@@ -43,14 +44,29 @@ dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
 ## macOS
 
 - `macos/Info.plist` is a template for the signed `.app` bundle metadata.
+- `macos/MarkMello.icns` is the bundle icon generated from the shared master icon.
 - The template declares Markdown document handling through bundle metadata, not installer hacks.
 - Replace `$(MARKMELLO_BUNDLE_ID)`, `$(MARKMELLO_VERSION)`, and `$(MARKMELLO_BUILD_NUMBER)` in the release pipeline before building and notarizing the DMG.
 
 ## Linux
 
 - `linux/markmello.desktop` is the desktop entry baseline for AppImage packaging.
+- `linux/markmello.png` is the launcher icon generated from the shared master icon.
 - The desktop entry advertises Markdown support through `MimeType=text/markdown;` and includes AppImage-specific metadata keys.
 - The first packaging pass intentionally stays AppImage-first instead of adding distro-specific installers.
+
+## Shared icon source
+
+- `packaging/assets/base-1024.png` is the icon master tracked in the repository.
+- `packaging/generate-icons.py` regenerates Windows `.ico`, macOS `.icns`, and Linux `.png` assets from that master.
+- The generator preserves the original artwork framing and only resizes it for platform-specific formats.
+
+Example:
+
+```powershell
+$py = "C:\Users\drmar\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
+& $py .\packaging\generate-icons.py
+```
 
 ## Update source
 

@@ -22,6 +22,10 @@
   #define MyOutputBaseName "MarkMello-setup-win-x64"
 #endif
 
+#ifndef MySetupIconFile
+  #define MySetupIconFile ".\markmello-installer.ico"
+#endif
+
 #ifndef MyArchitecturesAllowed
   #define MyArchitecturesAllowed "x64compatible"
 #endif
@@ -63,6 +67,7 @@ WizardStyle=modern
 UsePreviousAppDir=yes
 OutputDir={#MyOutputDir}
 OutputBaseFilename={#MyOutputBaseName}
+SetupIconFile={#MySetupIconFile}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 ; Signing is expected to be injected by the release pipeline.

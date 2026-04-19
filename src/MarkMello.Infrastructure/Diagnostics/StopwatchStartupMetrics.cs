@@ -8,7 +8,7 @@ namespace MarkMello.Infrastructure.Diagnostics;
 /// <summary>
 /// Замер таймингов через <see cref="Stopwatch"/>, стартующий в момент создания инстанса.
 /// Создавать как можно раньше в <c>Program.Main</c>, до построения DI-контейнера.
-/// Дублирует тайминги в stdout, чтобы их было видно даже без подключённого логгера.
+/// В debug-сборках дублирует тайминги в stdout, чтобы их было видно даже без подключённого логгера.
 /// </summary>
 public sealed class StopwatchStartupMetrics : IStartupMetrics
 {
@@ -19,8 +19,12 @@ public sealed class StopwatchStartupMetrics : IStartupMetrics
     {
         var elapsed = _stopwatch.Elapsed;
         _timings[stage] = elapsed;
-        Console.WriteLine($"[startup] {stage,-20} {elapsed.TotalMilliseconds,8:F1} ms");
+        WriteDebugLine(stage, elapsed);
     }
 
     public StartupSnapshot Snapshot() => new(_timings);
+
+    [Conditional("DEBUG")]
+    private static void WriteDebugLine(StartupStage stage, TimeSpan elapsed)
+        => Console.WriteLine($"[startup] {stage,-20} {elapsed.TotalMilliseconds,8:F1} ms");
 }

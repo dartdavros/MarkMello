@@ -10,6 +10,7 @@
         Width="1280" Height="840"
         MinWidth="640" MinHeight="480"
         Title="{Binding WindowTitle}"
+        Icon="/Assets/Icons/markmello.ico"
         Background="{DynamicResource MmBackgroundBrush}"
         DragDrop.AllowDrop="True"
         UseLayoutRounding="True">

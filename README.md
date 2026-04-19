@@ -73,7 +73,7 @@ dotnet run --project .\src\MarkMello.Desktop\MarkMello.Desktop.csproj -- .\sampl
 - [x] `Ctrl+E` лениво включает edit mode со split layout и возвращает в reading mode
 - [x] `Ctrl+S` сохраняет текущий markdown, `Ctrl+Shift+S` / `Cmd+Shift+S` запускает `Save As`
 - [x] `Settings -> Updates` вручную проверяет GitHub Releases и предлагает правильный артефакт для текущей платформы
-- [x] В консоли видны 3 stage'а: `AppBootstrap`, `FirstWindow`, `ReadableDocument`
+- [x] В debug-сборке видны 3 stage'а: `AppBootstrap`, `FirstWindow`, `ReadableDocument`
 - [x] **Editor-зависимостей в графе DI нет** (constitution §4)
 
 ## Что в консоли при запуске с файлом

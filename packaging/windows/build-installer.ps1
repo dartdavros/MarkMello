@@ -11,6 +11,8 @@ param(
 
     [string]$OutputDir = (Join-Path $PSScriptRoot "dist"),
 
+    [string]$SetupIconPath = (Join-Path $PSScriptRoot "markmello-installer.ico"),
+
     [string]$ReleaseOwner = "dartdavros",
 
     [string]$ReleaseRepo = "MarkMello"
@@ -25,6 +27,7 @@ if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
 
 $publishPath = Resolve-Path -LiteralPath $PublishDir
 $outputPath = [System.IO.Path]::GetFullPath($OutputDir)
+$setupIcon = Resolve-Path -LiteralPath $SetupIconPath
 New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
 
 $architecturesAllowed = if ($RuntimeId -eq "win-arm64") { "arm64" } else { "x64compatible" }
@@ -46,6 +49,7 @@ if (-not $iscc) {
     "/DMyArchSuffix=$RuntimeId" `
     "/DMyOutputDir=$outputPath" `
     "/DMyOutputBaseName=$outputBaseName" `
+    "/DMySetupIconFile=$setupIcon" `
     "/DMyArchitecturesAllowed=$architecturesAllowed" `
     "/DMyArchitecturesInstallMode=$architecturesAllowed" `
     "/DMyReleaseOwner=$ReleaseOwner" `

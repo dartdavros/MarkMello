@@ -11,6 +11,8 @@
     <string>MarkMello</string>
     <key>CFBundleIdentifier</key>
     <string>$(MARKMELLO_BUNDLE_ID)</string>
+    <key>CFBundleIconFile</key>
+    <string>MarkMello.icns</string>
     <key>CFBundleName</key>
     <string>MarkMello</string>
     <key>CFBundlePackageType</key>

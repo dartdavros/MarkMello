@@ -1,13 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <RootNamespace>MarkMello.Desktop</RootNamespace>
     <AssemblyName>MarkMello</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\MarkMello.Presentation\Assets\Icons\markmello.ico</ApplicationIcon>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <MarkMelloReleaseOwner Condition="'$(MarkMelloReleaseOwner)' == ''">dartdavros</MarkMelloReleaseOwner>
     <MarkMelloReleaseRepo Condition="'$(MarkMelloReleaseRepo)' == ''">MarkMello</MarkMelloReleaseRepo>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
