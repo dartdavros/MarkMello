@@ -243,7 +243,23 @@
       </Transitions>
     </Setter>
   </Style>
-  <Style Selector="Window.mm-settings-open Border.mm-settings-panel">
+  <Style Selector="Border.mm-settings-panel.mm-popover-left">
+    <Setter Property="RenderTransformOrigin" Value="0%,0%" />
+  </Style>
+  <Style Selector="Border.mm-settings-panel.mm-popover-right">
+    <Setter Property="RenderTransformOrigin" Value="100%,0%" />
+  </Style>
+  <Style Selector="Window.mm-reading-settings-open Border.mm-settings-panel.mm-reading-panel">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="IsHitTestVisible" Value="True" />
+    <Setter Property="RenderTransform" Value="translate(0px,0px) scale(1)" />
+  </Style>
+  <Style Selector="Window.mm-app-menu-open Border.mm-settings-panel.mm-app-menu-panel">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="IsHitTestVisible" Value="True" />
+    <Setter Property="RenderTransform" Value="translate(0px,0px) scale(1)" />
+  </Style>
+  <Style Selector="Window.mm-app-settings-open Border.mm-settings-panel.mm-app-settings-panel">
     <Setter Property="Opacity" Value="1" />
     <Setter Property="IsHitTestVisible" Value="True" />
     <Setter Property="RenderTransform" Value="translate(0px,0px) scale(1)" />
@@ -304,6 +320,32 @@
   <Style Selector="TextBlock.mm-setting-hint">
     <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
     <Setter Property="FontSize" Value="11" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-setting-meta">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.mm-menu-item">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="6,10" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.mm-menu-item /template/ ContentPresenter">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+  </Style>
+  <Style Selector="Button.mm-menu-item:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+  </Style>
+  <Style Selector="Button.mm-menu-item:disabled">
+    <Setter Property="Opacity" Value="0.55" />
   </Style>
 
     <Style Selector="Border.mm-segmented">

@@ -74,7 +74,12 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _isDragHovering;
 
     [ObservableProperty]
-    private bool _isSettingsOpen;
+    [NotifyPropertyChangedFor(nameof(IsSettingsOpen))]
+    [NotifyPropertyChangedFor(nameof(IsAppMenuOpen))]
+    [NotifyPropertyChangedFor(nameof(IsAppSettingsOpen))]
+    [NotifyPropertyChangedFor(nameof(IsAppOverlayOpen))]
+    [NotifyPropertyChangedFor(nameof(HasOpenOverlay))]
+    private ShellOverlayKind _shellOverlay = ShellOverlayKind.None;
 
     [ObservableProperty]
     private double _readingProgress;
@@ -145,6 +150,16 @@ public partial class MainWindowViewModel : ObservableObject
     public bool IsDirty => EditorSession?.IsDirty == true;
 
     public bool ShowCustomTitleBar => _showCustomTitleBar;
+
+    public bool IsSettingsOpen => ShellOverlay == ShellOverlayKind.ReadingSettings;
+
+    public bool IsAppMenuOpen => ShellOverlay == ShellOverlayKind.AppMenu;
+
+    public bool IsAppSettingsOpen => ShellOverlay == ShellOverlayKind.AppSettings;
+
+    public bool IsAppOverlayOpen => ShellOverlay is ShellOverlayKind.AppMenu or ShellOverlayKind.AppSettings;
+
+    public bool HasOpenOverlay => ShellOverlay != ShellOverlayKind.None;
 
     public bool ShowsReadingStatus => IsViewer && !IsEditMode;
 
@@ -347,21 +362,30 @@ public partial class MainWindowViewModel : ObservableObject
 
     [RelayCommand]
     private async Task OpenFileAsync()
-        => await RunWithDirtyCheckAsync(PendingDirtyActionKind.OpenFile, OpenFileCoreAsync).ConfigureAwait(true);
+    {
+        CloseOverlayCore();
+        await RunWithDirtyCheckAsync(PendingDirtyActionKind.OpenFile, OpenFileCoreAsync).ConfigureAwait(true);
+    }
 
     [RelayCommand]
     private async Task CreateNewDocumentAsync()
-        => await RunWithDirtyCheckAsync(
-            PendingDirtyActionKind.CreateNewDocument,
-            CreateNewDocumentCoreAsync)
+    {
+        CloseOverlayCore();
+        await RunWithDirtyCheckAsync(
+                PendingDirtyActionKind.CreateNewDocument,
+                CreateNewDocumentCoreAsync)
             .ConfigureAwait(true);
+    }
 
     [RelayCommand(CanExecute = nameof(CanCloseFile))]
     private async Task CloseFileAsync()
-        => await RunWithDirtyCheckAsync(
-            PendingDirtyActionKind.CloseFile,
-            CloseFileCoreAsync)
+    {
+        CloseOverlayCore();
+        await RunWithDirtyCheckAsync(
+                PendingDirtyActionKind.CloseFile,
+                CloseFileCoreAsync)
             .ConfigureAwait(true);
+    }
 
     [RelayCommand(CanExecute = nameof(CanReload))]
     private async Task ReloadAsync()
@@ -493,13 +517,44 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void ToggleSettings()
     {
-        IsSettingsOpen = !IsSettingsOpen;
+        ShellOverlay = IsSettingsOpen
+            ? ShellOverlayKind.None
+            : ShellOverlayKind.ReadingSettings;
     }
 
     [RelayCommand]
     private void CloseSettings()
     {
-        IsSettingsOpen = false;
+        if (IsSettingsOpen)
+        {
+            ShellOverlay = ShellOverlayKind.None;
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleAppMenu()
+    {
+        ShellOverlay = IsAppOverlayOpen
+            ? ShellOverlayKind.None
+            : ShellOverlayKind.AppMenu;
+    }
+
+    [RelayCommand]
+    private void OpenAppSettings()
+    {
+        ShellOverlay = ShellOverlayKind.AppSettings;
+    }
+
+    [RelayCommand]
+    private void ReturnToAppMenu()
+    {
+        ShellOverlay = ShellOverlayKind.AppMenu;
+    }
+
+    [RelayCommand]
+    private void CloseOverlay()
+    {
+        CloseOverlayCore();
     }
 
     [RelayCommand]
@@ -511,9 +566,9 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        if (IsSettingsOpen)
+        if (HasOpenOverlay)
         {
-            IsSettingsOpen = false;
+            CloseOverlayCore();
             return;
         }
 
@@ -652,7 +707,7 @@ public partial class MainWindowViewModel : ObservableObject
         ReadingProgress = 0;
         ErrorTitle = string.Empty;
         ErrorDetails = string.Empty;
-        IsSettingsOpen = false;
+        CloseOverlayCore();
         EditorSession = new EditorSessionViewModel(
             NewDocumentFileName,
             string.Empty,
@@ -681,7 +736,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void CloseFileCore()
     {
-        IsSettingsOpen = false;
+        CloseOverlayCore();
         IsEditMode = false;
         EditorSession = null;
         Document = null;
@@ -835,6 +890,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void FailOpenResult(string title, string details)
     {
+        CloseOverlayCore();
         IsEditMode = false;
         EditorSession = null;
         ErrorTitle = title;
@@ -1051,6 +1107,11 @@ public partial class MainWindowViewModel : ObservableObject
         return SupportedDocumentTypes.IsSupportedPath(fileName)
             ? fileName
             : $"{fileName}.md";
+    }
+
+    private void CloseOverlayCore()
+    {
+        ShellOverlay = ShellOverlayKind.None;
     }
 
     private string? CurrentDocumentPath => EditorSession?.CurrentPath ?? _currentPath ?? Document?.Path;

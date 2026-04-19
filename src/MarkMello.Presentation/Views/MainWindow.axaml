@@ -54,7 +54,7 @@
       <Setter Property="Opacity" Value="1" />
       <Setter Property="RenderTransform" Value="translate(0px,0px)" />
     </Style>
-    <Style Selector="Window.mm-settings-open Border.mm-top-chrome">
+    <Style Selector="Window.mm-overlay-open Border.mm-top-chrome">
       <Setter Property="Opacity" Value="1" />
       <Setter Property="RenderTransform" Value="translate(0px,0px)" />
     </Style>
@@ -158,6 +158,27 @@
               HorizontalAlignment="Left"
               Background="{DynamicResource MmAccentBrush}"
               IsHitTestVisible="False" />
+
+      <Border Classes="mm-top-chrome"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              Margin="16,12,0,0">
+        <ToggleButton Name="AppMenuTriggerButton"
+                      Classes="topbar-ghost"
+                      IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
+                      Command="{Binding ToggleAppMenuCommand}"
+                      ToolTip.Tip="App menu">
+          <Grid Width="14"
+                Height="14">
+            <Path Data="M2.5 4H11.5 M2.5 7H11.5 M2.5 10H11.5"
+                  Stroke="{DynamicResource MmTextSoftBrush}"
+                  StrokeThickness="1.5"
+                  StrokeLineCap="Round"
+                  StrokeJoin="Round"
+                  Fill="Transparent" />
+          </Grid>
+        </ToggleButton>
+      </Border>
 
       <Border Classes="mm-top-chrome"
               HorizontalAlignment="Right"
@@ -315,8 +336,200 @@
         </StackPanel>
       </Border>
 
+      <Border Name="AppMenuPanel"
+              Classes="mm-settings-panel mm-popover-left mm-app-menu-panel"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              Margin="16,54,0,0"
+              Width="320">
+        <StackPanel>
+          <Border Classes="mm-settings-head-shell">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="12">
+              <TextBlock Classes="mm-settings-title"
+                         Grid.Column="0"
+                         Text="MENU" />
+              <Button Grid.Column="1"
+                      Classes="mm-settings-close"
+                      Command="{Binding CloseOverlayCommand}"
+                      ToolTip.Tip="Close menu">
+                <Path Data="M0,0 L10,10 M10,0 L0,10"
+                      Stroke="{DynamicResource MmTextFaintBrush}"
+                      StrokeThickness="1.4"
+                      StrokeLineCap="Round" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <Border Classes="mm-settings-body-shell">
+            <StackPanel Spacing="0">
+              <Button Classes="mm-menu-item"
+                      Command="{Binding OpenFileCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="Open file" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="Pick a Markdown document" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Ctrl O" />
+                </Grid>
+              </Button>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
+                      Command="{Binding CloseFileCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="Close file" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="Return to the welcome screen" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Current" />
+                </Grid>
+              </Button>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
+                      Command="{Binding OpenAppSettingsCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="Settings" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="Language, updates, about" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Open" />
+                </Grid>
+              </Button>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <Border Name="AppSettingsPanel"
+              Classes="mm-settings-panel mm-popover-left mm-app-settings-panel"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              Margin="16,54,0,0"
+              Width="320">
+        <StackPanel>
+          <Border Classes="mm-settings-head-shell">
+            <Grid ColumnDefinitions="Auto,*,Auto"
+                  ColumnSpacing="12">
+              <Button Grid.Column="0"
+                      Classes="mm-settings-close"
+                      Command="{Binding ReturnToAppMenuCommand}"
+                      ToolTip.Tip="Back to menu">
+                <Path Data="M9.5,1.5 L2.5,5.5 L9.5,9.5"
+                      Stroke="{DynamicResource MmTextFaintBrush}"
+                      StrokeThickness="1.4"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent" />
+              </Button>
+              <TextBlock Classes="mm-settings-title"
+                         Grid.Column="1"
+                         VerticalAlignment="Center"
+                         Text="SETTINGS" />
+              <Button Grid.Column="2"
+                      Classes="mm-settings-close"
+                      Command="{Binding CloseOverlayCommand}"
+                      ToolTip.Tip="Close settings">
+                <Path Data="M0,0 L10,10 M10,0 L0,10"
+                      Stroke="{DynamicResource MmTextFaintBrush}"
+                      StrokeThickness="1.4"
+                      StrokeLineCap="Round" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <Border Classes="mm-settings-body-shell">
+            <StackPanel Spacing="0">
+              <Border Classes="mm-setting-row">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="Language" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="Shell localization comes next" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Soon" />
+                </Grid>
+              </Border>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Border Classes="mm-setting-row">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="Updates" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="Manual GitHub release checks" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Soon" />
+                </Grid>
+              </Border>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Border Classes="mm-setting-row">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="About" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="Version and product info" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Soon" />
+                </Grid>
+              </Border>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
       <Border Name="SettingsPanel"
-              Classes="mm-settings-panel"
+              Classes="mm-settings-panel mm-popover-right mm-reading-panel"
               IsVisible="{Binding IsViewer}"
               HorizontalAlignment="Right"
               VerticalAlignment="Top"

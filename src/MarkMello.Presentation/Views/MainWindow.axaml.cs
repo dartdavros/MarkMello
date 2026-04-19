@@ -23,6 +23,7 @@ public partial class MainWindow : Window
 
         ConfigurePlatformChrome();
         InitializeComponent();
+        SyncOverlayWindowClasses();
 
         AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -127,24 +128,17 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_viewModel.IsSettingsOpen || e.Source is not Visual source)
+        if (!_viewModel.HasOpenOverlay || e.Source is not Visual source)
         {
             return;
         }
 
-        var settingsPanel = this.FindControl<Border>("SettingsPanel");
-        if (settingsPanel is not null && IsWithinVisual(source, settingsPanel))
+        if (IsPointerWithinOpenOverlay(source))
         {
             return;
         }
 
-        var settingsTrigger = this.FindControl<ToggleButton>("SettingsTriggerButton");
-        if (settingsTrigger is not null && IsWithinVisual(source, settingsTrigger))
-        {
-            return;
-        }
-
-        _viewModel.CloseSettingsCommand.Execute(null);
+        _viewModel.CloseOverlayCommand.Execute(null);
     }
 
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
@@ -236,9 +230,13 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.IsSettingsOpen))
+        if (e.PropertyName is nameof(MainWindowViewModel.ShellOverlay)
+            or nameof(MainWindowViewModel.IsSettingsOpen)
+            or nameof(MainWindowViewModel.IsAppMenuOpen)
+            or nameof(MainWindowViewModel.IsAppSettingsOpen)
+            or nameof(MainWindowViewModel.HasOpenOverlay))
         {
-            Classes.Set("mm-settings-open", _viewModel.IsSettingsOpen);
+            SyncOverlayWindowClasses();
             return;
         }
 
@@ -305,6 +303,50 @@ public partial class MainWindow : Window
         {
             e.Cancel = true;
         }
+    }
+
+    private bool IsPointerWithinOpenOverlay(Visual source)
+    {
+        if (_viewModel.IsSettingsOpen)
+        {
+            var settingsPanel = this.FindControl<Border>("SettingsPanel");
+            if (settingsPanel is not null && IsWithinVisual(source, settingsPanel))
+            {
+                return true;
+            }
+
+            var settingsTrigger = this.FindControl<ToggleButton>("SettingsTriggerButton");
+            return settingsTrigger is not null && IsWithinVisual(source, settingsTrigger);
+        }
+
+        if (_viewModel.IsAppMenuOpen)
+        {
+            var appMenuPanel = this.FindControl<Border>("AppMenuPanel");
+            if (appMenuPanel is not null && IsWithinVisual(source, appMenuPanel))
+            {
+                return true;
+            }
+        }
+
+        if (_viewModel.IsAppSettingsOpen)
+        {
+            var appSettingsPanel = this.FindControl<Border>("AppSettingsPanel");
+            if (appSettingsPanel is not null && IsWithinVisual(source, appSettingsPanel))
+            {
+                return true;
+            }
+        }
+
+        var appMenuTrigger = this.FindControl<ToggleButton>("AppMenuTriggerButton");
+        return appMenuTrigger is not null && IsWithinVisual(source, appMenuTrigger);
+    }
+
+    private void SyncOverlayWindowClasses()
+    {
+        Classes.Set("mm-overlay-open", _viewModel.HasOpenOverlay);
+        Classes.Set("mm-reading-settings-open", _viewModel.IsSettingsOpen);
+        Classes.Set("mm-app-menu-open", _viewModel.IsAppMenuOpen);
+        Classes.Set("mm-app-settings-open", _viewModel.IsAppSettingsOpen);
     }
 
     private void OnViewModelCloseRequested(object? sender, EventArgs e)

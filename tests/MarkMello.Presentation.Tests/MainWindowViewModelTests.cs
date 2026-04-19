@@ -86,6 +86,54 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ToggleAppMenuCommandOpensMenuAndClearErrorClosesOverlay()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.ToggleAppMenuCommand.Execute(null);
+
+        Assert.True(harness.ViewModel.IsAppMenuOpen);
+        Assert.True(harness.ViewModel.IsAppOverlayOpen);
+        Assert.True(harness.ViewModel.HasOpenOverlay);
+
+        harness.ViewModel.ClearErrorCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsAppMenuOpen);
+        Assert.False(harness.ViewModel.HasOpenOverlay);
+    }
+
+    [Fact]
+    public void ToggleSettingsCommandReplacesAppMenuWithReadingSettings()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.ToggleAppMenuCommand.Execute(null);
+        harness.ViewModel.ToggleSettingsCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsAppMenuOpen);
+        Assert.True(harness.ViewModel.IsSettingsOpen);
+        Assert.False(harness.ViewModel.IsAppOverlayOpen);
+    }
+
+    [Fact]
+    public void OpenAppSettingsCommandSwitchesFromMenuToAppSettings()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.ToggleAppMenuCommand.Execute(null);
+        harness.ViewModel.OpenAppSettingsCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsAppMenuOpen);
+        Assert.True(harness.ViewModel.IsAppSettingsOpen);
+        Assert.True(harness.ViewModel.IsAppOverlayOpen);
+
+        harness.ViewModel.ReturnToAppMenuCommand.Execute(null);
+
+        Assert.True(harness.ViewModel.IsAppMenuOpen);
+        Assert.False(harness.ViewModel.IsAppSettingsOpen);
+    }
+
+    [Fact]
     public async Task CreateNewDocumentCommandStartsInEditModeWithUnsavedDraft()
     {
         var harness = CreateHarness();
