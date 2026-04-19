@@ -297,7 +297,8 @@
           <ToggleButton Name="SettingsTriggerButton"
                         Classes="topbar-ghost"
                         IsVisible="{Binding IsViewer}"
-                        IsChecked="{Binding IsSettingsOpen}"
+                        Command="{Binding ToggleSettingsCommand}"
+                        IsChecked="{Binding IsSettingsOpen, Mode=OneWay}"
                         ToolTip.Tip="Reading preferences (Ctrl+,)">
             <Grid Width="14"
                   Height="14">
