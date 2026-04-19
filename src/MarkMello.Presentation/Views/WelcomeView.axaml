@@ -36,6 +36,19 @@
                  Margin="0,0,0,28" />
 
       <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+        <Button Classes="welcome-secondary"
+                Command="{Binding CreateNewDocumentCommand}">
+          <StackPanel Orientation="Horizontal"
+                      Spacing="8">
+            <Path Data="M7 2.5V11.5M2.5 7H11.5"
+                  Width="14"
+                  Height="14"
+                  Stroke="{DynamicResource MmTextSoftBrush}"
+                  StrokeThickness="1.5"
+                  StrokeLineCap="Round" />
+            <TextBlock Text="Create MD" />
+          </StackPanel>
+        </Button>
         <Button Classes="welcome-primary"
                 Content="Open file…"
                 Command="{Binding OpenFileCommand}" />

@@ -14,6 +14,8 @@ namespace MarkMello.Presentation.ViewModels;
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
+    private const string NewDocumentFileName = "Untitled.md";
+
     private readonly OpenDocumentUseCase _openDocument;
     private readonly SaveDocumentUseCase _saveDocument;
     private readonly IFilePicker _filePicker;
@@ -153,6 +155,8 @@ public partial class MainWindowViewModel : ObservableObject
     public bool ShowsEditPencilIcon => !IsEditMode;
 
     public bool ShowsReadEyeIcon => IsEditMode;
+
+    public bool ShowsEditToggle => State == ViewState.Viewing && Document is not null;
 
     public string EditToggleLabel => IsEditMode ? "Reading" : "Edit";
 
@@ -344,6 +348,13 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task OpenFileAsync()
         => await RunWithDirtyCheckAsync(PendingDirtyActionKind.OpenFile, OpenFileCoreAsync).ConfigureAwait(true);
+
+    [RelayCommand]
+    private async Task CreateNewDocumentAsync()
+        => await RunWithDirtyCheckAsync(
+            PendingDirtyActionKind.CreateNewDocument,
+            CreateNewDocumentCoreAsync)
+            .ConfigureAwait(true);
 
     [RelayCommand(CanExecute = nameof(CanReload))]
     private async Task ReloadAsync()
@@ -541,6 +552,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnDocumentChanged(MarkdownSource? value)
     {
         RefreshDocumentSummary();
+        OnPropertyChanged(nameof(ShowsEditToggle));
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -549,6 +561,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(HasDocumentTitle));
         OnPropertyChanged(nameof(ShowsReadingStatus));
+        OnPropertyChanged(nameof(ShowsEditToggle));
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -613,6 +626,42 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         await LoadDocumentAsync(path, preserveEditModeAfterLoad: false).ConfigureAwait(true);
+    }
+
+    private Task CreateNewDocumentCoreAsync()
+    {
+        CreateNewDocumentCore();
+        return Task.CompletedTask;
+    }
+
+    private void CreateNewDocumentCore()
+    {
+        Document = null;
+        RenderedDocument = RenderedMarkdownDocument.Empty;
+        _currentPath = null;
+        State = ViewState.Viewing;
+        ReadingProgress = 0;
+        ErrorTitle = string.Empty;
+        ErrorDetails = string.Empty;
+        IsSettingsOpen = false;
+        EditorSession = new EditorSessionViewModel(
+            NewDocumentFileName,
+            string.Empty,
+            ReadingPreferences,
+            _renderMarkdown,
+            _imageSourceResolver);
+
+        if (!_editorActivationMarked)
+        {
+            _editorActivationMarked = true;
+            _startupMetrics.Mark(StartupStage.EditorActivation);
+        }
+
+        EditorSession.UpdateReadingPreferences(ReadingPreferences);
+        EditorSession.SetStatusMessage(string.Empty);
+        IsEditMode = true;
+        RefreshWindowTitle();
+        UpdateCommandStates();
     }
 
     private void EnterEditModeCore()
@@ -794,6 +843,7 @@ public partial class MainWindowViewModel : ObservableObject
         DirtyPromptMessage = kind switch
         {
             PendingDirtyActionKind.OpenFile => "Save your changes before opening another document?",
+            PendingDirtyActionKind.CreateNewDocument => "Save your changes before creating a new document?",
             PendingDirtyActionKind.Reload => "Save your changes before reloading the current document?",
             PendingDirtyActionKind.LeaveEditMode => "Save your changes before returning to reading mode?",
             PendingDirtyActionKind.CloseWindow => "Save your changes before closing MarkMello?",
@@ -1032,6 +1082,7 @@ public partial class MainWindowViewModel : ObservableObject
     private enum PendingDirtyActionKind
     {
         OpenFile,
+        CreateNewDocument,
         Reload,
         LeaveEditMode,
         CloseWindow

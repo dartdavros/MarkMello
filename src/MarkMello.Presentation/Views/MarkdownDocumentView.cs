@@ -45,11 +45,13 @@ public sealed class MarkdownDocumentView : UserControl
     private readonly StackPanel _root = new()
     {
         Orientation = Orientation.Vertical,
-        Spacing = 0
+        Spacing = 0,
+        HorizontalAlignment = HorizontalAlignment.Stretch
     };
     private readonly Border _viewport = new()
     {
-        Background = Brushes.Transparent
+        Background = Brushes.Transparent,
+        HorizontalAlignment = HorizontalAlignment.Stretch
     };
 
     private readonly List<MarkdownDocumentSelectionFragmentBase> _selectionFragments = [];
@@ -76,6 +78,7 @@ public sealed class MarkdownDocumentView : UserControl
         Focusable = true;
         IsTabStop = true;
         UseLayoutRounding = true;
+        HorizontalAlignment = HorizontalAlignment.Stretch;
         _root.UseLayoutRounding = true;
         AttachedToVisualTree += OnAttachedToVisualTree;
         EnsureRootTransitions();

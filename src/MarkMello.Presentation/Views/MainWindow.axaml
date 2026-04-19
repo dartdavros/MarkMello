@@ -23,6 +23,8 @@
   </Window.DataTemplates>
 
   <Window.KeyBindings>
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding CreateNewDocumentCommand}" />
+    <KeyBinding Gesture="Cmd+N" Command="{Binding CreateNewDocumentCommand}" />
     <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}" />
     <KeyBinding Gesture="Cmd+O" Command="{Binding OpenFileCommand}" />
     <KeyBinding Gesture="Ctrl+E" Command="{Binding ToggleEditModeCommand}" />
@@ -221,7 +223,7 @@
           </Button>
 
           <ToggleButton Classes="topbar-action"
-                        IsVisible="{Binding IsViewer}"
+                        IsVisible="{Binding ShowsEditToggle}"
                         IsChecked="{Binding IsEditMode, Mode=OneWay}"
                         Command="{Binding ToggleEditModeCommand}"
                         ToolTip.Tip="Toggle edit mode (Ctrl+E)">

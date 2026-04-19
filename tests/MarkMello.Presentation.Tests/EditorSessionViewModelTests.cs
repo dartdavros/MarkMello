@@ -26,6 +26,24 @@ public sealed class EditorSessionViewModelTests
     }
 
     [Fact]
+    public void DraftSessionStartsWithoutPathAndKeepsInitialContentClean()
+    {
+        var session = new EditorSessionViewModel(
+            "Untitled.md",
+            "alpha beta",
+            ReadingPreferences.Default,
+            new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer()),
+            imageSourceResolver: null);
+
+        Assert.Null(session.CurrentPath);
+        Assert.Equal("Untitled.md", session.FileName);
+        Assert.Equal("alpha beta", session.SourceText);
+        Assert.Equal("alpha beta", session.LastPersistedSource);
+        Assert.False(session.IsDirty);
+        Assert.Null(session.RenderedPreview.BaseDirectory);
+    }
+
+    [Fact]
     public void ApplySavedDocumentResetsDirtyStateAndUpdatesIdentity()
     {
         var originalPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");

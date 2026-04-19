@@ -167,7 +167,9 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
         var layout = GetOrCreateTextLayout(availableSize.Width);
         var width = double.IsInfinity(availableSize.Width)
             ? layout.WidthIncludingTrailingWhitespace
-            : Math.Min(availableSize.Width, Math.Ceiling(layout.WidthIncludingTrailingWhitespace));
+            : LayoutTextWrapping == TextWrapping.NoWrap
+                ? Math.Min(availableSize.Width, Math.Ceiling(layout.WidthIncludingTrailingWhitespace))
+                : availableSize.Width;
 
         return new Size(width, Math.Ceiling(layout.Height));
     }

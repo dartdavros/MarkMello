@@ -26,18 +26,52 @@ public sealed class EditorSessionViewModel : ObservableObject
         ReadingPreferences readingPreferences,
         RenderMarkdownDocumentUseCase renderMarkdown,
         IImageSourceResolver? imageSourceResolver)
+        : this(
+            source.Path,
+            source.FileName,
+            source.Content,
+            readingPreferences,
+            renderMarkdown,
+            imageSourceResolver)
     {
         ArgumentNullException.ThrowIfNull(source);
+    }
+
+    public EditorSessionViewModel(
+        string fileName,
+        string initialContent,
+        ReadingPreferences readingPreferences,
+        RenderMarkdownDocumentUseCase renderMarkdown,
+        IImageSourceResolver? imageSourceResolver)
+        : this(
+            currentPath: null,
+            fileName,
+            initialContent,
+            readingPreferences,
+            renderMarkdown,
+            imageSourceResolver)
+    {
+    }
+
+    private EditorSessionViewModel(
+        string? currentPath,
+        string fileName,
+        string initialContent,
+        ReadingPreferences readingPreferences,
+        RenderMarkdownDocumentUseCase renderMarkdown,
+        IImageSourceResolver? imageSourceResolver)
+    {
         ArgumentNullException.ThrowIfNull(renderMarkdown);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
 
         _renderMarkdown = renderMarkdown;
         ImageSourceResolver = imageSourceResolver;
-        _currentPath = source.Path;
-        _fileName = source.FileName;
+        _currentPath = currentPath;
+        _fileName = fileName;
         _readingPreferences = readingPreferences;
-        _lastPersistedSource = source.Content;
-        _sourceText = source.Content;
-        _renderedPreview = RenderPreview(source.Content, source.Path);
+        _lastPersistedSource = initialContent ?? string.Empty;
+        _sourceText = initialContent ?? string.Empty;
+        _renderedPreview = RenderPreview(_sourceText, _currentPath);
         _statusMessage = string.Empty;
         _splitRatio = 0.5;
     }

@@ -86,6 +86,24 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task CreateNewDocumentCommandStartsInEditModeWithUnsavedDraft()
+    {
+        var harness = CreateHarness();
+
+        await harness.ViewModel.CreateNewDocumentCommand.ExecuteAsync(null);
+
+        Assert.True(harness.ViewModel.IsViewer);
+        Assert.True(harness.ViewModel.IsEditMode);
+        Assert.Null(harness.ViewModel.Document);
+        Assert.NotNull(harness.ViewModel.EditorSession);
+        Assert.Null(harness.ViewModel.EditorSession.CurrentPath);
+        Assert.Equal("Untitled.md", harness.ViewModel.FileName);
+        Assert.Equal("Untitled.md — MarkMello", harness.ViewModel.WindowTitle);
+        Assert.Contains(StartupStage.EditorActivation, harness.StartupMetrics.Marks);
+        Assert.DoesNotContain(StartupStage.ReadableDocument, harness.StartupMetrics.Marks);
+    }
+
+    [Fact]
     public async Task SaveCommandPersistsEditorBufferAndClearsDirtyState()
     {
         var harness = CreateHarness();
@@ -104,6 +122,28 @@ public sealed class MainWindowViewModelTests
         Assert.False(harness.ViewModel.IsDirty);
         Assert.Equal("first updated", harness.ViewModel.Document!.Content);
         Assert.Equal("one.md", harness.ViewModel.TitleFileDisplayName);
+    }
+
+    [Fact]
+    public async Task SaveCommandForNewDocumentUsesSaveAsPickerAndCreatesDocumentIdentity()
+    {
+        var harness = CreateHarness();
+        var savedPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "draft.md");
+        harness.FilePicker.SavePath = savedPath;
+
+        await harness.ViewModel.CreateNewDocumentCommand.ExecuteAsync(null);
+        harness.ViewModel.EditorSession!.SourceText = "first draft";
+
+        await harness.ViewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(["Untitled.md"], harness.FilePicker.SuggestedSaveFileNames);
+
+        var save = Assert.Single(harness.DocumentSaver.Saves);
+        Assert.Equal(savedPath, save.Path);
+        Assert.Equal("first draft", save.Content);
+        Assert.Equal(savedPath, harness.ViewModel.Document!.Path);
+        Assert.Equal("draft.md", harness.ViewModel.FileName);
+        Assert.False(harness.ViewModel.IsDirty);
     }
 
     [Fact]

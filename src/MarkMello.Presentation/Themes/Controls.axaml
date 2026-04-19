@@ -203,6 +203,9 @@
     <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource MmTextSoftBrush}" />
   </Style>
+  <Style Selector="Button.welcome-secondary:pointerover Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
 
   <!-- Keyboard hint pill -->
   <Style Selector="Border.kbd">
