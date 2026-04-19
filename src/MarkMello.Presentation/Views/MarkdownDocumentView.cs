@@ -8,6 +8,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
 using MarkMello.Presentation.Views.Markdown;
@@ -76,15 +77,8 @@ public sealed class MarkdownDocumentView : UserControl
         IsTabStop = true;
         UseLayoutRounding = true;
         _root.UseLayoutRounding = true;
-        _root.Transitions =
-        [
-            new DoubleTransition
-            {
-                Property = Visual.OpacityProperty,
-                Duration = TimeSpan.FromMilliseconds(140),
-                Easing = new CubicEaseOut()
-            }
-        ];
+        AttachedToVisualTree += OnAttachedToVisualTree;
+        EnsureRootTransitions();
 
         AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
         KeyDown += OnKeyDown;
@@ -100,6 +94,40 @@ public sealed class MarkdownDocumentView : UserControl
         _viewport.Child = _root;
         ApplyDocumentPadding();
         Content = _viewport;
+
+        EnsureContextMenu();
+    }
+
+    private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        EnsureRootTransitions();
+        EnsureContextMenu();
+    }
+
+    private void EnsureRootTransitions()
+    {
+        if (_root.Transitions is not null || !Dispatcher.UIThread.CheckAccess())
+        {
+            return;
+        }
+
+        _root.Transitions =
+        [
+            new DoubleTransition
+            {
+                Property = Visual.OpacityProperty,
+                Duration = TimeSpan.FromMilliseconds(140),
+                Easing = new CubicEaseOut()
+            }
+        ];
+    }
+
+    private void EnsureContextMenu()
+    {
+        if (ContextMenu is not null || !Dispatcher.UIThread.CheckAccess())
+        {
+            return;
+        }
 
         ContextMenu = BuildContextMenu();
     }

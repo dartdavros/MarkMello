@@ -4,17 +4,18 @@ Fast, viewer-first Markdown reader for the desktop. .NET 9 + Avalonia 12.
 
 ## Status
 
-**M3 complete, M4 started — native markdown viewer + persisted reading settings.**
+**M0-M4 complete, core M5 already in place — native markdown viewer, persisted reading settings, and lazy edit mode baseline.**
 
 - Custom title bar (Windows), native chrome (macOS / Linux)
 - States: Welcome / Viewing / LoadError / DragHovering
 - Hover-reveal top bar (theme toggle + reading settings), status bar, reading progress
 - Open file: `Ctrl+O`, drag & drop, command-line argument
 - Reload: `F5` / `Ctrl+R`
-- Theme behavior: first launch follows system theme; after explicit user choice the quick toggle switches between Light and Dark and restores that choice on the next launch
+- Theme behavior: if no explicit saved theme exists, startup follows the system theme; after explicit user choice the quick toggle switches between Light and Dark and restores that choice on the next launch
 - Native markdown viewer: headings, paragraphs, lists, quotes, hr, code, links, tables, images
 - Reading surface: centered column + serif typography, document-wide text selection, native Avalonia render path
 - Reading settings: `Ctrl+,` / `Cmd+,`, live font mode + size + line height + content width, safe JSON persistence in the platform config directory
+- Lazy edit mode: `Ctrl+E`, split source/preview layout, dirty tracking, `Ctrl+S` / `Ctrl+Shift+S`, lightweight formatting toolbar
 
 ## Solution layout
 
@@ -54,7 +55,7 @@ dotnet run --project .\src\MarkMello.Desktop\MarkMello.Desktop.csproj -- .\sampl
 .\src\MarkMello.Desktop\bin\Debug\net9.0\MarkMello.exe .\sample.md
 ```
 
-## Verification checklist (viewer baseline)
+## Verification checklist (current baseline)
 
 - [x] Solution собирается без warnings as errors
 - [x] `dotnet run` без аргументов открывает Welcome state
@@ -65,9 +66,11 @@ dotnet run --project .\src\MarkMello.Desktop\MarkMello.Desktop.csproj -- .\sampl
 - [x] `Esc` сбрасывает LoadError → возвращает в Welcome или Viewing
 - [x] `F5` / `Ctrl+R` перечитывает текущий файл
 - [x] Hover над окном проявляет top bar и status bar
-- [x] Theme toggle (◐ кнопка) использует системную тему на первом запуске, затем быстро переключает Light / Dark
+- [x] Theme toggle (◐ кнопка) использует системную тему при отсутствии явной сохранённой темы, затем быстро переключает Light / Dark
 - [x] `Ctrl+,` / `Cmd+,` или кнопка `Aa` открывает settings panel
 - [x] Font mode / size / line height / content width применяются live и восстанавливаются при следующем запуске
+- [x] `Ctrl+E` лениво включает edit mode со split layout и возвращает в reading mode
+- [x] `Ctrl+S` сохраняет текущий markdown, `Ctrl+Shift+S` / `Cmd+Shift+S` запускает `Save As`
 - [x] В консоли видны 3 stage'а: `AppBootstrap`, `FirstWindow`, `ReadableDocument`
 - [x] **Editor-зависимостей в графе DI нет** (constitution §4)
 
@@ -98,8 +101,10 @@ dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
 
 ## Roadmap
 
-См. `implementation-plan.md`. Текущий следующий шаг: продолжать **M4** —
-дополировать settings UX и theme/preferences flow, затем переходить к **M5**.
+См. `implementation-plan.md` и `adr_0002_theme_persistence_and_beyond_plan_scope.md`.
+Текущий следующий шаг: короткий stabilization pass, затем вход в **M6** —
+platform polish, packaging, file associations/activation, optional syntax highlighting
+и recent files только если они действительно нужны продукту.
 
 ## Architecture references
 
@@ -108,3 +113,5 @@ dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
 - `architecture.md` — слои, stage'ы запуска, error handling
 - `avalonia-design-translation.md` — перевод React-прототипа в Avalonia
 - `implementation-plan.md` — milestones M0 → M6
+- `adr_0001_document_wide_selection_in_markdown_viewer.md` — document-wide selection path
+- `adr_0002_theme_persistence_and_beyond_plan_scope.md` — зафиксированная theme model и принятый beyond-plan scope

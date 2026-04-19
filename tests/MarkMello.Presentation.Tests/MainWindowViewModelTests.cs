@@ -85,6 +85,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("second", harness.ViewModel.Document!.Content);
     }
 
+    [Fact]
     public async Task SaveCommandPersistsEditorBufferAndClearsDirtyState()
     {
         var harness = CreateHarness();
@@ -125,6 +126,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal($"Access denied: {path}", harness.ViewModel.EditorSession.StatusMessage);
     }
 
+    [Fact]
     public async Task SaveAsCommandUsesPickerPathAndUpdatesDocumentIdentity()
     {
         var harness = CreateHarness();

@@ -147,7 +147,8 @@ public sealed class MarkdownDocumentViewTests
 
         var view = CreateView(document);
 
-        var root = Assert.IsType<StackPanel>(view.Content);
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
         var fragment = Assert.IsType<MarkdownImageFlowFragment>(Assert.Single(root.Children));
 
         view.SelectAll();
