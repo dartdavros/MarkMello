@@ -3,6 +3,8 @@ bin/
 obj/
 out/
 publish/
+artifacts/
+packaging/windows/dist/
 
 # IDE
 .vs/

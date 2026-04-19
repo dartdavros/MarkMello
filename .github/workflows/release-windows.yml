@@ -1,0 +1,318 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (for example v0.6.0)"
+        required: true
+        type: string
+      draft:
+        description: "Keep the GitHub Release as draft after asset upload"
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: "Mark the GitHub Release as prerelease"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-windows-${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  verify:
+    name: Verify Release Candidate
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore solution
+        shell: pwsh
+        run: dotnet restore .\MarkMello.sln -m:1
+
+      - name: Test domain layer
+        shell: pwsh
+        run: dotnet test .\tests\MarkMello.Domain.Tests\MarkMello.Domain.Tests.csproj --no-restore -m:1 -nologo
+
+      - name: Test presentation layer
+        shell: pwsh
+        run: dotnet test .\tests\MarkMello.Presentation.Tests\MarkMello.Presentation.Tests.csproj --no-restore -m:1 -nologo
+
+      - name: Build desktop app in Release
+        shell: pwsh
+        run: dotnet build .\src\MarkMello.Desktop\MarkMello.Desktop.csproj -c Release --no-restore -m:1 -nologo
+
+  prepare_release:
+    name: Ensure GitHub Release
+    runs-on: ubuntu-latest
+    needs: verify
+
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+      version: ${{ steps.vars.outputs.version }}
+      version_core: ${{ steps.vars.outputs.version_core }}
+      version_windows: ${{ steps.vars.outputs.version_windows }}
+      publish_after_upload: ${{ steps.vars.outputs.publish_after_upload }}
+      prerelease: ${{ steps.vars.outputs.prerelease }}
+      repo_name: ${{ steps.vars.outputs.repo_name }}
+
+    steps:
+      - name: Resolve release parameters
+        id: vars
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            tag="${GITHUB_REF_NAME}"
+            publish_after_upload="true"
+          else
+            tag="${{ inputs.tag }}"
+            prerelease="${{ inputs.prerelease }}"
+            if [[ "${{ inputs.draft }}" == "true" ]]; then
+              publish_after_upload="false"
+            else
+              publish_after_upload="true"
+            fi
+          fi
+
+          if [[ ! "$tag" =~ ^v[0-9] ]]; then
+            echo "Release tag must start with v followed by a version number." >&2
+            exit 1
+          fi
+
+          version="${tag#v}"
+          version_core="${version%%[-+]*}"
+          repo_name="${GITHUB_REPOSITORY#*/}"
+
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            if [[ "$version" == *-* ]]; then
+              prerelease="true"
+            else
+              prerelease="false"
+            fi
+          fi
+
+          IFS='.' read -r -a version_parts <<< "$version_core"
+          if (( ${#version_parts[@]} < 2 || ${#version_parts[@]} > 4 )); then
+            echo "Release version must contain between 2 and 4 numeric parts." >&2
+            exit 1
+          fi
+
+          for part in "${version_parts[@]}"; do
+            if [[ ! "$part" =~ ^[0-9]+$ ]]; then
+              echo "Release version core must be numeric: $version_core" >&2
+              exit 1
+            fi
+          done
+
+          while (( ${#version_parts[@]} < 4 )); do
+            version_parts+=(0)
+          done
+
+          version_windows="$(IFS=.; echo "${version_parts[*]}")"
+
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "version_core=$version_core"
+            echo "version_windows=$version_windows"
+            echo "publish_after_upload=$publish_after_upload"
+            echo "prerelease=$prerelease"
+            echo "repo_name=$repo_name"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Ensure draft release exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="${{ steps.vars.outputs.tag }}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists."
+            exit 0
+          fi
+
+          args=(
+            release create "$tag"
+            --draft
+            --generate-notes
+            --target "$GITHUB_SHA"
+            --title "$tag"
+          )
+
+          if [[ "${{ steps.vars.outputs.prerelease }}" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+
+          gh "${args[@]}"
+
+  build_windows:
+    name: Build ${{ matrix.runtime_id }} Installer
+    runs-on: windows-latest
+    needs: prepare_release
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime_id:
+          - win-x64
+          - win-arm64
+
+    env:
+      RELEASE_TAG: ${{ needs.prepare_release.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.prepare_release.outputs.version }}
+      RELEASE_VERSION_CORE: ${{ needs.prepare_release.outputs.version_core }}
+      RELEASE_VERSION_WINDOWS: ${{ needs.prepare_release.outputs.version_windows }}
+      RELEASE_OWNER: ${{ github.repository_owner }}
+      RELEASE_REPO: ${{ needs.prepare_release.outputs.repo_name }}
+      WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
+      WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Publish desktop app
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE "publish" "${{ matrix.runtime_id }}"
+
+          dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
+            -m:1 `
+            -c Release `
+            -r "${{ matrix.runtime_id }}" `
+            --self-contained true `
+            -p:PublishSingleFile=false `
+            -p:Version=$env:RELEASE_VERSION `
+            -p:FileVersion=$env:RELEASE_VERSION_WINDOWS `
+            -p:AssemblyVersion=$env:RELEASE_VERSION_WINDOWS `
+            -p:InformationalVersion=$env:RELEASE_TAG `
+            -p:MarkMelloReleaseOwner=$env:RELEASE_OWNER `
+            -p:MarkMelloReleaseRepo=$env:RELEASE_REPO `
+            -o $publishDir
+
+      - name: Sign published app binaries
+        if: ${{ env.WINDOWS_SIGNING_CERT_BASE64 != '' && env.WINDOWS_SIGNING_CERT_PASSWORD != '' }}
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE "publish" "${{ matrix.runtime_id }}"
+          $paths = @(
+            (Join-Path $publishDir "MarkMello.exe"),
+            (Join-Path $publishDir "MarkMello.dll")
+          ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
+
+          .\packaging\windows\sign-files.ps1 `
+            -Paths $paths `
+            -CertificateBase64 $env:WINDOWS_SIGNING_CERT_BASE64 `
+            -CertificatePassword $env:WINDOWS_SIGNING_CERT_PASSWORD
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE "publish" "${{ matrix.runtime_id }}"
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE "artifacts" "${{ matrix.runtime_id }}"
+
+          .\packaging\windows\build-installer.ps1 `
+            -PublishDir $publishDir `
+            -RuntimeId "${{ matrix.runtime_id }}" `
+            -Version $env:RELEASE_VERSION `
+            -OutputDir $outputDir `
+            -ReleaseOwner $env:RELEASE_OWNER `
+            -ReleaseRepo $env:RELEASE_REPO
+
+      - name: Sign installer
+        if: ${{ env.WINDOWS_SIGNING_CERT_BASE64 != '' && env.WINDOWS_SIGNING_CERT_PASSWORD != '' }}
+        shell: pwsh
+        run: |
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE "artifacts" "${{ matrix.runtime_id }}"
+          $installerPath = Join-Path $outputDir "MarkMello-setup-${{ matrix.runtime_id }}.exe"
+
+          .\packaging\windows\sign-files.ps1 `
+            -Paths @($installerPath) `
+            -CertificateBase64 $env:WINDOWS_SIGNING_CERT_BASE64 `
+            -CertificatePassword $env:WINDOWS_SIGNING_CERT_PASSWORD
+
+      - name: Generate SHA256 checksum
+        shell: pwsh
+        run: |
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE "artifacts" "${{ matrix.runtime_id }}"
+          $installerPath = Join-Path $outputDir "MarkMello-setup-${{ matrix.runtime_id }}.exe"
+          $hash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$installerPath.sha256"
+          [System.IO.File]::WriteAllText(
+            $checksumPath,
+            "$hash *$([System.IO.Path]::GetFileName($installerPath))")
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ matrix.runtime_id }}
+          path: |
+            artifacts/${{ matrix.runtime_id }}/MarkMello-setup-${{ matrix.runtime_id }}.exe
+            artifacts/${{ matrix.runtime_id }}/MarkMello-setup-${{ matrix.runtime_id }}.exe.sha256
+          if-no-files-found: error
+
+      - name: Upload release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE "artifacts" "${{ matrix.runtime_id }}"
+          $installerPath = Join-Path $outputDir "MarkMello-setup-${{ matrix.runtime_id }}.exe"
+          $checksumPath = "$installerPath.sha256"
+
+          gh release upload $env:RELEASE_TAG $installerPath $checksumPath --clobber
+
+  finalize_release:
+    name: Finalize GitHub Release
+    runs-on: ubuntu-latest
+    needs:
+      - prepare_release
+      - build_windows
+    if: ${{ needs.prepare_release.outputs.publish_after_upload == 'true' }}
+
+    steps:
+      - name: Publish prepared release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="${{ needs.prepare_release.outputs.tag }}"
+          args=(release edit "$tag" --draft=false)
+
+          if [[ "${{ needs.prepare_release.outputs.prerelease }}" != "true" ]]; then
+            args+=(--latest)
+          fi
+
+          gh "${args[@]}"

@@ -109,6 +109,7 @@ platform polish, packaging, file associations/activation, optional syntax highli
 и recent files только если они действительно нужны продукту.
 
 Packaging baseline for ADR-0004 lives in [packaging/README.md](packaging/README.md).
+Windows-first GitHub Releases automation lives in [.github/workflows/release-windows.yml](.github/workflows/release-windows.yml).
 
 ## Architecture references
 

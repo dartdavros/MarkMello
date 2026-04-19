@@ -14,7 +14,15 @@ This folder captures the first release baseline from `ADR-0004`.
 
 - `windows/MarkMello.iss` is the per-user Inno Setup installer.
 - `windows/build-installer.ps1` compiles the installer from a published app folder.
+- `windows/sign-files.ps1` signs published binaries and installers when a PFX certificate is provided.
 - The installer registers MarkMello as an available `.md` handler and adds `Open with MarkMello`-style shell integration without forcing a system-wide default.
+- `.github/workflows/release-windows.yml` is the Windows-first GitHub Releases pipeline.
+
+GitHub Actions flow:
+
+- pushing a `v*` tag runs verify -> draft release creation -> both Windows installers -> asset upload -> publish
+- tags with prerelease suffixes like `v0.6.0-beta.1` stay GitHub prereleases and are not marked as latest
+- `workflow_dispatch` can create or refresh a release manually and optionally keep it as a draft after upload
 
 Example:
 
@@ -59,3 +67,10 @@ This baseline prepares the repository for signed distribution, but actual signin
 
 - Windows signing should be injected into the release pipeline when calling `signtool`.
 - macOS signing and notarization should be applied during DMG creation with Apple Developer ID credentials.
+
+### GitHub Actions secrets for Windows signing
+
+If you want the Windows workflow to sign artifacts, configure:
+
+- `WINDOWS_SIGNING_CERT_BASE64` — base64-encoded `.pfx`
+- `WINDOWS_SIGNING_CERT_PASSWORD` — password for that certificate
