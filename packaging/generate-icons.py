@@ -7,7 +7,7 @@ from PIL import Image
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SOURCE = ROOT / "packaging" / "assets" / "base-1024.png"
+DEFAULT_SOURCE = ROOT / "packaging" / "assets" / "base-803-crop.png"
 WINDOW_ICON = ROOT / "src" / "MarkMello.Presentation" / "Assets" / "Icons" / "markmello.ico"
 INSTALLER_ICON = ROOT / "packaging" / "windows" / "markmello-installer.ico"
 LINUX_ICON = ROOT / "packaging" / "linux" / "markmello.png"

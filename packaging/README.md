@@ -60,7 +60,7 @@ dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
 
 ## Shared icon source
 
-- `packaging/assets/base-1024.png` is the icon master tracked in the repository.
+- `packaging/assets/base-803-crop.png` is the icon master tracked in the repository.
 - `packaging/generate-icons.py` regenerates Windows `.ico`, macOS `.icns`, and Linux `.png` assets from that master.
 - The generator preserves the original artwork framing and only resizes it for platform-specific formats.
 
