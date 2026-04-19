@@ -1,4 +1,4 @@
-name: Release Windows
+name: Release Desktop
 
 on:
   push:
@@ -22,7 +22,7 @@ on:
         type: boolean
 
 concurrency:
-  group: release-windows-${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+  group: release-desktop-${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
   cancel-in-progress: false
 
 permissions:
@@ -293,12 +293,125 @@ jobs:
 
           gh release upload $env:RELEASE_TAG $installerPath $checksumPath --clobber
 
+  build_macos:
+    name: Build ${{ matrix.runtime_id }} DMG
+    needs: prepare_release
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime_id: osx-arm64
+            runner: macos-15
+            asset_name: MarkMello-macos-arm64.dmg
+          - runtime_id: osx-x64
+            runner: macos-15-intel
+            asset_name: MarkMello-macos-x64.dmg
+
+    env:
+      RELEASE_TAG: ${{ needs.prepare_release.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.prepare_release.outputs.version }}
+      RELEASE_VERSION_CORE: ${{ needs.prepare_release.outputs.version_core }}
+      RELEASE_VERSION_WINDOWS: ${{ needs.prepare_release.outputs.version_windows }}
+      RELEASE_OWNER: ${{ github.repository_owner }}
+      RELEASE_REPO: ${{ needs.prepare_release.outputs.repo_name }}
+      MACOS_BUNDLE_ID: com.markmello.app
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore solution
+        shell: bash
+        run: dotnet restore ./MarkMello.sln -m:1
+
+      - name: Publish desktop app
+        shell: bash
+        run: |
+          publish_dir="$GITHUB_WORKSPACE/publish/${{ matrix.runtime_id }}"
+
+          dotnet publish ./src/MarkMello.Desktop/MarkMello.Desktop.csproj \
+            -m:1 \
+            -c Release \
+            -r "${{ matrix.runtime_id }}" \
+            --self-contained true \
+            -p:PublishSingleFile=false \
+            -p:Version="$RELEASE_VERSION" \
+            -p:FileVersion="$RELEASE_VERSION_WINDOWS" \
+            -p:AssemblyVersion="$RELEASE_VERSION_WINDOWS" \
+            -p:InformationalVersion="$RELEASE_TAG" \
+            -p:MarkMelloReleaseOwner="$RELEASE_OWNER" \
+            -p:MarkMelloReleaseRepo="$RELEASE_REPO" \
+            -o "$publish_dir"
+
+      - name: Build app bundle
+        id: app_bundle
+        shell: bash
+        run: |
+          publish_dir="$GITHUB_WORKSPACE/publish/${{ matrix.runtime_id }}"
+          output_dir="$GITHUB_WORKSPACE/artifacts/${{ matrix.runtime_id }}"
+
+          app_bundle_path="$(bash ./packaging/macos/build-app-bundle.sh \
+            --publish-dir "$publish_dir" \
+            --runtime-id "${{ matrix.runtime_id }}" \
+            --version "$RELEASE_VERSION_CORE" \
+            --build-number "$RELEASE_VERSION_WINDOWS" \
+            --bundle-id "$MACOS_BUNDLE_ID" \
+            --output-dir "$output_dir")"
+
+          echo "path=$app_bundle_path" >> "$GITHUB_OUTPUT"
+
+      - name: Build unsigned DMG
+        id: dmg
+        shell: bash
+        run: |
+          output_dir="$GITHUB_WORKSPACE/artifacts/${{ matrix.runtime_id }}"
+          dmg_path="$(bash ./packaging/macos/build-dmg.sh \
+            --app-bundle "${{ steps.app_bundle.outputs.path }}" \
+            --runtime-id "${{ matrix.runtime_id }}" \
+            --output-dir "$output_dir")"
+
+          echo "path=$dmg_path" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SHA256 checksum
+        shell: bash
+        run: |
+          checksum_path="${{ steps.dmg.outputs.path }}.sha256"
+          shasum -a 256 "${{ steps.dmg.outputs.path }}" > "$checksum_path"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-${{ matrix.runtime_id }}
+          path: |
+            artifacts/${{ matrix.runtime_id }}/${{ matrix.asset_name }}
+            artifacts/${{ matrix.runtime_id }}/${{ matrix.asset_name }}.sha256
+          if-no-files-found: error
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            "${{ steps.dmg.outputs.path }}" \
+            "${{ steps.dmg.outputs.path }}.sha256" \
+            --clobber
+
   finalize_release:
     name: Finalize GitHub Release
     runs-on: ubuntu-latest
     needs:
       - prepare_release
       - build_windows
+      - build_macos
     if: ${{ needs.prepare_release.outputs.publish_after_upload == 'true' }}
 
     steps:

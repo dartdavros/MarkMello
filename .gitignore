@@ -5,6 +5,7 @@ out/
 publish/
 artifacts/
 packaging/windows/dist/
+packaging/macos/dist/
 
 # IDE
 .vs/
