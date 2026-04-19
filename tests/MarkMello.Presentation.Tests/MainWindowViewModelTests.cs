@@ -104,6 +104,73 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task CloseFileCommandReturnsViewingDocumentToWelcome()
+    {
+        var harness = CreateHarness();
+        var path = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        harness.Loader.Sources[path] = CreateSource(path, "alpha beta");
+
+        await harness.ViewModel.OpenPathAsync(path);
+
+        await harness.ViewModel.CloseFileCommand.ExecuteAsync(null);
+
+        Assert.True(harness.ViewModel.IsWelcome);
+        Assert.False(harness.ViewModel.IsViewer);
+        Assert.Null(harness.ViewModel.Document);
+        Assert.Null(harness.ViewModel.EditorSession);
+        Assert.Equal("MarkMello", harness.ViewModel.WindowTitle);
+        Assert.False(harness.ViewModel.CloseFileCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task CloseFileCommandWhenDirtyDraftPromptsAndDiscardReturnsToWelcome()
+    {
+        var harness = CreateHarness();
+
+        await harness.ViewModel.CreateNewDocumentCommand.ExecuteAsync(null);
+        harness.ViewModel.EditorSession!.SourceText = "# Draft";
+
+        await harness.ViewModel.CloseFileCommand.ExecuteAsync(null);
+
+        Assert.True(harness.ViewModel.IsDirtyPromptOpen);
+        Assert.Contains("closing the current document", harness.ViewModel.DirtyPromptMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.True(harness.ViewModel.IsEditMode);
+
+        await harness.ViewModel.ConfirmDirtyDiscardCommand.ExecuteAsync(null);
+
+        Assert.True(harness.ViewModel.IsWelcome);
+        Assert.False(harness.ViewModel.IsDirtyPromptOpen);
+        Assert.Null(harness.ViewModel.Document);
+        Assert.Null(harness.ViewModel.EditorSession);
+        Assert.Equal("MarkMello", harness.ViewModel.WindowTitle);
+    }
+
+    [Fact]
+    public async Task CloseFileCommandWhenDirtyAndSavedPersistsThenReturnsToWelcome()
+    {
+        var harness = CreateHarness();
+        var savedPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "close-after-save.md");
+        harness.FilePicker.SavePath = savedPath;
+
+        await harness.ViewModel.CreateNewDocumentCommand.ExecuteAsync(null);
+        harness.ViewModel.EditorSession!.SourceText = "first draft";
+
+        await harness.ViewModel.CloseFileCommand.ExecuteAsync(null);
+        await harness.ViewModel.ConfirmDirtySaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(["Untitled.md"], harness.FilePicker.SuggestedSaveFileNames);
+
+        var save = Assert.Single(harness.DocumentSaver.Saves);
+        Assert.Equal(savedPath, save.Path);
+        Assert.Equal("first draft", save.Content);
+        Assert.True(harness.ViewModel.IsWelcome);
+        Assert.False(harness.ViewModel.IsDirtyPromptOpen);
+        Assert.Null(harness.ViewModel.Document);
+        Assert.Null(harness.ViewModel.EditorSession);
+        Assert.Equal("MarkMello", harness.ViewModel.WindowTitle);
+    }
+
+    [Fact]
     public async Task SaveCommandPersistsEditorBufferAndClearsDirtyState()
     {
         var harness = CreateHarness();

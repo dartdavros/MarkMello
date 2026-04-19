@@ -356,6 +356,13 @@ public partial class MainWindowViewModel : ObservableObject
             CreateNewDocumentCoreAsync)
             .ConfigureAwait(true);
 
+    [RelayCommand(CanExecute = nameof(CanCloseFile))]
+    private async Task CloseFileAsync()
+        => await RunWithDirtyCheckAsync(
+            PendingDirtyActionKind.CloseFile,
+            CloseFileCoreAsync)
+            .ConfigureAwait(true);
+
     [RelayCommand(CanExecute = nameof(CanReload))]
     private async Task ReloadAsync()
     {
@@ -373,6 +380,8 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private bool CanReload() => !string.IsNullOrEmpty(CurrentDocumentPath);
+
+    private bool CanCloseFile() => Document is not null || EditorSession is not null;
 
     [RelayCommand(CanExecute = nameof(CanToggleEditMode))]
     private async Task ToggleEditModeAsync()
@@ -664,6 +673,28 @@ public partial class MainWindowViewModel : ObservableObject
         UpdateCommandStates();
     }
 
+    private Task CloseFileCoreAsync()
+    {
+        CloseFileCore();
+        return Task.CompletedTask;
+    }
+
+    private void CloseFileCore()
+    {
+        IsSettingsOpen = false;
+        IsEditMode = false;
+        EditorSession = null;
+        Document = null;
+        RenderedDocument = RenderedMarkdownDocument.Empty;
+        _currentPath = null;
+        State = ViewState.NoDocument;
+        ReadingProgress = 0;
+        ErrorTitle = string.Empty;
+        ErrorDetails = string.Empty;
+        RefreshWindowTitle();
+        UpdateCommandStates();
+    }
+
     private void EnterEditModeCore()
     {
         if (Document is null)
@@ -844,6 +875,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             PendingDirtyActionKind.OpenFile => "Save your changes before opening another document?",
             PendingDirtyActionKind.CreateNewDocument => "Save your changes before creating a new document?",
+            PendingDirtyActionKind.CloseFile => "Save your changes before closing the current document?",
             PendingDirtyActionKind.Reload => "Save your changes before reloading the current document?",
             PendingDirtyActionKind.LeaveEditMode => "Save your changes before returning to reading mode?",
             PendingDirtyActionKind.CloseWindow => "Save your changes before closing MarkMello?",
@@ -1003,6 +1035,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void UpdateCommandStates()
     {
         ReloadCommand.NotifyCanExecuteChanged();
+        CloseFileCommand.NotifyCanExecuteChanged();
         ToggleEditModeCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
         SaveAsCommand.NotifyCanExecuteChanged();
@@ -1083,6 +1116,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         OpenFile,
         CreateNewDocument,
+        CloseFile,
         Reload,
         LeaveEditMode,
         CloseWindow
