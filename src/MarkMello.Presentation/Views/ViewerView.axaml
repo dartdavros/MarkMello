@@ -17,6 +17,12 @@
               HorizontalAlignment="Center"
               Padding="72,96,72,160"
               UseLayoutRounding="True">
+        <Border.Transitions>
+          <Transitions>
+            <DoubleTransition Property="MaxWidth"
+                              Duration="0:0:0.18" />
+          </Transitions>
+        </Border.Transitions>
         <views:MarkdownDocumentView Document="{Binding RenderedDocument}"
                                     ReadingPreferences="{Binding ReadingPreferences}"
                                     ImageSourceResolver="{Binding ImageSourceResolver}"

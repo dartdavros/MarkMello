@@ -60,15 +60,17 @@
       <Setter Property="Opacity" Value="1" />
     </Style>
 
-    <Style Selector="ProgressBar.mm-progress">
+    <Style Selector="Border.mm-progress">
       <Setter Property="Opacity" Value="0" />
+      <Setter Property="Width" Value="0" />
       <Setter Property="Transitions">
         <Transitions>
+          <DoubleTransition Property="Width" Duration="0:0:0.12" />
           <DoubleTransition Property="Opacity" Duration="0:0:0.24" />
         </Transitions>
       </Setter>
     </Style>
-    <Style Selector="Window:pointerover ProgressBar.mm-progress">
+    <Style Selector="Window:pointerover Border.mm-progress">
       <Setter Property="Opacity" Value="0.6" />
     </Style>
   </Window.Styles>
@@ -135,7 +137,8 @@
     </Border>
 
     <!-- ===== Body ===== -->
-    <Panel Grid.Row="1">
+    <Panel Grid.Row="1"
+           Name="BodyPanel">
 
       <!-- Content states -->
       <views:WelcomeView IsVisible="{Binding IsWelcome}" />
@@ -143,15 +146,14 @@
       <views:LoadErrorView IsVisible="{Binding IsError}" />
 
       <!-- Reading progress (top of body, hover-reveal) -->
-      <ProgressBar Classes="mm-progress"
-                   IsVisible="{Binding IsViewer}"
-                   Value="{Binding ReadingProgress}"
-                   Maximum="100"
-                   Height="2"
-                   VerticalAlignment="Top"
-                   HorizontalAlignment="Stretch"
-                   Background="Transparent"
-                   Foreground="{DynamicResource MmAccentBrush}" />
+      <Border Name="ReadingProgressBar"
+              Classes="mm-progress"
+              IsVisible="{Binding IsViewer}"
+              Height="1"
+              VerticalAlignment="Top"
+              HorizontalAlignment="Left"
+              Background="{DynamicResource MmAccentBrush}"
+              IsHitTestVisible="False" />
 
       <!-- Top bar (hover-reveal) -->
       <Border Classes="mm-top-chrome"
@@ -301,7 +303,7 @@
                         Classes="mm-segmented"
                         HorizontalAlignment="Right">
                   <StackPanel Orientation="Horizontal"
-                              Spacing="1">
+                              Spacing="2">
                     <ToggleButton Classes="mm-segmented-item"
                                   IsChecked="{Binding IsSerifFontSelected}">
                       <TextBlock Text="Serif" />
@@ -390,7 +392,7 @@
                         Classes="mm-segmented"
                         HorizontalAlignment="Right">
                   <StackPanel Orientation="Horizontal"
-                              Spacing="1">
+                              Spacing="2">
                     <ToggleButton Classes="mm-segmented-item"
                                   IsChecked="{Binding IsNarrowWidthSelected}">
                       <TextBlock Text="Narrow" />

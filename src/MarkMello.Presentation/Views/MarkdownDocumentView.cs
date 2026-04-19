@@ -1,4 +1,6 @@
 using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -9,6 +11,7 @@ using Avalonia.Media;
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
 using MarkMello.Presentation.Views.Markdown;
+using System.Threading;
 
 namespace MarkMello.Presentation.Views;
 
@@ -49,11 +52,12 @@ public sealed class MarkdownDocumentView : UserControl
     private bool _preserveSelectionOnRelease;
     private MenuItem? _copyMenuItem;
     private MenuItem? _selectAllMenuItem;
+    private CancellationTokenSource? _readingPreferencesRefreshCts;
 
     static MarkdownDocumentView()
     {
         DocumentProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.Rebuild());
-        ReadingPreferencesProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.Rebuild());
+        ReadingPreferencesProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.RefreshForReadingPreferencesChange());
     }
 
     public MarkdownDocumentView()
@@ -62,6 +66,15 @@ public sealed class MarkdownDocumentView : UserControl
         IsTabStop = true;
         UseLayoutRounding = true;
         _root.UseLayoutRounding = true;
+        _root.Transitions =
+        [
+            new DoubleTransition
+            {
+                Property = Visual.OpacityProperty,
+                Duration = TimeSpan.FromMilliseconds(140),
+                Easing = new CubicEaseOut()
+            }
+        ];
 
         AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
         KeyDown += OnKeyDown;
@@ -184,6 +197,36 @@ public sealed class MarkdownDocumentView : UserControl
         {
             _root.Children.Add(BuildBlock(document.Blocks[index], $"b{index}", nested: false));
         }
+    }
+
+    private void RefreshForReadingPreferencesChange()
+    {
+        _readingPreferencesRefreshCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _readingPreferencesRefreshCts = cts;
+
+        _root.Opacity = 0.9;
+        _ = AnimateReadingPreferencesRefreshAsync(cts.Token);
+    }
+
+    private async Task AnimateReadingPreferencesRefreshAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(48, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        Rebuild();
+        _root.Opacity = 1;
     }
 
     private void DisposeSelectionFragments()

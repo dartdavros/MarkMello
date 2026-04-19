@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
 
         Opened += OnWindowOpened;
+        SizeChanged += OnWindowSizeChanged;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
@@ -74,6 +75,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        SizeChanged -= OnWindowSizeChanged;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         base.OnClosed(e);
     }
@@ -227,6 +229,13 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainWindowViewModel.IsSettingsOpen))
         {
             Classes.Set("mm-settings-open", _viewModel.IsSettingsOpen);
+            return;
+        }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.ReadingProgress)
+            || e.PropertyName == nameof(MainWindowViewModel.IsViewer))
+        {
+            UpdateReadingProgressBarWidth();
         }
     }
 
@@ -245,4 +254,27 @@ public partial class MainWindow : Window
 
     private static bool HasSettingsShortcutModifier(KeyModifiers modifiers)
         => modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Meta);
+
+    private void OnWindowSizeChanged(object? sender, SizeChangedEventArgs e)
+        => UpdateReadingProgressBarWidth();
+
+    private void UpdateReadingProgressBarWidth()
+    {
+        var progressBar = this.FindControl<Border>("ReadingProgressBar");
+        if (progressBar is null)
+        {
+            return;
+        }
+
+        if (!_viewModel.IsViewer)
+        {
+            progressBar.Width = 0;
+            return;
+        }
+
+        var bodyPanel = this.FindControl<Panel>("BodyPanel");
+        var hostWidth = bodyPanel?.Bounds.Width ?? Bounds.Width;
+        var progressRatio = Math.Clamp(_viewModel.ReadingProgress / 100.0, 0, 1);
+        progressBar.Width = hostWidth * progressRatio;
+    }
 }

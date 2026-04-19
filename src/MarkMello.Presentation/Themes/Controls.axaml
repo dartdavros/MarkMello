@@ -240,7 +240,7 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="4" />
-    <Setter Property="Padding" Value="10" />
+    <Setter Property="Padding" Value="10,6" />
     <Setter Property="MinWidth" Value="0" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
     <Setter Property="FontSize" Value="12" />
