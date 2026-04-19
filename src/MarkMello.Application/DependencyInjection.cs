@@ -10,6 +10,7 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddSingleton<OpenDocumentUseCase>();
+        services.AddSingleton<SaveDocumentUseCase>();
         services.AddSingleton<RenderMarkdownDocumentUseCase>();
 
         return services;

@@ -14,6 +14,7 @@ namespace MarkMello.Presentation.Views;
 public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel _viewModel;
+    private bool _allowConfirmedClose;
 
     public MainWindow(MainWindowViewModel viewModel)
     {
@@ -31,8 +32,10 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnWindowKeyDown, RoutingStrategies.Tunnel);
 
         Opened += OnWindowOpened;
+        Closing += OnWindowClosing;
         SizeChanged += OnWindowSizeChanged;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _viewModel.CloseRequested += OnViewModelCloseRequested;
     }
 
     /// <summary>
@@ -75,8 +78,10 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        Closing -= OnWindowClosing;
         SizeChanged -= OnWindowSizeChanged;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _viewModel.CloseRequested -= OnViewModelCloseRequested;
         base.OnClosed(e);
     }
 
@@ -117,6 +122,11 @@ public partial class MainWindow : Window
 
     private void OnWindowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (_viewModel.IsDirtyPromptOpen)
+        {
+            return;
+        }
+
         if (!_viewModel.IsSettingsOpen || e.Source is not Visual source)
         {
             return;
@@ -236,6 +246,12 @@ public partial class MainWindow : Window
             || e.PropertyName == nameof(MainWindowViewModel.IsViewer))
         {
             UpdateReadingProgressBarWidth();
+            return;
+        }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.IsEditMode))
+        {
+            UpdateReadingProgressBarWidth();
         }
     }
 
@@ -266,7 +282,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!_viewModel.IsViewer)
+        if (!_viewModel.IsViewer || _viewModel.IsEditMode)
         {
             progressBar.Width = 0;
             return;
@@ -276,5 +292,24 @@ public partial class MainWindow : Window
         var hostWidth = bodyPanel?.Bounds.Width ?? Bounds.Width;
         var progressRatio = Math.Clamp(_viewModel.ReadingProgress / 100.0, 0, 1);
         progressBar.Width = hostWidth * progressRatio;
+    }
+
+    private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowConfirmedClose)
+        {
+            return;
+        }
+
+        if (_viewModel.TryQueueCloseRequest())
+        {
+            e.Cancel = true;
+        }
+    }
+
+    private void OnViewModelCloseRequested(object? sender, EventArgs e)
+    {
+        _allowConfirmedClose = true;
+        Close();
     }
 }

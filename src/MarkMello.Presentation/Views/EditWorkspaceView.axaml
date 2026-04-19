@@ -1,0 +1,166 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             xmlns:views="using:MarkMello.Presentation.Views"
+             mc:Ignorable="d"
+             x:Class="MarkMello.Presentation.Views.EditWorkspaceView"
+             x:DataType="vm:EditorSessionViewModel">
+
+  <Grid Name="EditGrid"
+        ColumnDefinitions="0.45*,9,*"
+        ClipToBounds="True">
+
+    <Border Grid.Column="0"
+            Classes="mm-editor-pane">
+      <Grid RowDefinitions="Auto,Auto,*">
+        <Border Grid.Row="0"
+                Classes="mm-editor-toolbar">
+          <DockPanel LastChildFill="True">
+            <StackPanel Orientation="Horizontal"
+                        Spacing="2">
+              <Button Classes="mm-editor-toolbar-button"
+                      Tag="Bold"
+                      Click="OnFormatButtonClick"
+                      ToolTip.Tip="Bold">
+                <Path Data="M4 2.5h3.5a2 2 0 0 1 0 4H4zM4 6.5h4a2 2 0 0 1 0 4H4z"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="2"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent"
+                      Stretch="Uniform"
+                      Width="14"
+                      Height="14" />
+              </Button>
+              <Button Classes="mm-editor-toolbar-button"
+                      Tag="Italic"
+                      Click="OnFormatButtonClick"
+                      ToolTip.Tip="Italic">
+                <Path Data="M6 2.5h4M4 11.5h4M8 2.5l-2 9"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent"
+                      Stretch="Uniform"
+                      Width="14"
+                      Height="14" />
+              </Button>
+              <Button Classes="mm-editor-toolbar-button"
+                      Tag="Code"
+                      Click="OnFormatButtonClick"
+                      ToolTip.Tip="Code">
+                <Path Data="M5 4.5L2.5 7 5 9.5M9 4.5L11.5 7 9 9.5"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent"
+                      Stretch="Uniform"
+                      Width="14"
+                      Height="14" />
+              </Button>
+              <Border Classes="mm-editor-toolbar-separator" />
+              <Button Classes="mm-editor-toolbar-button"
+                      Tag="Link"
+                      Click="OnFormatButtonClick"
+                      ToolTip.Tip="Link">
+                <Path Data="M6 8L8 6M5.5 9.5l-1 1a2.1 2.1 0 0 1-3-3l1-1M8.5 4.5l1-1a2.1 2.1 0 0 1 3 3l-1 1"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent"
+                      Stretch="Uniform"
+                      Width="14"
+                      Height="14" />
+              </Button>
+              <Button Classes="mm-editor-toolbar-button"
+                      Tag="List"
+                      Click="OnFormatButtonClick"
+                      ToolTip.Tip="List">
+                <Path Data="M5 4h7M5 7h7M5 10h7M2.5 4h.01M2.5 7h.01M2.5 10h.01"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent"
+                      Stretch="Uniform"
+                      Width="14"
+                      Height="14" />
+              </Button>
+              <Button Classes="mm-editor-toolbar-button"
+                      Tag="Quote"
+                      Click="OnFormatButtonClick"
+                      ToolTip.Tip="Quote">
+                <Path Data="M3 4.5v4a1.5 1.5 0 0 1-1.5 1.5M7 4.5v4a1.5 1.5 0 0 1-1.5 1.5M1.5 4.5h3M5.5 4.5h3"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent"
+                      Stretch="Uniform"
+                      Width="14"
+                      Height="14" />
+              </Button>
+            </StackPanel>
+
+            <TextBlock DockPanel.Dock="Right"
+                       Classes="mm-editor-toolbar-label"
+                       Text="Source" />
+          </DockPanel>
+        </Border>
+
+        <Border Grid.Row="1"
+                Classes="mm-editor-status-shell"
+                IsVisible="{Binding HasStatusMessage}">
+          <TextBlock Classes="mm-editor-status-text"
+                     Text="{Binding StatusMessage}" />
+        </Border>
+
+        <TextBox Grid.Row="2"
+                 Name="EditorTextBox"
+                 Classes="mm-editor-textarea"
+                 AcceptsReturn="True"
+                 AcceptsTab="True"
+                 TextWrapping="Wrap"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 Text="{Binding SourceText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+      </Grid>
+    </Border>
+
+    <GridSplitter Grid.Column="1"
+                  Name="EditorSplitter"
+                  Classes="mm-editor-splitter"
+                  ResizeDirection="Columns"
+                  ResizeBehavior="PreviousAndNext"
+                  DragCompleted="OnSplitterDragCompleted" />
+
+    <ScrollViewer Grid.Column="2"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto"
+                  UseLayoutRounding="True">
+      <Grid UseLayoutRounding="True">
+        <Border MaxWidth="{Binding ReadingPreferences.ContentWidth}"
+                HorizontalAlignment="Center"
+                Padding="72,96,72,160"
+                UseLayoutRounding="True">
+          <Border.Transitions>
+            <Transitions>
+              <DoubleTransition Property="MaxWidth"
+                                Duration="0:0:0.18" />
+            </Transitions>
+          </Border.Transitions>
+          <views:MarkdownDocumentView Document="{Binding RenderedPreview}"
+                                      ReadingPreferences="{Binding ReadingPreferences}"
+                                      ImageSourceResolver="{Binding ImageSourceResolver}"
+                                      UseLayoutRounding="True" />
+        </Border>
+      </Grid>
+    </ScrollViewer>
+
+  </Grid>
+</UserControl>

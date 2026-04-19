@@ -4,18 +4,18 @@ using MarkMello.Application.Abstractions;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
+using System.ComponentModel;
 
 namespace MarkMello.Presentation.ViewModels;
 
 /// <summary>
 /// View model главного окна. Отвечает за state machine (NoDocument/Viewing/LoadError),
-/// тему, reading preferences, команды open/reload, drag-overlay, reading progress
-/// и компактный settings popover в духе design prototype. Editor-specific
-/// properties по-прежнему отсутствуют — это constitution §4.
+/// тему, reading preferences, команды open/reload, lazy edit mode и dirty/save flow.
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
     private readonly OpenDocumentUseCase _openDocument;
+    private readonly SaveDocumentUseCase _saveDocument;
     private readonly IFilePicker _filePicker;
     private readonly ICommandLineActivation _commandLine;
     private readonly ISettingsStore _settings;
@@ -25,11 +25,16 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IImageSourceResolver? _imageSourceResolver;
 
     private bool _stage3Marked;
+    private bool _editorActivationMarked;
     private string? _currentPath;
+    private Func<Task>? _pendingDirtyAction;
     private readonly bool _showCustomTitleBar = OperatingSystem.IsWindows();
+
+    public event EventHandler? CloseRequested;
 
     public MainWindowViewModel(
         OpenDocumentUseCase openDocument,
+        SaveDocumentUseCase saveDocument,
         IFilePicker filePicker,
         ICommandLineActivation commandLine,
         ISettingsStore settings,
@@ -39,6 +44,7 @@ public partial class MainWindowViewModel : ObservableObject
         IImageSourceResolver? imageSourceResolver = null)
     {
         _openDocument = openDocument;
+        _saveDocument = saveDocument;
         _filePicker = filePicker;
         _commandLine = commandLine;
         _settings = settings;
@@ -48,14 +54,7 @@ public partial class MainWindowViewModel : ObservableObject
         _imageSourceResolver = imageSourceResolver;
     }
 
-    /// <summary>
-    /// Resolver used by the markdown view to load image block content. Null
-    /// in design-time or tests; the view renders "Image unavailable"
-    /// placeholders in that case.
-    /// </summary>
     public IImageSourceResolver? ImageSourceResolver => _imageSourceResolver;
-
-    // ---------- State ----------
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsWelcome))]
@@ -64,9 +63,6 @@ public partial class MainWindowViewModel : ObservableObject
     private ViewState _state = ViewState.NoDocument;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(FileName))]
-    [NotifyPropertyChangedFor(nameof(WordCount))]
-    [NotifyPropertyChangedFor(nameof(ReadTimeMinutes))]
     private MarkdownSource? _document;
 
     [ObservableProperty]
@@ -96,7 +92,31 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(NextThemeHint))]
     private ThemeMode _effectiveTheme = ThemeMode.Light;
 
-    // ---------- Error state ----------
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveDocumentContent))]
+    [NotifyPropertyChangedFor(nameof(EditToggleLabel))]
+    [NotifyPropertyChangedFor(nameof(EditShortcutLabel))]
+    [NotifyPropertyChangedFor(nameof(ShowsEditPencilIcon))]
+    [NotifyPropertyChangedFor(nameof(ShowsReadEyeIcon))]
+    private bool _isEditMode;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveDocumentContent))]
+    [NotifyPropertyChangedFor(nameof(IsDirty))]
+    private EditorSessionViewModel? _editorSession;
+
+    [ObservableProperty]
+    private bool _isDirtyPromptOpen;
+
+    [ObservableProperty]
+    private string _dirtyPromptTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _dirtyPromptMessage = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDirtyPromptError))]
+    private string _dirtyPromptErrorMessage = string.Empty;
 
     [ObservableProperty]
     private string _errorTitle = string.Empty;
@@ -104,17 +124,41 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _errorDetails = string.Empty;
 
-    // ---------- Computed ----------
+    public object ActiveDocumentContent => IsEditMode && EditorSession is not null ? EditorSession : this;
 
-    public string FileName => Document?.FileName ?? string.Empty;
+    public string FileName => EditorSession?.FileName ?? Document?.FileName ?? string.Empty;
+
+    public string TitleFileDisplayName => string.IsNullOrWhiteSpace(FileName)
+        ? string.Empty
+        : FileName + (IsDirty ? " •" : string.Empty);
+
+    public bool HasDocumentTitle => State == ViewState.Viewing && !string.IsNullOrWhiteSpace(FileName);
+
+    public bool ShowsStandaloneAppTitle => !HasDocumentTitle;
 
     public bool IsWelcome => State == ViewState.NoDocument;
+
     public bool IsViewer => State == ViewState.Viewing;
+
     public bool IsError => State == ViewState.LoadError;
 
+    public bool IsDirty => EditorSession?.IsDirty == true;
+
     public bool ShowCustomTitleBar => _showCustomTitleBar;
+
     public bool ShowsMoonThemeIcon => EffectiveTheme == ThemeMode.Light;
+
     public bool ShowsSunThemeIcon => EffectiveTheme == ThemeMode.Dark;
+
+    public bool ShowsEditPencilIcon => !IsEditMode;
+
+    public bool ShowsReadEyeIcon => IsEditMode;
+
+    public string EditToggleLabel => IsEditMode ? "Reading" : "Edit";
+
+    public string EditShortcutLabel => IsEditMode ? "read" : "edit";
+
+    public bool HasDirtyPromptError => !string.IsNullOrWhiteSpace(DirtyPromptErrorMessage);
 
     public FontFamilyMode SelectedFontFamilyMode
     {
@@ -150,7 +194,10 @@ public partial class MainWindowViewModel : ObservableObject
         get => ReadingPreferences.LineHeight;
         set
         {
-            var normalized = Math.Round(value / ReadingPreferences.LineHeightStep, MidpointRounding.AwayFromZero) * ReadingPreferences.LineHeightStep;
+            var normalized = Math.Round(
+                value / ReadingPreferences.LineHeightStep,
+                MidpointRounding.AwayFromZero) * ReadingPreferences.LineHeightStep;
+
             if (Math.Abs(ReadingPreferences.LineHeight - normalized) < 0.0001)
             {
                 return;
@@ -165,7 +212,10 @@ public partial class MainWindowViewModel : ObservableObject
         get => ReadingPreferences.ContentWidth;
         set
         {
-            var contentWidth = (int)Math.Round(value / ReadingPreferences.ContentWidthStep, MidpointRounding.AwayFromZero) * ReadingPreferences.ContentWidthStep;
+            var contentWidth = (int)Math.Round(
+                value / ReadingPreferences.ContentWidthStep,
+                MidpointRounding.AwayFromZero) * ReadingPreferences.ContentWidthStep;
+
             if (ReadingPreferences.ContentWidth == contentWidth)
             {
                 return;
@@ -176,6 +226,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     public string FontSizeLabel => $"{ReadingPreferences.FontSize}px";
+
     public string LineHeightLabel => $"{ReadingPreferences.LineHeight:0.00}";
 
     public bool IsSerifFontSelected
@@ -268,36 +319,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    public int WordCount
-    {
-        get
-        {
-            if (Document is null || string.IsNullOrWhiteSpace(Document.Content))
-            {
-                return 0;
-            }
-            var trimmed = Document.Content.AsSpan().Trim();
-            if (trimmed.IsEmpty)
-            {
-                return 0;
-            }
-            int count = 0;
-            bool inWord = false;
-            foreach (var ch in trimmed)
-            {
-                if (char.IsWhiteSpace(ch))
-                {
-                    inWord = false;
-                }
-                else if (!inWord)
-                {
-                    inWord = true;
-                    count++;
-                }
-            }
-            return count;
-        }
-    }
+    public int WordCount => EditorSession?.WordCount ?? CountWords(Document?.Content);
 
     public int ReadTimeMinutes => Math.Max(1, (int)Math.Round(WordCount / 220.0));
 
@@ -305,12 +327,6 @@ public partial class MainWindowViewModel : ObservableObject
         ? "Switch to dark theme"
         : "Switch to light theme";
 
-    // ---------- Lifecycle ----------
-
-    /// <summary>
-    /// Вызывается из MainWindow.Opened. Загружает тему, применяет, и пытается открыть
-    /// файл из command-line, если он передан.
-    /// </summary>
     public async Task InitializeAsync()
     {
         ReadingPreferences = await _settings.LoadPreferencesAsync().ConfigureAwait(true);
@@ -325,30 +341,123 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    // ---------- Commands ----------
-
     [RelayCommand]
     private async Task OpenFileAsync()
-    {
-        var path = await _filePicker.PickMarkdownFileAsync().ConfigureAwait(true);
-        if (string.IsNullOrEmpty(path))
-        {
-            return;
-        }
-        await OpenPathAsync(path).ConfigureAwait(true);
-    }
+        => await RunWithDirtyCheckAsync(PendingDirtyActionKind.OpenFile, OpenFileCoreAsync).ConfigureAwait(true);
 
     [RelayCommand(CanExecute = nameof(CanReload))]
     private async Task ReloadAsync()
     {
-        if (string.IsNullOrEmpty(_currentPath))
+        var path = CurrentDocumentPath;
+        if (string.IsNullOrEmpty(path))
         {
             return;
         }
-        await OpenPathAsync(_currentPath).ConfigureAwait(true);
+
+        var preserveEditMode = IsEditMode;
+        await RunWithDirtyCheckAsync(
+            PendingDirtyActionKind.Reload,
+            () => LoadDocumentAsync(path, preserveEditModeAfterLoad: preserveEditMode))
+            .ConfigureAwait(true);
     }
 
-    private bool CanReload() => !string.IsNullOrEmpty(_currentPath);
+    private bool CanReload() => !string.IsNullOrEmpty(CurrentDocumentPath);
+
+    [RelayCommand(CanExecute = nameof(CanToggleEditMode))]
+    private async Task ToggleEditModeAsync()
+    {
+        if (IsEditMode)
+        {
+            await RunWithDirtyCheckAsync(
+                PendingDirtyActionKind.LeaveEditMode,
+                ExitEditModeCoreAsync)
+                .ConfigureAwait(true);
+            return;
+        }
+
+        EnterEditModeCore();
+    }
+
+    private bool CanToggleEditMode() => State == ViewState.Viewing && Document is not null;
+
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    private async Task SaveAsync()
+    {
+        var outcome = await SaveEditorAsync(promptForPathWhenMissing: true, forceSaveAs: false).ConfigureAwait(true);
+        if (outcome.Cancelled)
+        {
+            return;
+        }
+
+        if (outcome.Result is not SaveDocumentResult.Success success)
+        {
+            EditorSession?.SetStatusMessage(GetSaveFailureMessage(outcome.Result));
+            return;
+        }
+
+        ApplySavedDocument(success.Source);
+    }
+
+    private bool CanSave() => IsEditMode && EditorSession is not null;
+
+    [RelayCommand(CanExecute = nameof(CanSaveAs))]
+    private async Task SaveAsAsync()
+    {
+        var outcome = await SaveEditorAsync(promptForPathWhenMissing: true, forceSaveAs: true).ConfigureAwait(true);
+        if (outcome.Cancelled)
+        {
+            return;
+        }
+
+        if (outcome.Result is not SaveDocumentResult.Success success)
+        {
+            EditorSession?.SetStatusMessage(GetSaveFailureMessage(outcome.Result));
+            return;
+        }
+
+        ApplySavedDocument(success.Source);
+    }
+
+    private bool CanSaveAs() => IsEditMode && EditorSession is not null;
+
+    [RelayCommand]
+    private async Task ConfirmDirtySaveAsync()
+    {
+        if (_pendingDirtyAction is null)
+        {
+            return;
+        }
+
+        DirtyPromptErrorMessage = string.Empty;
+
+        var outcome = await SaveEditorAsync(promptForPathWhenMissing: true, forceSaveAs: false).ConfigureAwait(true);
+        if (outcome.Cancelled)
+        {
+            return;
+        }
+
+        if (outcome.Result is not SaveDocumentResult.Success success)
+        {
+            DirtyPromptErrorMessage = GetSaveFailureMessage(outcome.Result);
+            return;
+        }
+
+        ApplySavedDocument(success.Source);
+        await ContinuePendingDirtyActionAsync().ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private async Task ConfirmDirtyDiscardAsync()
+    {
+        DiscardEditorChanges();
+        await ContinuePendingDirtyActionAsync().ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private void CancelDirtyPrompt()
+    {
+        ClearDirtyPrompt();
+    }
 
     [RelayCommand]
     private async Task CycleThemeAsync()
@@ -376,6 +485,12 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void ClearError()
     {
+        if (IsDirtyPromptOpen)
+        {
+            CancelDirtyPrompt();
+            return;
+        }
+
         if (IsSettingsOpen)
         {
             IsSettingsOpen = false;
@@ -387,100 +502,93 @@ public partial class MainWindowViewModel : ObservableObject
             State = Document is null ? ViewState.NoDocument : ViewState.Viewing;
             ErrorTitle = string.Empty;
             ErrorDetails = string.Empty;
+            RefreshWindowTitle();
         }
     }
 
-    // ---------- Drag & drop entry points ----------
-
-    public Task OpenDroppedFileAsync(string path) => OpenPathAsync(path);
-
-    // ---------- Core ----------
+    public async Task OpenDroppedFileAsync(string path)
+        => await RunWithDirtyCheckAsync(
+            PendingDirtyActionKind.OpenFile,
+            () => LoadDocumentAsync(path, preserveEditModeAfterLoad: false))
+            .ConfigureAwait(true);
 
     public async Task OpenPathAsync(string path)
+        => await LoadDocumentAsync(path, preserveEditModeAfterLoad: false).ConfigureAwait(true);
+
+    public bool TryQueueCloseRequest()
     {
-        var result = await _openDocument.ExecuteAsync(path).ConfigureAwait(true);
-        ApplyOpenResult(result);
+        if (IsDirtyPromptOpen)
+        {
+            return true;
+        }
+
+        if (!RequiresDirtyResolution)
+        {
+            return false;
+        }
+
+        QueueDirtyAction(
+            PendingDirtyActionKind.CloseWindow,
+            () =>
+            {
+                CloseRequested?.Invoke(this, EventArgs.Empty);
+                return Task.CompletedTask;
+            });
+
+        return true;
     }
 
-    private void ApplyOpenResult(OpenDocumentResult result)
+    partial void OnDocumentChanged(MarkdownSource? value)
     {
-        switch (result)
+        RefreshDocumentSummary();
+        RefreshWindowTitle();
+        UpdateCommandStates();
+    }
+
+    partial void OnStateChanged(ViewState value)
+    {
+        OnPropertyChanged(nameof(HasDocumentTitle));
+        OnPropertyChanged(nameof(ShowsStandaloneAppTitle));
+        RefreshWindowTitle();
+        UpdateCommandStates();
+    }
+
+    partial void OnIsEditModeChanged(bool value)
+    {
+        OnPropertyChanged(nameof(EditToggleLabel));
+        OnPropertyChanged(nameof(EditShortcutLabel));
+        OnPropertyChanged(nameof(ShowsEditPencilIcon));
+        OnPropertyChanged(nameof(ShowsReadEyeIcon));
+        OnPropertyChanged(nameof(ActiveDocumentContent));
+        UpdateCommandStates();
+    }
+
+    partial void OnEditorSessionChanging(EditorSessionViewModel? oldValue, EditorSessionViewModel? newValue)
+    {
+        if (oldValue is not null)
         {
-            case OpenDocumentResult.Success success:
-                Document = success.Source;
-                RenderedDocument = _renderMarkdown.Execute(
-                    success.Source.Content,
-                    baseDirectory: TryGetDirectory(success.Source.Path));
-                _currentPath = success.Source.Path;
-                State = ViewState.Viewing;
-                WindowTitle = $"{success.Source.FileName} — MarkMello";
-                ReadingProgress = 0;
-                ErrorTitle = string.Empty;
-                ErrorDetails = string.Empty;
-
-                if (!_stage3Marked)
-                {
-                    _stage3Marked = true;
-                    _startupMetrics.Mark(StartupStage.ReadableDocument);
-                }
-                ReloadCommand.NotifyCanExecuteChanged();
-                break;
-
-            case OpenDocumentResult.NotFound notFound:
-                ShowError("Couldn't find that file", notFound.Path);
-                break;
-
-            case OpenDocumentResult.AccessDenied denied:
-                ShowError("Access denied", denied.Path);
-                break;
-
-            case OpenDocumentResult.ReadError read:
-                ShowError("Couldn't read the file", $"{read.Path}\n\n{read.Message}");
-                break;
-
-            case OpenDocumentResult.UnsupportedType unsupported:
-                ShowError(
-                    "Unsupported file type",
-                    $"{unsupported.Path}\n\nSupported extensions: {string.Join(", ", SupportedDocumentTypes.Extensions)}");
-                break;
+            oldValue.PropertyChanged -= OnEditorSessionPropertyChanged;
         }
     }
 
-    private void ApplyTheme(ThemeMode mode)
+    partial void OnEditorSessionChanged(EditorSessionViewModel? value)
     {
-        Theme = mode;
-        _themeService.Apply(mode);
-        EffectiveTheme = _themeService.GetEffectiveTheme();
-    }
-
-    private void ShowError(string title, string details)
-    {
-        ErrorTitle = title;
-        ErrorDetails = details;
-        State = ViewState.LoadError;
-        WindowTitle = "MarkMello";
-    }
-
-    private static string? TryGetDirectory(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
+        if (value is not null)
         {
-            return null;
+            value.PropertyChanged += OnEditorSessionPropertyChanged;
+            value.UpdateReadingPreferences(ReadingPreferences);
+            _currentPath = value.CurrentPath;
         }
 
-        try
-        {
-            return System.IO.Path.GetDirectoryName(path);
-        }
-        catch
-        {
-            // Invalid characters or permission failure -- not fatal for viewer path.
-            return null;
-        }
+        RefreshDocumentSummary();
+        RefreshWindowTitle();
+        UpdateCommandStates();
     }
 
     partial void OnReadingPreferencesChanged(ReadingPreferences value)
     {
+        EditorSession?.UpdateReadingPreferences(value);
+
         OnPropertyChanged(nameof(SelectedFontFamilyMode));
         OnPropertyChanged(nameof(FontSizeSetting));
         OnPropertyChanged(nameof(LineHeightSetting));
@@ -493,6 +601,278 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsNarrowWidthSelected));
         OnPropertyChanged(nameof(IsMediumWidthSelected));
         OnPropertyChanged(nameof(IsWideWidthSelected));
+    }
+
+    private async Task OpenFileCoreAsync()
+    {
+        var path = await _filePicker.PickMarkdownFileAsync().ConfigureAwait(true);
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        await LoadDocumentAsync(path, preserveEditModeAfterLoad: false).ConfigureAwait(true);
+    }
+
+    private void EnterEditModeCore()
+    {
+        if (Document is null)
+        {
+            return;
+        }
+
+        if (EditorSession is null)
+        {
+            EditorSession = new EditorSessionViewModel(
+                Document,
+                ReadingPreferences,
+                _renderMarkdown,
+                _imageSourceResolver);
+        }
+
+        if (!_editorActivationMarked)
+        {
+            _editorActivationMarked = true;
+            _startupMetrics.Mark(StartupStage.EditorActivation);
+        }
+
+        EditorSession.UpdateReadingPreferences(ReadingPreferences);
+        EditorSession.SetStatusMessage(string.Empty);
+        IsEditMode = true;
+    }
+
+    private Task ExitEditModeCoreAsync()
+    {
+        IsEditMode = false;
+        EditorSession?.SetStatusMessage(string.Empty);
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadDocumentAsync(string path, bool preserveEditModeAfterLoad)
+    {
+        var result = await _openDocument.ExecuteAsync(path).ConfigureAwait(true);
+        ApplyOpenResult(result, preserveEditModeAfterLoad);
+    }
+
+    private void ApplyOpenResult(OpenDocumentResult result, bool preserveEditModeAfterLoad)
+    {
+        switch (result)
+        {
+            case OpenDocumentResult.Success success:
+                ApplyLoadedDocument(success.Source, preserveEditModeAfterLoad);
+                break;
+
+            case OpenDocumentResult.NotFound notFound:
+                FailOpenResult("Couldn't find that file", notFound.Path);
+                break;
+
+            case OpenDocumentResult.AccessDenied denied:
+                FailOpenResult("Access denied", denied.Path);
+                break;
+
+            case OpenDocumentResult.ReadError read:
+                FailOpenResult("Couldn't read the file", $"{read.Path}\n\n{read.Message}");
+                break;
+
+            case OpenDocumentResult.UnsupportedType unsupported:
+                FailOpenResult(
+                    "Unsupported file type",
+                    $"{unsupported.Path}\n\nSupported extensions: {string.Join(", ", SupportedDocumentTypes.Extensions)}");
+                break;
+        }
+    }
+
+    private void ApplyLoadedDocument(MarkdownSource source, bool preserveEditModeAfterLoad)
+    {
+        Document = source;
+        RenderedDocument = _renderMarkdown.Execute(
+            source.Content,
+            baseDirectory: TryGetDirectory(source.Path));
+        _currentPath = source.Path;
+        State = ViewState.Viewing;
+        ReadingProgress = 0;
+        ErrorTitle = string.Empty;
+        ErrorDetails = string.Empty;
+
+        if (preserveEditModeAfterLoad)
+        {
+            if (EditorSession is null)
+            {
+                EditorSession = new EditorSessionViewModel(
+                    source,
+                    ReadingPreferences,
+                    _renderMarkdown,
+                    _imageSourceResolver);
+            }
+            else
+            {
+                EditorSession.ApplyLoadedDocument(source);
+            }
+
+            IsEditMode = true;
+        }
+        else
+        {
+            IsEditMode = false;
+            EditorSession = null;
+        }
+
+        if (!_stage3Marked)
+        {
+            _stage3Marked = true;
+            _startupMetrics.Mark(StartupStage.ReadableDocument);
+        }
+
+        RefreshWindowTitle();
+        UpdateCommandStates();
+    }
+
+    private void ApplySavedDocument(MarkdownSource source)
+    {
+        Document = source;
+        RenderedDocument = _renderMarkdown.Execute(
+            source.Content,
+            baseDirectory: TryGetDirectory(source.Path));
+        _currentPath = source.Path;
+
+        if (EditorSession is null)
+        {
+            EditorSession = new EditorSessionViewModel(
+                source,
+                ReadingPreferences,
+                _renderMarkdown,
+                _imageSourceResolver);
+        }
+        else
+        {
+            EditorSession.ApplySavedDocument(source);
+        }
+
+        RefreshWindowTitle();
+        UpdateCommandStates();
+    }
+
+    private void FailOpenResult(string title, string details)
+    {
+        IsEditMode = false;
+        EditorSession = null;
+        ErrorTitle = title;
+        ErrorDetails = details;
+        State = ViewState.LoadError;
+        RefreshWindowTitle();
+        UpdateCommandStates();
+    }
+
+    private async Task RunWithDirtyCheckAsync(PendingDirtyActionKind kind, Func<Task> action)
+    {
+        if (IsDirtyPromptOpen)
+        {
+            return;
+        }
+
+        if (!RequiresDirtyResolution)
+        {
+            await action().ConfigureAwait(true);
+            return;
+        }
+
+        QueueDirtyAction(kind, action);
+    }
+
+    private bool RequiresDirtyResolution => IsEditMode && EditorSession?.IsDirty == true;
+
+    private void QueueDirtyAction(PendingDirtyActionKind kind, Func<Task> action)
+    {
+        if (IsDirtyPromptOpen)
+        {
+            return;
+        }
+
+        _pendingDirtyAction = action;
+        DirtyPromptTitle = "Unsaved changes";
+        DirtyPromptMessage = kind switch
+        {
+            PendingDirtyActionKind.OpenFile => "Save your changes before opening another document?",
+            PendingDirtyActionKind.Reload => "Save your changes before reloading the current document?",
+            PendingDirtyActionKind.LeaveEditMode => "Save your changes before returning to reading mode?",
+            PendingDirtyActionKind.CloseWindow => "Save your changes before closing MarkMello?",
+            _ => "Save your changes before continuing?"
+        };
+        DirtyPromptErrorMessage = string.Empty;
+        IsDirtyPromptOpen = true;
+    }
+
+    private async Task ContinuePendingDirtyActionAsync()
+    {
+        var pendingAction = _pendingDirtyAction;
+        ClearDirtyPrompt();
+        if (pendingAction is null)
+        {
+            return;
+        }
+
+        await pendingAction().ConfigureAwait(true);
+    }
+
+    private void ClearDirtyPrompt()
+    {
+        _pendingDirtyAction = null;
+        IsDirtyPromptOpen = false;
+        DirtyPromptTitle = string.Empty;
+        DirtyPromptMessage = string.Empty;
+        DirtyPromptErrorMessage = string.Empty;
+    }
+
+    private async Task<SaveExecutionOutcome> SaveEditorAsync(bool promptForPathWhenMissing, bool forceSaveAs)
+    {
+        if (EditorSession is null)
+        {
+            return new SaveExecutionOutcome(false, new SaveDocumentResult.InvalidPath(string.Empty));
+        }
+
+        var targetPath = forceSaveAs ? null : EditorSession.CurrentPath;
+        if (string.IsNullOrWhiteSpace(targetPath) && promptForPathWhenMissing)
+        {
+            targetPath = await PickSavePathAsync(EditorSession.FileName).ConfigureAwait(true);
+        }
+        else if (forceSaveAs)
+        {
+            targetPath = await PickSavePathAsync(EditorSession.FileName).ConfigureAwait(true);
+        }
+
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return new SaveExecutionOutcome(true, null);
+        }
+
+        var result = await _saveDocument.ExecuteAsync(targetPath, EditorSession.SourceText).ConfigureAwait(true);
+        return new SaveExecutionOutcome(false, result);
+    }
+
+    private async Task<string?> PickSavePathAsync(string? currentFileName)
+    {
+        var suggestedFileName = NormalizeSuggestedFileName(currentFileName);
+        return await _filePicker.PickSaveMarkdownFileAsync(suggestedFileName).ConfigureAwait(true);
+    }
+
+    private void DiscardEditorChanges()
+    {
+        if (EditorSession is null)
+        {
+            return;
+        }
+
+        EditorSession.DiscardChanges();
+        RefreshDocumentSummary();
+        RefreshWindowTitle();
+        UpdateCommandStates();
+    }
+
+    private void ApplyTheme(ThemeMode mode)
+    {
+        Theme = mode;
+        _themeService.Apply(mode);
+        EffectiveTheme = _themeService.GetEffectiveTheme();
     }
 
     private void ApplyReadingPreferences(ReadingPreferences preferences)
@@ -517,9 +897,145 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch
             {
-                // Persistence is best-effort; a failed save must not interrupt
-                // the viewer interaction loop.
+                // Persistence remains best-effort; failed saving of reading
+                // preferences must never interrupt the viewer or editor loop.
             }
         });
     }
+
+    private void OnEditorSessionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (EditorSession is null)
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(EditorSessionViewModel.CurrentPath))
+        {
+            _currentPath = EditorSession.CurrentPath;
+        }
+
+        if (e.PropertyName is nameof(EditorSessionViewModel.SourceText)
+            or nameof(EditorSessionViewModel.LastPersistedSource)
+            or nameof(EditorSessionViewModel.FileName)
+            or nameof(EditorSessionViewModel.CurrentPath))
+        {
+            RefreshDocumentSummary();
+            RefreshWindowTitle();
+            UpdateCommandStates();
+        }
+    }
+
+    private void RefreshDocumentSummary()
+    {
+        OnPropertyChanged(nameof(FileName));
+        OnPropertyChanged(nameof(TitleFileDisplayName));
+        OnPropertyChanged(nameof(HasDocumentTitle));
+        OnPropertyChanged(nameof(ShowsStandaloneAppTitle));
+        OnPropertyChanged(nameof(WordCount));
+        OnPropertyChanged(nameof(ReadTimeMinutes));
+        OnPropertyChanged(nameof(IsDirty));
+    }
+
+    private void RefreshWindowTitle()
+    {
+        if (State != ViewState.Viewing)
+        {
+            WindowTitle = "MarkMello";
+            return;
+        }
+
+        WindowTitle = string.IsNullOrWhiteSpace(FileName)
+            ? "MarkMello"
+            : $"{TitleFileDisplayName} — MarkMello";
+    }
+
+    private void UpdateCommandStates()
+    {
+        ReloadCommand.NotifyCanExecuteChanged();
+        ToggleEditModeCommand.NotifyCanExecuteChanged();
+        SaveCommand.NotifyCanExecuteChanged();
+        SaveAsCommand.NotifyCanExecuteChanged();
+    }
+
+    private static string NormalizeSuggestedFileName(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return "Untitled.md";
+        }
+
+        return SupportedDocumentTypes.IsSupportedPath(fileName)
+            ? fileName
+            : $"{fileName}.md";
+    }
+
+    private string? CurrentDocumentPath => EditorSession?.CurrentPath ?? _currentPath ?? Document?.Path;
+
+    private static int CountWords(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return 0;
+        }
+
+        var trimmed = text.AsSpan().Trim();
+        if (trimmed.IsEmpty)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        var inWord = false;
+        foreach (var ch in trimmed)
+        {
+            if (char.IsWhiteSpace(ch))
+            {
+                inWord = false;
+            }
+            else if (!inWord)
+            {
+                inWord = true;
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static string GetSaveFailureMessage(SaveDocumentResult? result)
+        => result switch
+        {
+            SaveDocumentResult.InvalidPath invalidPath => $"Couldn't save to this path: {invalidPath.Path}",
+            SaveDocumentResult.AccessDenied accessDenied => $"Access denied: {accessDenied.Path}",
+            SaveDocumentResult.WriteError writeError => $"Couldn't save the document: {writeError.Message}",
+            _ => "Couldn't save the document."
+        };
+
+    private static string? TryGetDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            return Path.GetDirectoryName(path);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private enum PendingDirtyActionKind
+    {
+        OpenFile,
+        Reload,
+        LeaveEditMode,
+        CloseWindow
+    }
+
+    private readonly record struct SaveExecutionOutcome(bool Cancelled, SaveDocumentResult? Result);
 }

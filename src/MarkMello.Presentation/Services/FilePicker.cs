@@ -51,4 +51,48 @@ public sealed class FilePicker : IFilePicker
 
         return files[0].TryGetLocalPath();
     }
+
+    public async Task<string?> PickSaveMarkdownFileAsync(
+        string suggestedFileName,
+        CancellationToken cancellationToken = default)
+    {
+        var topLevel = _topLevelAccessor();
+        if (topLevel?.StorageProvider is not { CanSave: true } provider)
+        {
+            return null;
+        }
+
+        var normalizedSuggestedName = NormalizeSuggestedFileName(suggestedFileName);
+        var options = new FilePickerSaveOptions
+        {
+            Title = "Save Markdown file",
+            SuggestedFileName = normalizedSuggestedName,
+            DefaultExtension = Path.GetExtension(normalizedSuggestedName),
+            FileTypeChoices = new[]
+            {
+                new FilePickerFileType("Markdown documents")
+                {
+                    Patterns = SupportedDocumentTypes.Extensions
+                        .Select(static extension => $"*{extension}")
+                        .ToArray()
+                }
+            }
+        };
+
+        var file = await provider.SaveFilePickerAsync(options).ConfigureAwait(true);
+        return file?.TryGetLocalPath();
+    }
+
+    private static string NormalizeSuggestedFileName(string suggestedFileName)
+    {
+        if (string.IsNullOrWhiteSpace(suggestedFileName))
+        {
+            return "Untitled.md";
+        }
+
+        var trimmed = suggestedFileName.Trim();
+        return SupportedDocumentTypes.IsSupportedPath(trimmed)
+            ? trimmed
+            : $"{trimmed}.md";
+    }
 }

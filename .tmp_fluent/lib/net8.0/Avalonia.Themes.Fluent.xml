@@ -1,0 +1,172 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Avalonia.Themes.Fluent</name>
+    </assembly>
+    <members>
+        <member name="T:Avalonia.Themes.Fluent.ColorPaletteResources">
+            <summary>
+            Represents a specialized resource dictionary that contains color resources used by FluentTheme elements.
+            </summary>
+            <remarks>
+            This class can only be used in <see cref="P:Avalonia.Themes.Fluent.FluentTheme.Palettes"/>.
+            </remarks>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.Accent">
+            <summary>
+            Gets or sets the Accent color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.AltHigh">
+            <summary>
+            Gets or sets the AltHigh color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.AltLow">
+            <summary>
+            Gets or sets the AltLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.AltMedium">
+            <summary>
+            Gets or sets the AltMedium color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.AltMediumHigh">
+            <summary>
+            Gets or sets the AltMediumHigh color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.AltMediumLow">
+            <summary>
+            Gets or sets the AltMediumLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.BaseHigh">
+            <summary>
+            Gets or sets the BaseHigh color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.BaseLow">
+            <summary>
+            Gets or sets the BaseLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.BaseMedium">
+            <summary>
+            Gets or sets the BaseMedium color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.BaseMediumHigh">
+            <summary>
+            Gets or sets the BaseMediumHigh color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.BaseMediumLow">
+            <summary>
+            Gets or sets the BaseMediumLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeAltLow">
+            <summary>
+            Gets or sets the ChromeAltLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeBlackHigh">
+            <summary>
+            Gets or sets the ChromeBlackHigh color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeBlackLow">
+            <summary>
+            Gets or sets the ChromeBlackLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeBlackMedium">
+            <summary>
+            Gets or sets the ChromeBlackMedium color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeBlackMediumLow">
+            <summary>
+            Gets or sets the ChromeBlackMediumLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeDisabledHigh">
+            <summary>
+            Gets or sets the ChromeDisabledHigh color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeDisabledLow">
+            <summary>
+            Gets or sets the ChromeDisabledLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeGray">
+            <summary>
+            Gets or sets the ChromeGray color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeHigh">
+            <summary>
+            Gets or sets the ChromeHigh color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeLow">
+            <summary>
+            Gets or sets the ChromeLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeMedium">
+            <summary>
+            Gets or sets the ChromeMedium color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeMediumLow">
+            <summary>
+            Gets or sets the ChromeMediumLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ChromeWhite">
+            <summary>
+            Gets or sets the ChromeWhite color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ErrorText">
+            <summary>
+            Gets or sets the ErrorText color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ListLow">
+            <summary>
+            Gets or sets the ListLow color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.ListMedium">
+            <summary>
+            Gets or sets the ListMedium color value.
+            </summary>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.ColorPaletteResources.RegionColor">
+            <summary>
+            Gets or sets the RegionColor color value.
+            </summary>
+        </member>
+        <member name="T:Avalonia.Themes.Fluent.FluentTheme">
+            <summary>
+            Includes the fluent theme in an application.
+            </summary>
+        </member>
+        <member name="M:Avalonia.Themes.Fluent.FluentTheme.#ctor(System.IServiceProvider)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Avalonia.Themes.Fluent.FluentTheme"/> class.
+            </summary>
+            <param name="sp">The parent's service provider.</param>
+        </member>
+        <member name="P:Avalonia.Themes.Fluent.FluentTheme.DensityStyle">
+            <summary>
+            Gets or sets the density style of the fluent theme (normal, compact).
+            </summary>
+        </member>
+    </members>
+</doc>

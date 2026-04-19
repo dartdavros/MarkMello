@@ -109,6 +109,50 @@
     <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
   </Style>
 
+  <Style Selector="ToggleButton.topbar-action">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="10,0" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="MinWidth" Value="74" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:pointerover Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:pointerover Ellipse">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:pointerover TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:checked /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmAccentSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:checked Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:checked Ellipse">
+    <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:checked TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.topbar-action:disabled">
+    <Setter Property="Opacity" Value="0.55" />
+  </Style>
+
   <!-- Title bar buttons (Win-style: Min / Max / Close) -->
   <Style Selector="Button.titlebar">
     <Setter Property="Background" Value="Transparent" />
@@ -174,11 +218,29 @@
     <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="BoxShadow" Value="0 12 40 -8 #383C2814" />
     <Setter Property="ClipToBounds" Value="True" />
+    <Setter Property="RenderTransformOrigin" Value="100%,0%" />
+    <Setter Property="Opacity" Value="0" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="RenderTransform" Value="translate(0px,-6px) scale(0.96)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.22" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.22" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Window.mm-settings-open Border.mm-settings-panel">
+    <Setter Property="Opacity" Value="1" />
+    <Setter Property="IsHitTestVisible" Value="True" />
+    <Setter Property="RenderTransform" Value="translate(0px,0px) scale(1)" />
   </Style>
 
-  <Style Selector="Grid.mm-settings-head">
-    <Setter Property="Margin" Value="14,18,10,18" />
+  <Style Selector="Border.mm-settings-head-shell">
+    <Setter Property="Padding" Value="18,14,18,10" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
   </Style>
 
   <Style Selector="TextBlock.mm-settings-title">
@@ -206,16 +268,20 @@
     <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
   </Style>
 
-  <Style Selector="StackPanel.mm-settings-body">
-    <Setter Property="Margin" Value="8,0,14,12" />
+  <Style Selector="Border.mm-settings-body-shell">
+    <Setter Property="Padding" Value="12,8,12,14" />
   </Style>
 
   <Style Selector="Border.mm-setting-row">
-    <Setter Property="Padding" Value="10,6" />
+    <Setter Property="Padding" Value="6,10" />
   </Style>
-  <Style Selector="Border.mm-setting-row-divider">
-    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
-    <Setter Property="BorderThickness" Value="0,1,0,0" />
+  <Style Selector="Line.mm-setting-divider">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Stretch" Value="Fill" />
+    <Setter Property="Stroke" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="StrokeThickness" Value="1" />
+    <Setter Property="StrokeDashArray" Value="2,2" />
   </Style>
 
   <Style Selector="TextBlock.mm-setting-label">
@@ -228,34 +294,143 @@
     <Setter Property="FontSize" Value="11" />
   </Style>
 
-  <Style Selector="Border.mm-segmented">
-    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
-    <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="6" />
-    <Setter Property="Padding" Value="2" />
-  </Style>
+    <Style Selector="Border.mm-segmented">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
 
   <Style Selector="ToggleButton.mm-segmented-item">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="4" />
-    <Setter Property="Padding" Value="10,6" />
+    <Setter Property="Padding" Value="10,4" />
     <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
     <Setter Property="FontSize" Value="12" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Foreground"
+                         Duration="0:0:0.12" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.mm-segmented-item /template/ ContentPresenter">
+    <Setter Property="BoxShadow" Value="0 0 0 0 Transparent" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background"
+                         Duration="0:0:0.12" />
+        <BoxShadowsTransition Property="BoxShadow"
+                              Duration="0:0:0.12" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.mm-segmented-item:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
   <Style Selector="ToggleButton.mm-segmented-item:pointerover /template/ ContentPresenter">
-    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ToggleButton.mm-segmented-item:checked">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
   <Style Selector="ToggleButton.mm-segmented-item:checked /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
-    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="BoxShadow" Value="0 1 2 0 #0D000000" />
+  </Style>
+  <Style Selector="ToggleButton.mm-segmented-item:checked:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BoxShadow" Value="0 1 2 0 #0D000000" />
   </Style>
 
   <Style Selector="Slider.mm-settings-slider">
     <Setter Property="Width" Value="130" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="MinHeight" Value="18" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="ClipToBounds" Value="False" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid Height="{TemplateBinding Height}"
+              MinHeight="{TemplateBinding MinHeight}"
+              ClipToBounds="False">
+          <Border Height="2"
+                  Background="{TemplateBinding Background}"
+                  CornerRadius="1"
+                  VerticalAlignment="Center" />
+          <Track Name="PART_Track"
+                 Minimum="{TemplateBinding Minimum}"
+                 Maximum="{TemplateBinding Maximum}"
+                 Value="{TemplateBinding Value}"
+                 Orientation="{TemplateBinding Orientation}"
+                 IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+            <Track.DecreaseButton>
+              <RepeatButton Name="PART_DecreaseButton"
+                            Classes="mm-settings-slider-hitarea" />
+            </Track.DecreaseButton>
+            <Track.Thumb>
+              <Thumb Classes="mm-settings-slider-thumb" />
+            </Track.Thumb>
+            <Track.IncreaseButton>
+              <RepeatButton Name="PART_IncreaseButton"
+                            Classes="mm-settings-slider-hitarea" />
+            </Track.IncreaseButton>
+          </Track>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="RepeatButton.mm-settings-slider-hitarea">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Focusable" Value="False" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" />
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="Thumb.mm-settings-slider-thumb">
+    <Setter Property="Width" Value="14" />
+    <Setter Property="Height" Value="14" />
+    <Setter Property="MinWidth" Value="14" />
+    <Setter Property="MinHeight" Value="14" />
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="BorderThickness" Value="1.5" />
+    <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+    <Setter Property="RenderTransform" Value="scale(1)" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <TransformOperationsTransition Property="RenderTransform"
+                                       Duration="0:0:0.12" />
+      </Transitions>
+    </Setter>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                CornerRadius="7" />
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Thumb.mm-settings-slider-thumb:pointerover">
+    <Setter Property="RenderTransform" Value="scale(1.15)" />
   </Style>
 
   <Style Selector="TextBlock.mm-slider-value">
@@ -264,6 +439,165 @@
     <Setter Property="FontSize" Value="11" />
     <Setter Property="MinWidth" Value="32" />
     <Setter Property="TextAlignment" Value="Right" />
+  </Style>
+
+  <Style Selector="Border.mm-editor-pane">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,1,0" />
+    <Setter Property="ClipToBounds" Value="True" />
+    <Setter Property="MinWidth" Value="200" />
+  </Style>
+
+  <Style Selector="Border.mm-editor-toolbar">
+    <Setter Property="Height" Value="34" />
+    <Setter Property="Padding" Value="10,0" />
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+  </Style>
+
+  <Style Selector="Button.mm-editor-toolbar-button">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="24" />
+    <Setter Property="MinWidth" Value="28" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.mm-editor-toolbar-button:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+  </Style>
+  <Style Selector="Button.mm-editor-toolbar-button:pointerover Path">
+    <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
+  <Style Selector="Border.mm-editor-toolbar-separator">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Height" Value="14" />
+    <Setter Property="Margin" Value="4,0" />
+    <Setter Property="Background" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-editor-toolbar-label">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="LetterSpacing" Value="0.5" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Margin" Value="0,0,6,0" />
+  </Style>
+
+  <Style Selector="Border.mm-editor-status-shell">
+    <Setter Property="Padding" Value="14,8,14,0" />
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-editor-status-text">
+    <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBox.mm-editor-textarea">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="36,28" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="LineHeight" Value="23.8" />
+    <Setter Property="CaretBrush" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource MmAccentSoftBrush}" />
+  </Style>
+
+  <Style Selector="GridSplitter.mm-editor-splitter">
+    <Setter Property="Width" Value="9" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Cursor" Value="SizeWestEast" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="VerticalAlignment" Value="Stretch" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid Background="Transparent">
+          <Border Width="1"
+                  HorizontalAlignment="Center"
+                  Background="{DynamicResource MmBorderBrush}" />
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="GridSplitter.mm-editor-splitter:pointerover /template/ Border">
+    <Setter Property="Background" Value="{DynamicResource MmTextFaintBrush}" />
+  </Style>
+
+  <Style Selector="Border.mm-dialog-card">
+    <Setter Property="Padding" Value="22,20" />
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="BoxShadow" Value="0 16 48 -10 #25000033" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-dialog-title">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="15" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-dialog-body">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Margin" Value="0,10,0,0" />
+  </Style>
+
+  <Style Selector="Border.mm-dialog-error-shell">
+    <Setter Property="Background" Value="{DynamicResource MmAccentSoftBrush}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="Margin" Value="0,12,0,0" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-dialog-error">
+    <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="Button.mm-dialog-primary">
+    <Setter Property="Background" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmBackgroundBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="14,8" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.mm-dialog-primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Opacity" Value="0.85" />
+  </Style>
+
+  <Style Selector="Button.mm-dialog-secondary">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="14,8" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.mm-dialog-secondary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
 
   <Style Selector="TextBlock.mm-md-heading">

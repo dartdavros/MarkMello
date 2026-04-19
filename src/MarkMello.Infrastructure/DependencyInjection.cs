@@ -25,6 +25,7 @@ public static class DependencyInjection
 
         services.AddSingleton(metrics);
         services.AddSingleton<IDocumentLoader, FileDocumentLoader>();
+        services.AddSingleton<IDocumentSaver, FileDocumentSaver>();
         services.AddSingleton<IMarkdownDocumentRenderer, MarkdigMarkdownDocumentRenderer>();
         services.AddSingleton<IImageSourceResolver, DefaultImageSourceResolver>();
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
