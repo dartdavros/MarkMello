@@ -9,8 +9,14 @@
              x:DataType="vm:EditorSessionViewModel">
 
   <Grid Name="EditGrid"
-        ColumnDefinitions="*,1,*"
         ClipToBounds="True">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"
+                        MinWidth="280" />
+      <ColumnDefinition Width="1" />
+      <ColumnDefinition Width="*"
+                        MinWidth="280" />
+    </Grid.ColumnDefinitions>
 
     <Border Grid.Column="0"
             Classes="mm-editor-pane">
@@ -174,6 +180,7 @@
                   DragCompleted="OnSplitterDragCompleted" />
 
     <ScrollViewer Grid.Column="2"
+                  MinWidth="280"
                   HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto"
                   UseLayoutRounding="True">

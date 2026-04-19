@@ -221,6 +221,7 @@
           </Button>
 
           <ToggleButton Classes="topbar-action"
+                        IsVisible="{Binding IsViewer}"
                         IsChecked="{Binding IsEditMode, Mode=OneWay}"
                         Command="{Binding ToggleEditModeCommand}"
                         ToolTip.Tip="Toggle edit mode (Ctrl+E)">
@@ -271,6 +272,7 @@
 
           <ToggleButton Name="SettingsTriggerButton"
                         Classes="topbar-ghost"
+                        IsVisible="{Binding IsViewer}"
                         IsChecked="{Binding IsSettingsOpen}"
                         ToolTip.Tip="Reading preferences (Ctrl+,)">
             <Grid Width="14"
@@ -313,6 +315,7 @@
 
       <Border Name="SettingsPanel"
               Classes="mm-settings-panel"
+              IsVisible="{Binding IsViewer}"
               HorizontalAlignment="Right"
               VerticalAlignment="Top"
               Margin="0,54,16,0"
@@ -487,22 +490,16 @@
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Grid.Column="0"
                       Orientation="Horizontal"
-                      Spacing="18">
-            <StackPanel Orientation="Horizontal"
-                        Spacing="6"
-                        IsVisible="{Binding IsViewer}">
-              <TextBlock Text="{Binding FileName}"
-                         FontSize="11"
-                         Foreground="{DynamicResource MmTextSoftBrush}" />
-            </StackPanel>
+                      Spacing="18"
+                      IsVisible="{Binding ShowsReadingStatus}">
             <TextBlock Text="{Binding WordCount, StringFormat='{}{0:N0} words'}"
-                       FontSize="11"
-                       Foreground="{DynamicResource MmTextFaintBrush}"
-                       IsVisible="{Binding IsViewer}" />
+                        FontSize="11"
+                        Foreground="{DynamicResource MmTextFaintBrush}"
+                       IsVisible="{Binding ShowsReadingStatus}" />
             <TextBlock Text="{Binding ReadTimeMinutes, StringFormat='{}{0} min read'}"
-                       FontSize="11"
-                       Foreground="{DynamicResource MmTextFaintBrush}"
-                       IsVisible="{Binding IsViewer}" />
+                        FontSize="11"
+                        Foreground="{DynamicResource MmTextFaintBrush}"
+                       IsVisible="{Binding ShowsReadingStatus}" />
           </StackPanel>
 
           <StackPanel Grid.Column="1"

@@ -144,6 +144,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool ShowCustomTitleBar => _showCustomTitleBar;
 
+    public bool ShowsReadingStatus => IsViewer && !IsEditMode;
+
     public bool ShowsMoonThemeIcon => EffectiveTheme == ThemeMode.Light;
 
     public bool ShowsSunThemeIcon => EffectiveTheme == ThemeMode.Dark;
@@ -546,6 +548,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnStateChanged(ViewState value)
     {
         OnPropertyChanged(nameof(HasDocumentTitle));
+        OnPropertyChanged(nameof(ShowsReadingStatus));
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -556,6 +559,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(EditShortcutLabel));
         OnPropertyChanged(nameof(ShowsEditPencilIcon));
         OnPropertyChanged(nameof(ShowsReadEyeIcon));
+        OnPropertyChanged(nameof(ShowsReadingStatus));
         OnPropertyChanged(nameof(ActiveDocumentContent));
         UpdateCommandStates();
     }

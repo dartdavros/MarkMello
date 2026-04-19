@@ -446,7 +446,7 @@
     <Setter Property="BorderBrush" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="ClipToBounds" Value="True" />
-    <Setter Property="MinWidth" Value="200" />
+    <Setter Property="MinWidth" Value="280" />
   </Style>
 
   <Style Selector="Border.mm-editor-toolbar">

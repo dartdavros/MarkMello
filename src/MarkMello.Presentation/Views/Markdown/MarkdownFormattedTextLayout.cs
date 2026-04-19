@@ -364,7 +364,7 @@ internal readonly record struct MarkdownInlineCodePadMetrics(
     double LeftWidth,
     double RightWidth,
     double Height,
-    double BaselineRatio)
+    double Baseline)
 {
     public static MarkdownInlineCodePadMetrics Create(
         FontFamily fontFamily,
@@ -391,8 +391,8 @@ internal readonly record struct MarkdownInlineCodePadMetrics(
             textStyleOverrides: null);
 
         var height = Math.Max(1, probe.Height);
-        var baselineRatio = Math.Clamp(probe.Baseline / height, 0, 1);
-        return new MarkdownInlineCodePadMetrics(4, 4, height, baselineRatio);
+        var baseline = Math.Clamp(probe.Baseline, 0, height);
+        return new MarkdownInlineCodePadMetrics(4, 4, height, baseline);
     }
 }
 
@@ -400,20 +400,20 @@ internal sealed class MarkdownSpacerTextRun : DrawableTextRun
 {
     private readonly double _width;
     private readonly double _height;
-    private readonly double _baselineRatio;
+    private readonly double _baseline;
 
-    private MarkdownSpacerTextRun(double width, double height, double baselineRatio)
+    private MarkdownSpacerTextRun(double width, double height, double baseline)
     {
         _width = width;
         _height = height;
-        _baselineRatio = baselineRatio;
+        _baseline = baseline;
     }
 
     public static MarkdownSpacerTextRun Left(MarkdownInlineCodePadMetrics metrics)
-        => new(metrics.LeftWidth, metrics.Height, metrics.BaselineRatio);
+        => new(metrics.LeftWidth, metrics.Height, metrics.Baseline);
 
     public static MarkdownSpacerTextRun Right(MarkdownInlineCodePadMetrics metrics)
-        => new(metrics.RightWidth, metrics.Height, metrics.BaselineRatio);
+        => new(metrics.RightWidth, metrics.Height, metrics.Baseline);
 
     public override int Length => 1;
 
@@ -423,7 +423,7 @@ internal sealed class MarkdownSpacerTextRun : DrawableTextRun
 
     public override Size Size => new(_width, _height);
 
-    public override double Baseline => _baselineRatio;
+    public override double Baseline => _baseline;
 
     public override void Draw(DrawingContext drawingContext, Point origin)
     {

@@ -390,10 +390,10 @@ public sealed class MarkdownDocumentView : UserControl
         var bullet = BuildSelectionFragment(
             $"{path}.m",
             [new MarkdownTextInline(list.IsOrdered ? $"{index + 1}. " : "• ")],
-            new Thickness(0, 2, 0, 0),
+            margin: default,
             ReadingPreferences.FontSize,
             GetBodyLineHeight(),
-            FontWeight.Medium,
+            FontWeight.Normal,
             FontStyle.Normal,
             fallbackClassName: "mm-md-list-bullet",
             textWrapping: TextWrapping.NoWrap);
