@@ -311,13 +311,13 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
 
     private FontFamily ResolveInlineCodeFontFamily()
     {
-        if (this.TryFindResource("MmDocumentSansFontFamily", ActualThemeVariant, out var value)
+        if (this.TryFindResource("MmDocumentMonoFontFamily", ActualThemeVariant, out var value)
             && value is FontFamily family)
         {
             return family;
         }
 
-        return new FontFamily("Segoe UI, system-ui, sans-serif");
+        return new FontFamily("JetBrains Mono, Cascadia Code, Consolas, Menlo, monospace");
     }
 
     /// <summary>

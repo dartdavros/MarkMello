@@ -211,6 +211,15 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="3" />
     <Setter Property="Padding" Value="5,1" />
+    <Setter Property="MinHeight" Value="14" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Border.kbd TextBlock">
+    <Setter Property="UseLayoutRounding" Value="True" />
+    <Setter Property="LineHeight" Value="12" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextAlignment" Value="Center" />
   </Style>
 
   <Style Selector="Border.mm-settings-panel">
@@ -342,6 +351,9 @@
   <Style Selector="ToggleButton.mm-segmented-item:checked">
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
+  <Style Selector="ToggleButton.mm-segmented-item:checked TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
   <Style Selector="ToggleButton.mm-segmented-item:checked /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
     <Setter Property="BoxShadow" Value="0 1 2 0 #0D000000" />
@@ -349,6 +361,9 @@
   <Style Selector="ToggleButton.mm-segmented-item:checked:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
     <Setter Property="BoxShadow" Value="0 1 2 0 #0D000000" />
+  </Style>
+  <Style Selector="ToggleButton.mm-segmented-item:checked:pointerover TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
 
   <Style Selector="Slider.mm-settings-slider">

@@ -491,6 +491,7 @@
           <StackPanel Grid.Column="0"
                       Orientation="Horizontal"
                       Spacing="18"
+                      VerticalAlignment="Bottom"
                       IsVisible="{Binding ShowsReadingStatus}">
             <TextBlock Text="{Binding WordCount, StringFormat='{}{0:N0} words'}"
                         FontSize="11"
@@ -504,7 +505,8 @@
 
           <StackPanel Grid.Column="1"
                       Orientation="Horizontal"
-                      Spacing="14">
+                      Spacing="14"
+                      VerticalAlignment="Bottom">
             <StackPanel Orientation="Horizontal"
                         Spacing="4">
               <Border Classes="kbd">

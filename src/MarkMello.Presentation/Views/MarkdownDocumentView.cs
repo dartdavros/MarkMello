@@ -471,7 +471,7 @@ public sealed class MarkdownDocumentView : UserControl
             fontWeight: FontWeight.Normal,
             fontStyle: FontStyle.Normal,
             fallbackClassName: "mm-md-codeblock-text",
-            baseFontFamily: ResolveSansFontFamily(),
+            baseFontFamily: ResolveMonoFontFamily(),
             textWrapping: TextWrapping.NoWrap);
 
         body.Children.Add(new ScrollViewer
