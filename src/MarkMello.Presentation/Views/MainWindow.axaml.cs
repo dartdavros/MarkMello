@@ -182,12 +182,32 @@ public partial class MainWindow : Window
 
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (!_viewModel.ShowCustomTitleBar || e.ClickCount != 1)
+        if (!_viewModel.ShowCustomTitleBar)
         {
             return;
         }
 
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        // Double-click on the custom title bar toggles Maximized/Normal,
+        // mirroring native Windows chrome behaviour.
+        if (e.ClickCount == 2)
+        {
+            if (CanResize)
+            {
+                WindowState = WindowState == WindowState.Maximized
+                    ? WindowState.Normal
+                    : WindowState.Maximized;
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        if (e.ClickCount != 1)
         {
             return;
         }
