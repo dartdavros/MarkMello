@@ -11,10 +11,6 @@
     <MarkMelloReleaseRepo Condition="'$(MarkMelloReleaseRepo)' == ''">MarkMello</MarkMelloReleaseRepo>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-    <OutputType>Exe</OutputType>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(PublishAot)' == 'true'">
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
