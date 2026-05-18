@@ -174,9 +174,7 @@ public partial class MainWindow : Window
         => WindowState = WindowState.Minimized;
 
     private void OnMaximizeClick(object? sender, RoutedEventArgs e)
-        => WindowState = WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
+        => ToggleMaximizedWindowState();
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 
@@ -198,9 +196,7 @@ public partial class MainWindow : Window
         {
             if (CanResize)
             {
-                WindowState = WindowState == WindowState.Maximized
-                    ? WindowState.Normal
-                    : WindowState.Maximized;
+                ToggleMaximizedWindowState();
             }
 
             e.Handled = true;
@@ -380,6 +376,116 @@ public partial class MainWindow : Window
 
     private void OnWindowPositionChanged(object? sender, PixelPointEventArgs e)
         => CaptureLastNormalWindowPlacement();
+
+    /// <summary>
+    /// Переключает окно между Maximized и Normal.
+    /// На Windows с extended client area + BorderOnly chrome (Avalonia 12) native
+    /// maximize в multi-monitor setup (особенно при разной ориентации мониторов)
+    /// иногда вычисляет MAXPOSITION/MAXSIZE относительно другого монитора, чем тот,
+    /// на котором фактически находится окно. Перед переходом в Maximized "якорим"
+    /// normal-границы окна целиком внутри WorkingArea текущего экрана — тогда
+    /// MonitorFromWindow в Win32 надёжно выберет нужный монитор.
+    /// </summary>
+    private void ToggleMaximizedWindowState()
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+            return;
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            AnchorWindowToCurrentScreenBeforeMaximize();
+        }
+
+        WindowState = WindowState.Maximized;
+    }
+
+    private void AnchorWindowToCurrentScreenBeforeMaximize()
+    {
+        if (WindowState != WindowState.Normal)
+        {
+            return;
+        }
+
+        var screen = TryGetCurrentScreen();
+        if (screen is null)
+        {
+            return;
+        }
+
+        var anchoredPlacement = CalculateAnchoredNormalPlacement(
+            Position,
+            Width,
+            Height,
+            screen.WorkingArea,
+            screen.Scaling,
+            MinWidth,
+            MinHeight,
+            DefaultWindowWidth,
+            DefaultWindowHeight);
+
+        Position = new PixelPoint(
+            (int)Math.Round(anchoredPlacement.X),
+            (int)Math.Round(anchoredPlacement.Y));
+        Width = anchoredPlacement.Width;
+        Height = anchoredPlacement.Height;
+    }
+
+    private Screen? TryGetCurrentScreen()
+    {
+        try
+        {
+            return Screens.ScreenFromPoint(Position) ?? Screens.Primary;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Возвращает normal-placement, гарантированно умещающийся внутри переданного
+    /// WorkingArea с учётом scaling. Используется для "якоря" окна на нужном мониторе
+    /// перед native maximize, см. <see cref="ToggleMaximizedWindowState"/>.
+    /// </summary>
+    internal static WindowPlacement CalculateAnchoredNormalPlacement(
+        PixelPoint currentPosition,
+        double currentWidth,
+        double currentHeight,
+        PixelRect workingArea,
+        double screenScaling,
+        double minWidth,
+        double minHeight,
+        double defaultWidth,
+        double defaultHeight)
+    {
+        var scaling = screenScaling > 0 && !double.IsNaN(screenScaling) && !double.IsInfinity(screenScaling)
+            ? screenScaling
+            : 1;
+
+        var width = currentWidth > 0 && !double.IsNaN(currentWidth) && !double.IsInfinity(currentWidth)
+            ? currentWidth
+            : Math.Max(minWidth, defaultWidth);
+        var height = currentHeight > 0 && !double.IsNaN(currentHeight) && !double.IsInfinity(currentHeight)
+            ? currentHeight
+            : Math.Max(minHeight, defaultHeight);
+
+        var maxWidth = Math.Max(minWidth, (workingArea.Width - WindowPlacementMarginPixels * 2) / scaling);
+        var maxHeight = Math.Max(minHeight, (workingArea.Height - WindowPlacementMarginPixels * 2) / scaling);
+
+        width = Math.Clamp(width, minWidth, maxWidth);
+        height = Math.Clamp(height, minHeight, maxHeight);
+
+        var widthPixels = Math.Max(1, (int)Math.Ceiling(width * scaling));
+        var heightPixels = Math.Max(1, (int)Math.Ceiling(height * scaling));
+
+        var x = ClampToWorkingRange(currentPosition.X, workingArea.X, workingArea.Width, widthPixels);
+        var y = ClampToWorkingRange(currentPosition.Y, workingArea.Y, workingArea.Height, heightPixels);
+
+        return new WindowPlacement(x, y, width, height, IsMaximized: false);
+    }
 
     private void ApplyStartupWindowPlacement()
     {
