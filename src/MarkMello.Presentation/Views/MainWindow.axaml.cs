@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private readonly Task _startupInitializationTask = Task.CompletedTask;
     private WindowPlacement? _lastNormalWindowPlacement;
     private bool _allowConfirmedClose;
+    private bool _manuallyMaximized;
 
     public MainWindow()
     {
@@ -174,9 +175,7 @@ public partial class MainWindow : Window
         => WindowState = WindowState.Minimized;
 
     private void OnMaximizeClick(object? sender, RoutedEventArgs e)
-        => WindowState = WindowState == WindowState.Maximized
-            ? WindowState.Normal
-            : WindowState.Maximized;
+        => ToggleMaximizedWindowState();
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 
@@ -198,9 +197,7 @@ public partial class MainWindow : Window
         {
             if (CanResize)
             {
-                WindowState = WindowState == WindowState.Maximized
-                    ? WindowState.Normal
-                    : WindowState.Maximized;
+                ToggleMaximizedWindowState();
             }
 
             e.Handled = true;
@@ -381,6 +378,130 @@ public partial class MainWindow : Window
     private void OnWindowPositionChanged(object? sender, PixelPointEventArgs e)
         => CaptureLastNormalWindowPlacement();
 
+    /// <summary>
+    /// Переключает окно между развёрнутым и обычным состоянием.
+    /// На Windows native <c>WindowState.Maximized</c> при extended client area
+    /// + BorderOnly chrome (Avalonia 12) в multi-monitor конфигурации может взять
+    /// ширину virtual screen (сумма мониторов), оставив окно "разорванным" на
+    /// несколько экранов. Чтобы обойти это, на Windows выполняется "ручной"
+    /// maximize: <see cref="WindowState"/> остаётся Normal, а Position/Width/Height
+    /// явно выставляются по <see cref="Screen.WorkingArea"/> текущего экрана.
+    /// На других платформах используется native maximize.
+    /// </summary>
+    private void ToggleMaximizedWindowState()
+    {
+        if (_manuallyMaximized)
+        {
+            RestoreFromManualMaximize();
+            return;
+        }
+
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+            return;
+        }
+
+        if (OperatingSystem.IsWindows() && TryApplyManualMaximize())
+        {
+            return;
+        }
+
+        WindowState = WindowState.Maximized;
+    }
+
+    private bool TryApplyManualMaximize()
+    {
+        var screen = TryGetCurrentScreen();
+        if (screen is null)
+        {
+            return false;
+        }
+
+        return ApplyManualMaximize(screen);
+    }
+
+    private bool ApplyManualMaximize(Screen screen)
+    {
+        // Снимок текущих normal-bounds для последующего restore. _lastNormalWindowPlacement
+        // также используется в персистентности (см. CreateWindowPlacementForPersistence).
+        _lastNormalWindowPlacement = CaptureCurrentNormalWindowPlacement();
+
+        var maxPlacement = CalculateManualMaximizePlacement(
+            screen.WorkingArea,
+            screen.Scaling,
+            MinWidth,
+            MinHeight);
+
+        // Флаг ставим ДО изменения bounds — обработчики Size/Position changed
+        // используют его как guard в CaptureLastNormalWindowPlacement, чтобы
+        // не затереть нормальное расположение нашими maximize-границами.
+        _manuallyMaximized = true;
+        Position = new PixelPoint(
+            (int)Math.Round(maxPlacement.X),
+            (int)Math.Round(maxPlacement.Y));
+        Width = maxPlacement.Width;
+        Height = maxPlacement.Height;
+        return true;
+    }
+
+    private void RestoreFromManualMaximize()
+    {
+        var restore = _lastNormalWindowPlacement;
+        if (restore is null)
+        {
+            _manuallyMaximized = false;
+            return;
+        }
+
+        // Сначала меняем bounds, потом сбрасываем флаг — иначе CaptureLastNormalWindowPlacement
+        // получит уведомление от ещё незавершённого restore и запишет промежуточные значения.
+        Width = restore.Width;
+        Height = restore.Height;
+        Position = new PixelPoint(
+            (int)Math.Round(restore.X),
+            (int)Math.Round(restore.Y));
+        _manuallyMaximized = false;
+    }
+
+    private Screen? TryGetCurrentScreen()
+    {
+        try
+        {
+            return Screens.ScreenFromPoint(Position) ?? Screens.Primary;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Целевые границы окна для ручного maximize: целиком закрывает
+    /// <paramref name="workingArea"/> текущего экрана, конвертирует размеры из
+    /// пикселей в DIPs через <paramref name="screenScaling"/>.
+    /// </summary>
+    internal static WindowPlacement CalculateManualMaximizePlacement(
+        PixelRect workingArea,
+        double screenScaling,
+        double minWidth,
+        double minHeight)
+    {
+        var scaling = screenScaling > 0 && !double.IsNaN(screenScaling) && !double.IsInfinity(screenScaling)
+            ? screenScaling
+            : 1;
+
+        var width = Math.Max(minWidth, workingArea.Width / scaling);
+        var height = Math.Max(minHeight, workingArea.Height / scaling);
+
+        return new WindowPlacement(
+            workingArea.X,
+            workingArea.Y,
+            width,
+            height,
+            IsMaximized: true);
+    }
+
     private void ApplyStartupWindowPlacement()
     {
         var savedPlacement = LoadWindowPlacementBestEffort();
@@ -407,7 +528,16 @@ public partial class MainWindow : Window
 
         if (savedPlacement?.IsMaximized == true)
         {
-            WindowState = WindowState.Maximized;
+            if (OperatingSystem.IsWindows())
+            {
+                // На Windows native maximize в multi-monitor конфигурации ненадёжен —
+                // используем тот же ручной maximize, что и при toggle, см. ToggleMaximizedWindowState.
+                ApplyManualMaximize(screen);
+            }
+            else
+            {
+                WindowState = WindowState.Maximized;
+            }
         }
     }
 
@@ -523,7 +653,7 @@ public partial class MainWindow : Window
 
     private void CaptureLastNormalWindowPlacement()
     {
-        if (WindowState != WindowState.Normal)
+        if (WindowState != WindowState.Normal || _manuallyMaximized)
         {
             return;
         }
@@ -568,6 +698,12 @@ public partial class MainWindow : Window
 
     private WindowPlacement? CreateWindowPlacementForPersistence()
     {
+        if (_manuallyMaximized)
+        {
+            var manualRestore = _lastNormalWindowPlacement ?? CaptureCurrentNormalWindowPlacement();
+            return manualRestore with { IsMaximized = true };
+        }
+
         if (WindowState == WindowState.Normal)
         {
             return CaptureCurrentNormalWindowPlacement();
