@@ -4,6 +4,7 @@ using MarkMello.Infrastructure.Diagrams;
 using MarkMello.Infrastructure.Documents;
 using MarkMello.Infrastructure.Images;
 using MarkMello.Infrastructure.Markdown;
+using MarkMello.Infrastructure.Pdf;
 using MarkMello.Infrastructure.Platform;
 using MarkMello.Infrastructure.Settings;
 using MarkMello.Infrastructure.Updates;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddSingleton(CreateStartupSmokeTestOptions(commandLineArgs));
         services.AddSingleton<IDocumentLoader, FileDocumentLoader>();
         services.AddSingleton<IDocumentSaver, FileDocumentSaver>();
+        services.AddSingleton<IPdfExporter, SkiaPdfExporter>();
         services.AddSingleton<IMarkdownDocumentRenderer, MarkdigMarkdownDocumentRenderer>();
         services.AddSingleton<IDiagramRenderer, MermaidDiagramRenderer>();
         services.AddSingleton<IImageSourceResolver, DefaultImageSourceResolver>();

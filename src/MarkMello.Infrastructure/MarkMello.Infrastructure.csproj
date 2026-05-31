@@ -9,11 +9,16 @@
     <PackageReference Include="Markdig" Version="1.1.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
     <PackageReference Include="Naiad" Version="0.1.2" />
+    <PackageReference Include="SkiaSharp" Version="3.119.3-preview.1.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MarkMello.Application\MarkMello.Application.csproj" />
     <ProjectReference Include="..\MarkMello.Domain\MarkMello.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\NotoEmoji\**\*.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

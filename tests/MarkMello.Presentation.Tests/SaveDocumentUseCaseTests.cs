@@ -1,4 +1,5 @@
 using MarkMello.Application.UseCases;
+using MarkMello.Domain;
 
 namespace MarkMello.Presentation.Tests;
 
@@ -68,5 +69,40 @@ public sealed class SaveDocumentUseCaseTests
         var invalid = Assert.IsType<SaveDocumentResult.InvalidPath>(result);
         Assert.Equal(path, invalid.Path);
         Assert.Empty(saver.Saves);
+    }
+}
+
+public sealed class ExportPdfUseCaseTests
+{
+    [Fact]
+    public async Task ExecuteAsyncExportsToNormalizedPdfPath()
+    {
+        var exporter = new RecordingPdfExporter();
+        var useCase = new ExportPdfUseCase(exporter);
+        var pathWithoutExtension = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "draft");
+        var document = RenderedMarkdownDocument.PlainText("hello");
+
+        var result = await useCase.ExecuteAsync(pathWithoutExtension, "draft", document);
+
+        var success = Assert.IsType<ExportPdfResult.Success>(result);
+        Assert.EndsWith("draft.pdf", success.Path, StringComparison.OrdinalIgnoreCase);
+        var export = Assert.Single(exporter.Exports);
+        Assert.Equal(success.Path, export.Path);
+        Assert.Equal("draft", export.Title);
+        Assert.Same(document, export.Document);
+    }
+
+    [Fact]
+    public async Task ExecuteAsyncReturnsInvalidPathForNonPdfExtension()
+    {
+        var exporter = new RecordingPdfExporter();
+        var useCase = new ExportPdfUseCase(exporter);
+        var path = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "draft.md");
+
+        var result = await useCase.ExecuteAsync(path, "draft", RenderedMarkdownDocument.Empty);
+
+        var invalid = Assert.IsType<ExportPdfResult.InvalidPath>(result);
+        Assert.Equal(path, invalid.Path);
+        Assert.Empty(exporter.Exports);
     }
 }

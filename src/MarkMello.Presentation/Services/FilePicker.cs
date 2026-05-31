@@ -87,6 +87,35 @@ public sealed class FilePicker : IFilePicker
         return file?.TryGetLocalPath();
     }
 
+    public async Task<string?> PickSavePdfFileAsync(
+        string suggestedFileName,
+        CancellationToken cancellationToken = default)
+    {
+        var topLevel = _topLevelAccessor();
+        if (topLevel?.StorageProvider is not { CanSave: true } provider)
+        {
+            return null;
+        }
+
+        var normalizedSuggestedName = NormalizeSuggestedPdfFileName(suggestedFileName);
+        var options = new FilePickerSaveOptions
+        {
+            Title = _localization["ExportPdfDialogTitle"],
+            SuggestedFileName = normalizedSuggestedName,
+            DefaultExtension = ".pdf",
+            FileTypeChoices = new[]
+            {
+                new FilePickerFileType(_localization["PdfDocuments"])
+                {
+                    Patterns = ["*.pdf"]
+                }
+            }
+        };
+
+        var file = await provider.SaveFilePickerAsync(options).ConfigureAwait(true);
+        return file?.TryGetLocalPath();
+    }
+
     private string NormalizeSuggestedFileName(string suggestedFileName)
     {
         if (string.IsNullOrWhiteSpace(suggestedFileName))
@@ -98,5 +127,16 @@ public sealed class FilePicker : IFilePicker
         return SupportedDocumentTypes.IsSupportedPath(trimmed)
             ? trimmed
             : $"{trimmed}.md";
+    }
+
+    private string NormalizeSuggestedPdfFileName(string suggestedFileName)
+    {
+        var trimmed = string.IsNullOrWhiteSpace(suggestedFileName)
+            ? _localization["UntitledFileName"]
+            : suggestedFileName.Trim();
+
+        return string.Equals(Path.GetExtension(trimmed), ".pdf", StringComparison.OrdinalIgnoreCase)
+            ? trimmed
+            : $"{Path.GetFileNameWithoutExtension(trimmed)}.pdf";
     }
 }

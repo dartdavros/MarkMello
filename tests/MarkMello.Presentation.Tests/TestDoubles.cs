@@ -24,6 +24,25 @@ internal sealed class RecordingDocumentSaver : IDocumentSaver
     }
 }
 
+internal sealed class RecordingPdfExporter : IPdfExporter
+{
+    public List<PdfExportRequest> Exports { get; } = [];
+
+    public Exception? NextException { get; set; }
+
+    public Task ExportAsync(PdfExportRequest request, CancellationToken cancellationToken = default)
+    {
+        if (NextException is Exception exception)
+        {
+            NextException = null;
+            return Task.FromException(exception);
+        }
+
+        Exports.Add(request);
+        return Task.CompletedTask;
+    }
+}
+
 internal sealed class StubDocumentLoader : IDocumentLoader
 {
     public Dictionary<string, MarkdownSource> Sources { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -53,7 +72,11 @@ internal sealed class StubFilePicker : IFilePicker
 
     public string? SavePath { get; set; }
 
+    public string? PdfPath { get; set; }
+
     public List<string> SuggestedSaveFileNames { get; } = [];
+
+    public List<string> SuggestedPdfFileNames { get; } = [];
 
     public Task<string?> PickMarkdownFileAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(OpenPath);
@@ -62,6 +85,12 @@ internal sealed class StubFilePicker : IFilePicker
     {
         SuggestedSaveFileNames.Add(suggestedFileName);
         return Task.FromResult(SavePath);
+    }
+
+    public Task<string?> PickSavePdfFileAsync(string suggestedFileName, CancellationToken cancellationToken = default)
+    {
+        SuggestedPdfFileNames.Add(suggestedFileName);
+        return Task.FromResult(PdfPath);
     }
 }
 
