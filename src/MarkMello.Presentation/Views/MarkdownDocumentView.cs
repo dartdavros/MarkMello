@@ -12,6 +12,8 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
+using MarkMello.Presentation.Clipboard;
+using MarkMello.Presentation.Localization;
 using MarkMello.Presentation.Views.Markdown;
 using MarkMello.Presentation.Views.Markdown.Minimap;
 using System.Globalization;
@@ -70,7 +72,10 @@ public sealed class MarkdownDocumentView : UserControl
     private MarkdownLinkSpan? _pressedLink;
     private bool _preserveSelectionOnRelease;
     private MenuItem? _copyMenuItem;
+    private MenuItem? _copyLinkMenuItem;
+    private MenuItem? _copyTelegramMarkdownMenuItem;
     private MenuItem? _selectAllMenuItem;
+    private MarkdownLinkSpan? _contextMenuLink;
     private CancellationTokenSource? _readingPreferencesRefreshCts;
     private long _renderGeneration;
     private bool _hasPendingRenderedNotification;
@@ -939,11 +944,39 @@ public sealed class MarkdownDocumentView : UserControl
             }
         });
 
+        var contentGrid = new Grid();
+        contentGrid.Children.Add(body);
+
+        var copyButton = CreateCodeCopyButton(block.Code);
+        copyButton.HorizontalAlignment = HorizontalAlignment.Right;
+        copyButton.VerticalAlignment = VerticalAlignment.Top;
+        copyButton.Margin = new Thickness(0, 0, 0, 0);
+        contentGrid.Children.Add(copyButton);
+
         return new Border
         {
             Classes = { "mm-md-codeblock" },
-            Child = body
+            Child = contentGrid
         };
+    }
+
+    private Button CreateCodeCopyButton(string code)
+    {
+        var button = new Button
+        {
+            Classes = { "mm-code-copy-button" },
+            Content = GetLocalizedString("ContextCopy", "Copy"),
+            IsTabStop = true
+        };
+
+        ToolTip.SetTip(button, GetLocalizedString("CodeCopyTooltip", "Copy code"));
+        button.Click += async (_, e) =>
+        {
+            await CopyTextToClipboardAsync(code).ConfigureAwait(true);
+            e.Handled = true;
+        };
+
+        return button;
     }
 
     private Control BuildTable(MarkdownTableBlock table, string path)
@@ -1202,12 +1235,25 @@ public sealed class MarkdownDocumentView : UserControl
             return;
         }
 
-        if (!TryResolveFragment(e.GetPosition(this), out var fragment, out var localPosition))
+        if (IsPointerInputFromCodeCopyButton(e.Source))
         {
             return;
         }
 
         var currentPoint = e.GetCurrentPoint(this);
+        if (currentPoint.Properties.IsRightButtonPressed)
+        {
+            _contextMenuLink = TryResolveLinkAtDocumentPoint(e.GetPosition(this), out var link)
+                ? link
+                : null;
+            return;
+        }
+
+        if (!TryResolveFragment(e.GetPosition(this), out var fragment, out var localPosition))
+        {
+            return;
+        }
+
         if (!currentPoint.Properties.IsLeftButtonPressed)
         {
             return;
@@ -1349,7 +1395,11 @@ public sealed class MarkdownDocumentView : UserControl
 
     private async Task CopySelectionToClipboardAsync()
     {
-        var text = SelectedText;
+        await CopyTextToClipboardAsync(SelectedText).ConfigureAwait(true);
+    }
+
+    private async Task CopyTextToClipboardAsync(string? text)
+    {
         if (string.IsNullOrEmpty(text))
         {
             return;
@@ -1370,27 +1420,44 @@ public sealed class MarkdownDocumentView : UserControl
     {
         _copyMenuItem = new MenuItem
         {
-            Header = "Copy",
+            Header = GetLocalizedString("ContextCopy", "Copy"),
             InputGesture = new KeyGesture(Key.C, KeyModifiers.Control)
         };
         _copyMenuItem.Click += OnCopyMenuItemClick;
 
+        _copyLinkMenuItem = new MenuItem
+        {
+            Header = GetLocalizedString("ContextCopyLink", "Copy link")
+        };
+        _copyLinkMenuItem.Click += OnCopyLinkMenuItemClick;
+
+        _copyTelegramMarkdownMenuItem = new MenuItem
+        {
+            Header = GetLocalizedString("ContextCopyTelegramMarkdown", "Copy selection as Telegram Markdown")
+        };
+        _copyTelegramMarkdownMenuItem.Click += OnCopyTelegramMarkdownMenuItemClick;
+
         _selectAllMenuItem = new MenuItem
         {
-            Header = "Select all",
+            Header = GetLocalizedString("ContextSelectAll", "Select all"),
             InputGesture = new KeyGesture(Key.A, KeyModifiers.Control)
         };
         _selectAllMenuItem.Click += OnSelectAllMenuItemClick;
 
         var menu = new ContextMenu();
         menu.Items.Add(_copyMenuItem);
+        menu.Items.Add(_copyLinkMenuItem);
+        menu.Items.Add(_copyTelegramMarkdownMenuItem);
         menu.Items.Add(_selectAllMenuItem);
         menu.Opening += OnContextMenuOpening;
+        menu.Closed += (_, _) => _contextMenuLink = null;
         return menu;
     }
 
     private void OnContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        UpdateContextMenuHeaders();
+
         // Enable Copy only when there is a selection.
         // Enable Select All only when there is any text to select.
         if (_copyMenuItem is not null)
@@ -1398,9 +1465,44 @@ public sealed class MarkdownDocumentView : UserControl
             _copyMenuItem.IsEnabled = HasSelection;
         }
 
+        if (_copyLinkMenuItem is not null)
+        {
+            _copyLinkMenuItem.IsEnabled = _contextMenuLink.HasValue;
+        }
+
+        if (_copyTelegramMarkdownMenuItem is not null)
+        {
+            _copyTelegramMarkdownMenuItem.IsEnabled = HasSelection && Document is { Blocks.Count: > 0 };
+        }
+
         if (_selectAllMenuItem is not null)
         {
             _selectAllMenuItem.IsEnabled = _textMap.Text.Length > 0;
+        }
+    }
+
+    private void UpdateContextMenuHeaders()
+    {
+        if (_copyMenuItem is not null)
+        {
+            _copyMenuItem.Header = GetLocalizedString("ContextCopy", "Copy");
+        }
+
+        if (_copyLinkMenuItem is not null)
+        {
+            _copyLinkMenuItem.Header = GetLocalizedString("ContextCopyLink", "Copy link");
+        }
+
+        if (_copyTelegramMarkdownMenuItem is not null)
+        {
+            _copyTelegramMarkdownMenuItem.Header = GetLocalizedString(
+                "ContextCopyTelegramMarkdown",
+                "Copy selection as Telegram Markdown");
+        }
+
+        if (_selectAllMenuItem is not null)
+        {
+            _selectAllMenuItem.Header = GetLocalizedString("ContextSelectAll", "Select all");
         }
     }
 
@@ -1418,6 +1520,28 @@ public sealed class MarkdownDocumentView : UserControl
     {
         Focus(NavigationMethod.Pointer);
         SelectAll();
+    }
+
+    private async void OnCopyLinkMenuItemClick(object? sender, RoutedEventArgs e)
+    {
+        if (_contextMenuLink is not { } link)
+        {
+            return;
+        }
+
+        await CopyTextToClipboardAsync(link.Url).ConfigureAwait(true);
+    }
+
+    private async void OnCopyTelegramMarkdownMenuItemClick(object? sender, RoutedEventArgs e)
+    {
+        if (!HasSelection || Document is not { Blocks.Count: > 0 } document)
+        {
+            return;
+        }
+
+        var selectionRange = new DocumentTextRange(SelectionStart, SelectionEnd);
+        var markdown = TelegramMarkdownFormatter.FormatSelection(document, selectionRange);
+        await CopyTextToClipboardAsync(markdown).ConfigureAwait(true);
     }
 
     private async Task TryActivatePressedLinkAsync(PointerReleasedEventArgs e)
@@ -1613,6 +1737,17 @@ public sealed class MarkdownDocumentView : UserControl
         return true;
     }
 
+    private bool TryResolveLinkAtDocumentPoint(Point documentPoint, out MarkdownLinkSpan link)
+    {
+        link = default;
+        if (!TryResolveFragment(documentPoint, out var fragment, out var localPoint))
+        {
+            return false;
+        }
+
+        return fragment.TryGetLinkAt(localPoint, out link);
+    }
+
     private static Point ClampPointToFragment(MarkdownDocumentSelectionFragmentBase fragment, Point point)
     {
         var width = Math.Max(fragment.Bounds.Width, 1);
@@ -1630,6 +1765,17 @@ public sealed class MarkdownDocumentView : UserControl
         }
 
         return control is ScrollBar || control.FindAncestorOfType<ScrollBar>() is not null;
+    }
+
+    private static bool IsPointerInputFromCodeCopyButton(object? source)
+    {
+        if (source is not Control control)
+        {
+            return false;
+        }
+
+        return control.Classes.Contains("mm-code-copy-button")
+            || control.FindAncestorOfType<Button>()?.Classes.Contains("mm-code-copy-button") == true;
     }
 
     private static bool HasCommandModifier(KeyModifiers modifiers)
@@ -1707,6 +1853,20 @@ public sealed class MarkdownDocumentView : UserControl
         => this.TryFindResource(resourceKey, ActualThemeVariant, out var value) && value is IBrush brush
             ? brush
             : null;
+
+    private static string GetLocalizedString(string key, string fallback)
+    {
+        if (Avalonia.Application.Current?.Resources.TryGetResource("Localization", null, out var resource) == true
+            && resource is ILocalizationService localization)
+        {
+            var value = localization[key];
+            return string.IsNullOrWhiteSpace(value) || value.StartsWith("[[", StringComparison.Ordinal)
+                ? fallback
+                : value;
+        }
+
+        return fallback;
+    }
 }
 
 internal readonly record struct MarkdownSourceLineVisualAnchor(Control Control, MarkdownSourceSpan SourceSpan);

@@ -144,10 +144,13 @@ public sealed class MarkdownDocumentViewTests
         var viewport = Assert.IsType<Border>(view.Content);
         var root = Assert.IsType<StackPanel>(viewport.Child);
         var codeBlock = Assert.IsType<Border>(Assert.Single(root.Children));
-        var body = Assert.IsType<StackPanel>(codeBlock.Child);
+        var contentGrid = Assert.IsType<Grid>(codeBlock.Child);
+        var body = Assert.IsType<StackPanel>(contentGrid.Children[0]);
+        var copyButton = Assert.IsType<Button>(contentGrid.Children[1]);
         var scrollViewer = Assert.IsType<ScrollViewer>(Assert.Single(body.Children));
         var scrollContent = Assert.IsType<Border>(scrollViewer.Content);
 
+        Assert.Contains("mm-code-copy-button", copyButton.Classes);
         Assert.Equal(ScrollBarVisibility.Auto, scrollViewer.HorizontalScrollBarVisibility);
         Assert.Equal(ScrollBarVisibility.Disabled, scrollViewer.VerticalScrollBarVisibility);
         Assert.Equal(16, scrollContent.Padding.Bottom);

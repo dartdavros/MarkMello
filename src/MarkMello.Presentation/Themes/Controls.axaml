@@ -801,6 +801,29 @@
     <Setter Property="Background" Value="{DynamicResource MmCodeBackgroundBrush}" />
   </Style>
 
+  <Style Selector="Button.mm-code-copy-button">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,3" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Opacity" Value="0.85" />
+  </Style>
+
+  <Style Selector="Button.mm-code-copy-button:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+  </Style>
+
+  <Style Selector="Button.mm-code-copy-button:focus">
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+
   <Style Selector="TextBlock.mm-md-code-info">
     <Setter Property="UseLayoutRounding" Value="True" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
