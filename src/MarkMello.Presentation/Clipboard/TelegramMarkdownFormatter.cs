@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text;
 using MarkMello.Domain;
 
@@ -44,6 +45,33 @@ public static class TelegramMarkdownFormatter
 
         var builder = new StringBuilder();
         AppendTopLevelBlocks(builder, document.Blocks, FormatContext.ForSelection(textMap, new DocumentTextRange(start, end)));
+        return builder.ToString();
+    }
+
+    public static string FormatSelectionHtml(RenderedMarkdownDocument document, DocumentTextRange selectionRange)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (document.Blocks.Count == 0 || selectionRange.IsEmpty)
+        {
+            return string.Empty;
+        }
+
+        var textMap = MarkdownDocumentTextMap.Create(document);
+        if (textMap.Text.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var start = Math.Clamp(selectionRange.Start, 0, textMap.Text.Length);
+        var end = Math.Clamp(selectionRange.End, start, textMap.Text.Length);
+        if (end <= start)
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder();
+        AppendTopLevelHtmlBlocks(builder, document.Blocks, FormatContext.ForSelection(textMap, new DocumentTextRange(start, end)));
         return builder.ToString();
     }
 
@@ -359,6 +387,412 @@ public static class TelegramMarkdownFormatter
         var before = builder.Length;
         AppendInlines(builder, inlines, localRange);
         return builder.Length > before;
+    }
+
+    private static bool AppendTopLevelHtmlBlocks(
+        StringBuilder builder,
+        IReadOnlyList<MarkdownBlock> blocks,
+        FormatContext context)
+    {
+        var appended = false;
+        for (var index = 0; index < blocks.Count; index++)
+        {
+            AppendHtmlBlockWithSeparator(builder, blocks[index], $"b{index}", context, ref appended, "<br><br>");
+        }
+
+        return appended;
+    }
+
+    private static bool AppendNestedHtmlBlocks(
+        StringBuilder builder,
+        IReadOnlyList<MarkdownBlock> blocks,
+        string path,
+        FormatContext context)
+    {
+        var appended = false;
+        for (var index = 0; index < blocks.Count; index++)
+        {
+            AppendHtmlBlockWithSeparator(builder, blocks[index], $"{path}.b{index}", context, ref appended, "<br><br>");
+        }
+
+        return appended;
+    }
+
+    private static void AppendHtmlBlockWithSeparator(
+        StringBuilder builder,
+        MarkdownBlock block,
+        string path,
+        FormatContext context,
+        ref bool appended,
+        string separator)
+    {
+        var blockBuilder = new StringBuilder();
+        if (!AppendHtmlBlock(blockBuilder, block, path, context) || blockBuilder.Length == 0)
+        {
+            return;
+        }
+
+        if (appended)
+        {
+            builder.Append(separator);
+        }
+
+        builder.Append(blockBuilder);
+        appended = true;
+    }
+
+    private static bool AppendHtmlBlock(
+        StringBuilder builder,
+        MarkdownBlock block,
+        string path,
+        FormatContext context)
+        => block switch
+        {
+            MarkdownHeadingBlock heading => AppendHtmlWrappedInlineFragment(builder, heading.Inlines, path, context, "strong"),
+            MarkdownParagraphBlock paragraph => AppendHtmlInlineFragment(builder, paragraph.Inlines, path, context),
+            MarkdownQuoteBlock quote => AppendHtmlQuote(builder, quote, path, context),
+            MarkdownListBlock list => AppendHtmlList(builder, list, path, context),
+            MarkdownCodeBlock code => AppendHtmlCodeBlock(builder, code, path, context),
+            MarkdownTableBlock table => AppendHtmlTable(builder, table, path, context),
+            _ => AppendHtmlTextFragment(builder, path, MarkdownDocumentTextMap.ExtractPlainText(block), context)
+        };
+
+    private static bool AppendHtmlWrappedInlineFragment(
+        StringBuilder builder,
+        IReadOnlyList<MarkdownInline> inlines,
+        string path,
+        FormatContext context,
+        string tagName)
+    {
+        var content = new StringBuilder();
+        if (!AppendHtmlInlineFragment(content, inlines, path, context))
+        {
+            return false;
+        }
+
+        builder.Append('<');
+        builder.Append(tagName);
+        builder.Append('>');
+        builder.Append(content);
+        builder.Append("</");
+        builder.Append(tagName);
+        builder.Append('>');
+        return true;
+    }
+
+    private static bool AppendHtmlQuote(
+        StringBuilder builder,
+        MarkdownQuoteBlock quote,
+        string path,
+        FormatContext context)
+    {
+        var inner = new StringBuilder();
+        if (!AppendNestedHtmlBlocks(inner, quote.Blocks, path, context))
+        {
+            return false;
+        }
+
+        builder.Append("&gt; ");
+        builder.Append(inner.Replace("<br>", "<br>&gt; "));
+        return true;
+    }
+
+    private static bool AppendHtmlList(
+        StringBuilder builder,
+        MarkdownListBlock list,
+        string path,
+        FormatContext context)
+    {
+        var appended = false;
+        for (var itemIndex = 0; itemIndex < list.Items.Count; itemIndex++)
+        {
+            var itemBuilder = new StringBuilder();
+            AppendHtmlTextFragment(itemBuilder, $"{path}.i{itemIndex}.m", GetListMarkerText(list, itemIndex), context);
+            AppendNestedHtmlBlocks(itemBuilder, list.Items[itemIndex].Blocks, $"{path}.i{itemIndex}", context);
+            if (itemBuilder.Length == 0)
+            {
+                continue;
+            }
+
+            if (appended)
+            {
+                builder.Append("<br>");
+            }
+
+            builder.Append(itemBuilder);
+            appended = true;
+        }
+
+        return appended;
+    }
+
+    private static bool AppendHtmlCodeBlock(
+        StringBuilder builder,
+        MarkdownCodeBlock block,
+        string path,
+        FormatContext context)
+    {
+        if (!TryGetFragmentText(path, block.Code, context, out var code))
+        {
+            return false;
+        }
+
+        builder.Append("<pre><code>");
+        builder.Append(HtmlEncode(code));
+        builder.Append("</code></pre>");
+        return true;
+    }
+
+    private static bool AppendHtmlTable(
+        StringBuilder builder,
+        MarkdownTableBlock table,
+        string path,
+        FormatContext context)
+    {
+        var appended = false;
+        if (table.Header.Count > 0)
+        {
+            AppendHtmlTableRowWithSeparator(builder, table.Header, $"{path}.h", context, ref appended);
+        }
+
+        for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
+        {
+            AppendHtmlTableRowWithSeparator(builder, table.Rows[rowIndex], $"{path}.r{rowIndex}.c", context, ref appended);
+        }
+
+        return appended;
+    }
+
+    private static void AppendHtmlTableRowWithSeparator(
+        StringBuilder builder,
+        IReadOnlyList<MarkdownTableCell> cells,
+        string pathPrefix,
+        FormatContext context,
+        ref bool appended)
+    {
+        var row = new StringBuilder();
+        if (!AppendHtmlTableRow(row, cells, pathPrefix, context))
+        {
+            return;
+        }
+
+        if (appended)
+        {
+            builder.Append("<br>");
+        }
+
+        builder.Append(row);
+        appended = true;
+    }
+
+    private static bool AppendHtmlTableRow(
+        StringBuilder builder,
+        IReadOnlyList<MarkdownTableCell> cells,
+        string pathPrefix,
+        FormatContext context)
+    {
+        var appended = false;
+        for (var cellIndex = 0; cellIndex < cells.Count; cellIndex++)
+        {
+            var cell = new StringBuilder();
+            if (!AppendHtmlInlineFragment(cell, cells[cellIndex].Inlines, $"{pathPrefix}{cellIndex}", context))
+            {
+                continue;
+            }
+
+            if (appended)
+            {
+                builder.Append(" &middot; ");
+            }
+
+            builder.Append(cell);
+            appended = true;
+        }
+
+        return appended;
+    }
+
+    private static bool AppendHtmlInlineFragment(
+        StringBuilder builder,
+        IReadOnlyList<MarkdownInline> inlines,
+        string path,
+        FormatContext context)
+    {
+        if (!TryGetFragmentLocalRange(path, context, out var localRange))
+        {
+            return false;
+        }
+
+        var before = builder.Length;
+        AppendHtmlInlines(builder, inlines, localRange);
+        return builder.Length > before;
+    }
+
+    private static void AppendHtmlInlines(
+        StringBuilder builder,
+        IReadOnlyList<MarkdownInline> inlines,
+        DocumentTextRange? selectedRange)
+    {
+        var offset = 0;
+        foreach (var inline in inlines)
+        {
+            var length = GetPlainTextLength(inline);
+            if (length == 0)
+            {
+                continue;
+            }
+
+            var inlineRange = new DocumentTextRange(offset, offset + length);
+            var localRange = selectedRange.HasValue
+                ? selectedRange.Value.Intersection(inlineRange)
+                : inlineRange;
+
+            if (!localRange.IsEmpty)
+            {
+                AppendHtmlInline(
+                    builder,
+                    inline,
+                    new DocumentTextRange(
+                        localRange.Start - inlineRange.Start,
+                        localRange.End - inlineRange.Start));
+            }
+
+            offset += length;
+        }
+    }
+
+    private static void AppendHtmlInline(StringBuilder builder, MarkdownInline inline, DocumentTextRange selectedRange)
+    {
+        switch (inline)
+        {
+            case MarkdownTextInline text:
+                AppendHtmlEscapedSlice(builder, text.Text, selectedRange);
+                return;
+
+            case MarkdownStrongInline strong:
+                AppendHtmlWrappedInlines(builder, strong.Inlines, selectedRange, "strong");
+                return;
+
+            case MarkdownEmphasisInline emphasis:
+                AppendHtmlWrappedInlines(builder, emphasis.Inlines, selectedRange, "em");
+                return;
+
+            case MarkdownCodeInline code:
+                AppendHtmlCodeInline(builder, code.Code, selectedRange);
+                return;
+
+            case MarkdownImageInline image:
+                AppendHtmlImageInline(builder, image, selectedRange);
+                return;
+
+            case MarkdownLinkInline link:
+                AppendHtmlLinkInline(builder, link, selectedRange);
+                return;
+
+            case MarkdownLineBreakInline:
+                builder.Append("<br>");
+                return;
+        }
+    }
+
+    private static void AppendHtmlWrappedInlines(
+        StringBuilder builder,
+        IReadOnlyList<MarkdownInline> inlines,
+        DocumentTextRange selectedRange,
+        string tagName)
+    {
+        var content = new StringBuilder();
+        AppendHtmlInlines(content, inlines, selectedRange);
+        if (content.Length == 0)
+        {
+            return;
+        }
+
+        builder.Append('<');
+        builder.Append(tagName);
+        builder.Append('>');
+        builder.Append(content);
+        builder.Append("</");
+        builder.Append(tagName);
+        builder.Append('>');
+    }
+
+    private static void AppendHtmlCodeInline(StringBuilder builder, string code, DocumentTextRange selectedRange)
+    {
+        var selected = Slice(code, selectedRange);
+        if (selected.Length == 0)
+        {
+            return;
+        }
+
+        builder.Append("<code>");
+        builder.Append(HtmlEncode(selected));
+        builder.Append("</code>");
+    }
+
+    private static void AppendHtmlLinkInline(StringBuilder builder, MarkdownLinkInline link, DocumentTextRange selectedRange)
+    {
+        var label = link.Inlines.Count > 0
+            ? ExtractPlainText(link.Inlines)
+            : link.Url;
+        var selectedLabel = Slice(label, selectedRange);
+        if (selectedLabel.Length == 0)
+        {
+            return;
+        }
+
+        AppendHtmlLink(builder, selectedLabel, link.Url);
+    }
+
+    private static void AppendHtmlImageInline(StringBuilder builder, MarkdownImageInline image, DocumentTextRange selectedRange)
+    {
+        var label = GetImageInlinePlainText(image);
+        var selectedLabel = Slice(label, selectedRange);
+        if (selectedLabel.Length == 0)
+        {
+            return;
+        }
+
+        AppendHtmlLink(builder, selectedLabel, image.Url);
+    }
+
+    private static bool AppendHtmlTextFragment(
+        StringBuilder builder,
+        string path,
+        string text,
+        FormatContext context)
+    {
+        if (!TryGetFragmentText(path, text, context, out var selectedText))
+        {
+            return false;
+        }
+
+        builder.Append(HtmlEncode(selectedText));
+        return true;
+    }
+
+    private static void AppendHtmlEscapedSlice(StringBuilder builder, string text, DocumentTextRange selectedRange)
+    {
+        var selected = Slice(text, selectedRange);
+        if (selected.Length > 0)
+        {
+            builder.Append(HtmlEncode(selected));
+        }
+    }
+
+    private static void AppendHtmlLink(StringBuilder builder, string label, string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            builder.Append(HtmlEncode(label));
+            return;
+        }
+
+        builder.Append("<a href=\"");
+        builder.Append(HtmlAttributeEncode(url));
+        builder.Append("\">");
+        builder.Append(HtmlEncode(label));
+        builder.Append("</a>");
     }
 
     private static void AppendInlines(
@@ -775,6 +1209,12 @@ public static class TelegramMarkdownFormatter
     private static string EscapeCode(string code)
         => code.Replace("\\", "\\\\", StringComparison.Ordinal)
             .Replace("`", "\\`", StringComparison.Ordinal);
+
+    private static string HtmlEncode(string value)
+        => WebUtility.HtmlEncode(value);
+
+    private static string HtmlAttributeEncode(string value)
+        => WebUtility.HtmlEncode(value).Replace("\"", "&quot;", StringComparison.Ordinal);
 
     private static void TrimTrailingLineBreaks(StringBuilder builder, int maxAllowed)
     {

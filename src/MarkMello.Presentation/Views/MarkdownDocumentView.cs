@@ -17,6 +17,7 @@ using MarkMello.Presentation.Localization;
 using MarkMello.Presentation.Views.Markdown;
 using MarkMello.Presentation.Views.Markdown.Minimap;
 using System.Globalization;
+using System.Text;
 using System.Threading;
 
 namespace MarkMello.Presentation.Views;
@@ -47,6 +48,8 @@ public sealed class MarkdownDocumentView : UserControl
 
     private const double DragSelectionThreshold = 4;
     private const double CodeBlockHorizontalScrollBarReserve = 16;
+    private static readonly DataFormat<byte[]> WindowsHtmlClipboardFormat = DataFormat.CreateBytesPlatformFormat("HTML Format");
+    private static readonly DataFormat<byte[]> HtmlClipboardFormat = DataFormat.CreateBytesPlatformFormat("text/html");
 
     private readonly StackPanel _root = new()
     {
@@ -1541,7 +1544,64 @@ public sealed class MarkdownDocumentView : UserControl
 
         var selectionRange = new DocumentTextRange(SelectionStart, SelectionEnd);
         var markdown = TelegramMarkdownFormatter.FormatSelection(document, selectionRange);
-        await CopyTextToClipboardAsync(markdown).ConfigureAwait(true);
+        var html = TelegramMarkdownFormatter.FormatSelectionHtml(document, selectionRange);
+        await CopyTelegramMarkdownToClipboardAsync(markdown, html).ConfigureAwait(true);
+    }
+
+    private async Task CopyTelegramMarkdownToClipboardAsync(string markdown, string htmlFragment)
+    {
+        if (string.IsNullOrEmpty(markdown) && string.IsNullOrEmpty(htmlFragment))
+        {
+            return;
+        }
+
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null)
+        {
+            return;
+        }
+
+        var item = new DataTransferItem();
+        if (!string.IsNullOrEmpty(markdown))
+        {
+            item.SetText(markdown.Replace("\n", Environment.NewLine, StringComparison.Ordinal));
+        }
+
+        if (!string.IsNullOrEmpty(htmlFragment))
+        {
+            item.Set(HtmlClipboardFormat, Encoding.UTF8.GetBytes(CreateHtmlClipboardDocument(htmlFragment)));
+            item.Set(WindowsHtmlClipboardFormat, CreateWindowsHtmlClipboardPayload(htmlFragment));
+        }
+
+        var dataTransfer = new DataTransfer();
+        dataTransfer.Add(item);
+        await clipboard.SetDataAsync(dataTransfer).ConfigureAwait(true);
+        await clipboard.FlushAsync().ConfigureAwait(true);
+    }
+
+    private static string CreateHtmlClipboardDocument(string htmlFragment)
+        => "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body>" + htmlFragment + "</body></html>";
+
+    private static byte[] CreateWindowsHtmlClipboardPayload(string htmlFragment)
+    {
+        const string startFragmentMarker = "<!--StartFragment-->";
+        const string endFragmentMarker = "<!--EndFragment-->";
+        const string headerTemplate = "Version:0.9\r\nStartHTML:0000000000\r\nEndHTML:0000000000\r\nStartFragment:0000000000\r\nEndFragment:0000000000\r\n";
+
+        var htmlPrefix = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body>" + startFragmentMarker;
+        var htmlSuffix = endFragmentMarker + "</body></html>";
+        var html = htmlPrefix + htmlFragment + htmlSuffix;
+
+        var startHtml = Encoding.UTF8.GetByteCount(headerTemplate);
+        var startFragment = startHtml + Encoding.UTF8.GetByteCount(htmlPrefix);
+        var endFragment = startFragment + Encoding.UTF8.GetByteCount(htmlFragment);
+        var endHtml = startHtml + Encoding.UTF8.GetByteCount(html);
+
+        var header = string.Create(
+            CultureInfo.InvariantCulture,
+            $"Version:0.9\r\nStartHTML:{startHtml:D10}\r\nEndHTML:{endHtml:D10}\r\nStartFragment:{startFragment:D10}\r\nEndFragment:{endFragment:D10}\r\n");
+
+        return Encoding.UTF8.GetBytes(header + html);
     }
 
     private async Task TryActivatePressedLinkAsync(PointerReleasedEventArgs e)
