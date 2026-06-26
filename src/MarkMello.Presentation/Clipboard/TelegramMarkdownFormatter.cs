@@ -75,6 +75,38 @@ public static class TelegramMarkdownFormatter
         return builder.ToString();
     }
 
+    public static IReadOnlyList<string> GetSelectionLinkUrls(RenderedMarkdownDocument document, DocumentTextRange selectionRange)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (document.Blocks.Count == 0 || selectionRange.IsEmpty)
+        {
+            return Array.Empty<string>();
+        }
+
+        var textMap = MarkdownDocumentTextMap.Create(document);
+        if (textMap.Text.Length == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var start = Math.Clamp(selectionRange.Start, 0, textMap.Text.Length);
+        var end = Math.Clamp(selectionRange.End, start, textMap.Text.Length);
+        if (end <= start)
+        {
+            return Array.Empty<string>();
+        }
+
+        var urls = new List<string>();
+        var context = FormatContext.ForSelection(textMap, new DocumentTextRange(start, end));
+        for (var index = 0; index < document.Blocks.Count; index++)
+        {
+            CollectBlockLinkUrls(document.Blocks[index], $"b{index}", context, urls);
+        }
+
+        return urls;
+    }
+
     private static bool AppendTopLevelBlocks(
         StringBuilder builder,
         IReadOnlyList<MarkdownBlock> blocks,
@@ -151,6 +183,123 @@ public static class TelegramMarkdownFormatter
             MarkdownHorizontalRuleBlock => false,
             _ => AppendFallbackBlock(builder, block, path, context)
         };
+
+    private static void CollectBlockLinkUrls(
+        MarkdownBlock block,
+        string path,
+        FormatContext context,
+        List<string> urls)
+    {
+        switch (block)
+        {
+            case MarkdownHeadingBlock heading:
+                CollectInlineLinkUrls(heading.Inlines, path, context, urls);
+                break;
+
+            case MarkdownParagraphBlock paragraph:
+                CollectInlineLinkUrls(paragraph.Inlines, path, context, urls);
+                break;
+
+            case MarkdownQuoteBlock quote:
+                for (var index = 0; index < quote.Blocks.Count; index++)
+                {
+                    CollectBlockLinkUrls(quote.Blocks[index], $"{path}.b{index}", context, urls);
+                }
+                break;
+
+            case MarkdownListBlock list:
+                for (var itemIndex = 0; itemIndex < list.Items.Count; itemIndex++)
+                {
+                    var item = list.Items[itemIndex];
+                    for (var blockIndex = 0; blockIndex < item.Blocks.Count; blockIndex++)
+                    {
+                        CollectBlockLinkUrls(item.Blocks[blockIndex], $"{path}.i{itemIndex}.b{blockIndex}", context, urls);
+                    }
+                }
+                break;
+
+            case MarkdownTableBlock table:
+                for (var cellIndex = 0; cellIndex < table.Header.Count; cellIndex++)
+                {
+                    CollectInlineLinkUrls(table.Header[cellIndex].Inlines, $"{path}.h{cellIndex}", context, urls);
+                }
+
+                for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
+                {
+                    var row = table.Rows[rowIndex];
+                    for (var cellIndex = 0; cellIndex < row.Count; cellIndex++)
+                    {
+                        CollectInlineLinkUrls(row[cellIndex].Inlines, $"{path}.r{rowIndex}.c{cellIndex}", context, urls);
+                    }
+                }
+                break;
+        }
+    }
+
+    private static void CollectInlineLinkUrls(
+        IReadOnlyList<MarkdownInline> inlines,
+        string path,
+        FormatContext context,
+        List<string> urls)
+    {
+        if (!context.TryGetLocalSelection(path, out _, out var selectedRange))
+        {
+            return;
+        }
+
+        CollectInlineLinkUrls(inlines, selectedRange, urls);
+    }
+
+    private static void CollectInlineLinkUrls(
+        IReadOnlyList<MarkdownInline> inlines,
+        DocumentTextRange selectedRange,
+        List<string> urls)
+    {
+        var offset = 0;
+        foreach (var inline in inlines)
+        {
+            var length = GetPlainTextLength(inline);
+            if (length == 0)
+            {
+                continue;
+            }
+
+            var inlineRange = new DocumentTextRange(offset, offset + length);
+            var localRange = selectedRange.Intersection(inlineRange);
+            if (!localRange.IsEmpty)
+            {
+                CollectInlineLinkUrls(
+                    inline,
+                    new DocumentTextRange(
+                        localRange.Start - inlineRange.Start,
+                        localRange.End - inlineRange.Start),
+                    urls);
+            }
+
+            offset += length;
+        }
+    }
+
+    private static void CollectInlineLinkUrls(
+        MarkdownInline inline,
+        DocumentTextRange selectedRange,
+        List<string> urls)
+    {
+        switch (inline)
+        {
+            case MarkdownLinkInline link when !selectedRange.IsEmpty && !string.IsNullOrWhiteSpace(link.Url):
+                urls.Add(link.Url);
+                break;
+
+            case MarkdownStrongInline strong:
+                CollectInlineLinkUrls(strong.Inlines, selectedRange, urls);
+                break;
+
+            case MarkdownEmphasisInline emphasis:
+                CollectInlineLinkUrls(emphasis.Inlines, selectedRange, urls);
+                break;
+        }
+    }
 
     private static bool AppendHeading(
         StringBuilder builder,

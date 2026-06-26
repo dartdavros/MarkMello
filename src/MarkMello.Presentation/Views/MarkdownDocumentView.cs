@@ -79,6 +79,7 @@ public sealed class MarkdownDocumentView : UserControl
     private MenuItem? _copyTelegramMarkdownMenuItem;
     private MenuItem? _selectAllMenuItem;
     private MarkdownLinkSpan? _contextMenuLink;
+    private IReadOnlyList<string> _contextMenuSelectedLinkUrls = Array.Empty<string>();
     private CancellationTokenSource? _readingPreferencesRefreshCts;
     private long _renderGeneration;
     private bool _hasPendingRenderedNotification;
@@ -1453,12 +1454,17 @@ public sealed class MarkdownDocumentView : UserControl
         menu.Items.Add(_copyTelegramMarkdownMenuItem);
         menu.Items.Add(_selectAllMenuItem);
         menu.Opening += OnContextMenuOpening;
-        menu.Closed += (_, _) => _contextMenuLink = null;
+        menu.Closed += (_, _) =>
+        {
+            _contextMenuLink = null;
+            _contextMenuSelectedLinkUrls = Array.Empty<string>();
+        };
         return menu;
     }
 
     private void OnContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        _contextMenuSelectedLinkUrls = GetSelectedLinkUrls();
         UpdateContextMenuHeaders();
 
         // Enable Copy only when there is a selection.
@@ -1470,7 +1476,7 @@ public sealed class MarkdownDocumentView : UserControl
 
         if (_copyLinkMenuItem is not null)
         {
-            _copyLinkMenuItem.IsEnabled = _contextMenuLink.HasValue;
+            _copyLinkMenuItem.IsEnabled = _contextMenuSelectedLinkUrls.Count > 0 || _contextMenuLink.HasValue;
         }
 
         if (_copyTelegramMarkdownMenuItem is not null)
@@ -1493,7 +1499,9 @@ public sealed class MarkdownDocumentView : UserControl
 
         if (_copyLinkMenuItem is not null)
         {
-            _copyLinkMenuItem.Header = GetLocalizedString("ContextCopyLink", "Copy link");
+            _copyLinkMenuItem.Header = _contextMenuSelectedLinkUrls.Count > 1
+                ? GetLocalizedString("ContextCopyLinks", "Copy links")
+                : GetLocalizedString("ContextCopyLink", "Copy link");
         }
 
         if (_copyTelegramMarkdownMenuItem is not null)
@@ -1527,12 +1535,34 @@ public sealed class MarkdownDocumentView : UserControl
 
     private async void OnCopyLinkMenuItemClick(object? sender, RoutedEventArgs e)
     {
-        if (_contextMenuLink is not { } link)
+        if (_contextMenuSelectedLinkUrls.Count > 1)
         {
+            await CopyTextToClipboardAsync(string.Join("\n", _contextMenuSelectedLinkUrls)).ConfigureAwait(true);
             return;
         }
 
-        await CopyTextToClipboardAsync(link.Url).ConfigureAwait(true);
+        if (_contextMenuLink is { } link)
+        {
+            await CopyTextToClipboardAsync(link.Url).ConfigureAwait(true);
+            return;
+        }
+
+        if (_contextMenuSelectedLinkUrls.Count == 1)
+        {
+            await CopyTextToClipboardAsync(_contextMenuSelectedLinkUrls[0]).ConfigureAwait(true);
+        }
+    }
+
+    private IReadOnlyList<string> GetSelectedLinkUrls()
+    {
+        if (!HasSelection || Document is not { Blocks.Count: > 0 } document)
+        {
+            return Array.Empty<string>();
+        }
+
+        return TelegramMarkdownFormatter.GetSelectionLinkUrls(
+            document,
+            new DocumentTextRange(SelectionStart, SelectionEnd));
     }
 
     private async void OnCopyTelegramMarkdownMenuItemClick(object? sender, RoutedEventArgs e)
