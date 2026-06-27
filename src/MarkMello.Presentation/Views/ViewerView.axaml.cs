@@ -56,6 +56,7 @@ public partial class ViewerView : UserControl
         {
             _documentView.DocumentRendered += OnDocumentRendered;
             _documentView.DocumentRenderInvalidated += OnDocumentRenderInvalidated;
+            _documentView.MarkdownFileLinkRequested += OnMarkdownFileLinkRequested;
         }
 
         SizeChanged += OnViewerSizeChanged;
@@ -89,6 +90,7 @@ public partial class ViewerView : UserControl
         {
             _documentView.DocumentRendered -= OnDocumentRendered;
             _documentView.DocumentRenderInvalidated -= OnDocumentRenderInvalidated;
+            _documentView.MarkdownFileLinkRequested -= OnMarkdownFileLinkRequested;
             _documentView = null;
         }
 
@@ -147,6 +149,16 @@ public partial class ViewerView : UserControl
         _lastMinimapViewport = default;
         _minimapBuildGeneration++;
         RemoveMinimap();
+    }
+
+    private async void OnMarkdownFileLinkRequested(object? sender, MarkdownFileLinkRequestedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm)
+        {
+            return;
+        }
+
+        await vm.OpenPathAsync(e.TargetPath).ConfigureAwait(true);
     }
 
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)

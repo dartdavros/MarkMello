@@ -206,6 +206,8 @@ public sealed class MarkdownDocumentView : UserControl
 
     public event EventHandler? DocumentRenderInvalidated;
 
+    public event EventHandler<MarkdownFileLinkRequestedEventArgs>? MarkdownFileLinkRequested;
+
     internal bool TryGetVerticalOffsetForSourceLine(int sourceLine, out double offsetY)
     {
         offsetY = 0;
@@ -1445,6 +1447,14 @@ public sealed class MarkdownDocumentView : UserControl
 
         if (TryScrollToHeadingAnchor(pressedLink.Url))
         {
+            return;
+        }
+
+        if (MarkdownLocalFileLinkResolver.TryResolve(pressedLink.Url, Document?.BaseDirectory, out var targetPath))
+        {
+            MarkdownFileLinkRequested?.Invoke(
+                this,
+                new MarkdownFileLinkRequestedEventArgs(pressedLink.Url, targetPath));
             return;
         }
 
