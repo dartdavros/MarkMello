@@ -7,6 +7,34 @@ namespace MarkMello.Presentation.Tests;
 public sealed class MainWindowPlacementTests
 {
     [Fact]
+    public void CalculateTitleBarContentMarginKeepsDefaultInsetOutsideMacOS()
+    {
+        var margin = MainWindow.CalculateTitleBarContentMargin(isMacOS: false);
+
+        Assert.Equal(new Thickness(14, 0, 0, 0), margin);
+    }
+
+    [Fact]
+    public void CalculateTitleBarContentMarginReservesMacOSWindowButtonsArea()
+    {
+        var margin = MainWindow.CalculateTitleBarContentMargin(isMacOS: true);
+
+        Assert.Equal(new Thickness(82, 0, 14, 0), margin);
+    }
+
+    [Theory]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(false, false, false)]
+    public void CanUseDraggableTitleBarAllowsWindowsAndMacOS(
+        bool isWindows,
+        bool isMacOS,
+        bool expected)
+    {
+        Assert.Equal(expected, MainWindow.CanUseDraggableTitleBar(isWindows, isMacOS));
+    }
+
+    [Fact]
     public void CalculateStartupWindowPlacementCentersDefaultWindowInsideWorkingArea()
     {
         var workingArea = new PixelRect(0, 0, 1920, 1040);

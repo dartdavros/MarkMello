@@ -19,6 +19,8 @@ public partial class MainWindow : Window
 {
     private const double DefaultWindowWidth = 1280;
     private const double DefaultWindowHeight = 840;
+    private const double TitleBarLeadingInset = 14;
+    private const double MacOsTitleBarLeadingInset = 82;
     private const int WindowPlacementMarginPixels = 8;
 
     private readonly MainWindowViewModel _viewModel = default!;
@@ -36,6 +38,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ApplyPlatformTitleBarLayout();
     }
 
     public MainWindow(
@@ -54,6 +57,7 @@ public partial class MainWindow : Window
 
         ConfigurePlatformChrome();
         InitializeComponent();
+        ApplyPlatformTitleBarLayout();
         ApplyStartupWindowPlacement();
         SyncOverlayWindowClasses();
         UpdateTitleBarMaximizeVisuals();
@@ -102,6 +106,19 @@ public partial class MainWindow : Window
         }
         // Linux: let the window manager draw its native chrome.
     }
+
+    private void ApplyPlatformTitleBarLayout()
+    {
+        if (this.FindControl<DockPanel>("TitleBarContent") is { } titleBarContent)
+        {
+            titleBarContent.Margin = CalculateTitleBarContentMargin(OperatingSystem.IsMacOS());
+        }
+    }
+
+    internal static Thickness CalculateTitleBarContentMargin(bool isMacOS)
+        => isMacOS
+            ? new Thickness(MacOsTitleBarLeadingInset, 0, TitleBarLeadingInset, 0)
+            : new Thickness(TitleBarLeadingInset, 0, 0, 0);
 
     private async void OnWindowOpened(object? sender, EventArgs e)
     {
@@ -198,7 +215,9 @@ public partial class MainWindow : Window
 
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (!_viewModel.ShowCustomTitleBar)
+        var isWindows = OperatingSystem.IsWindows();
+        var isMacOS = OperatingSystem.IsMacOS();
+        if (!CanUseDraggableTitleBar(isWindows, isMacOS))
         {
             return;
         }
@@ -208,9 +227,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Double-click on the custom title bar toggles Maximized/Normal,
-        // mirroring native Windows chrome behaviour.
-        if (e.ClickCount == 2)
+        if (isWindows && e.ClickCount == 2)
         {
             if (CanResize)
             {
@@ -228,14 +245,17 @@ public partial class MainWindow : Window
 
         try
         {
-            CaptureWindowsNativeMaximizeMonitorArea();
-            TryCaptureWindowsSnappedMaximize();
-            if ((_isWindowsManualMaximized || WindowState == WindowState.Maximized)
-                && RestoreWindowsManualMaximizeForDrag())
+            if (isWindows)
             {
-                BeginMoveDrag(e);
-                e.Handled = true;
-                return;
+                CaptureWindowsNativeMaximizeMonitorArea();
+                TryCaptureWindowsSnappedMaximize();
+                if ((_isWindowsManualMaximized || WindowState == WindowState.Maximized)
+                    && RestoreWindowsManualMaximizeForDrag())
+                {
+                    BeginMoveDrag(e);
+                    e.Handled = true;
+                    return;
+                }
             }
 
             BeginMoveDrag(e);
@@ -246,6 +266,9 @@ public partial class MainWindow : Window
             // Unsupported platforms or transient states simply do not start a drag.
         }
     }
+
+    internal static bool CanUseDraggableTitleBar(bool isWindows, bool isMacOS)
+        => isWindows || isMacOS;
 
     private void OnWindowPointerPressed(object? sender, PointerPressedEventArgs e)
     {

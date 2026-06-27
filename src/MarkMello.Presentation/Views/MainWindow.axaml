@@ -99,7 +99,8 @@
         <Border Grid.Column="0"
                 Background="Transparent"
                 PointerPressed="OnTitleBarPointerPressed">
-          <DockPanel LastChildFill="True"
+          <DockPanel Name="TitleBarContent"
+                     LastChildFill="True"
                      Margin="14,0,0,0"
                      VerticalAlignment="Center">
             <Ellipse DockPanel.Dock="Left"
