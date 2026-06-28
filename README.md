@@ -114,6 +114,10 @@ dotnet run --project ./src/MarkMello.Desktop/MarkMello.Desktop.csproj -- ./sampl
 | Сохранить | `Ctrl+S` | `Cmd+S` |
 | Сохранить как | `Ctrl+Shift+S` | `Cmd+Shift+S` |
 
+## Идеи и предложения
+
+Есть идея или предложение? Напишите в [GitHub Discussions: Ideas](https://github.com/dartdavros/MarkMello/discussions/categories/ideas).
+
 ## Лицензия
 
 Проект распространяется по лицензии GPL-3.0.

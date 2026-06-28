@@ -114,6 +114,10 @@ dotnet run --project ./src/MarkMello.Desktop/MarkMello.Desktop.csproj -- ./sampl
 | Save | `Ctrl+S` | `Cmd+S` |
 | Save as | `Ctrl+Shift+S` | `Cmd+Shift+S` |
 
+## Ideas and suggestions
+
+Have an idea or suggestion? Share it in [GitHub Discussions: Ideas](https://github.com/dartdavros/MarkMello/discussions/categories/ideas).
+
 ## License
 
 The project is distributed under the GPL-3.0 license.
