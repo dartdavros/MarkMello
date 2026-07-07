@@ -2,131 +2,131 @@
 
 # MarkMello
 
-[English](README.en.md)
+[Website](https://markmello.ru) · [Discord](https://discord.gg/atxsJ2TSM)
 
-**MarkMello — приложение для быстрого открытия и чтения Markdown-файлов с дополнительным режимом редактирования.**
+**MarkMello is an application for quickly opening and reading Markdown files, with an additional editing mode.**
 
-## Что умеет MarkMello
+## What MarkMello can do
 
-MarkMello позволяет:
+MarkMello allows you to:
 
-- быстро открывать Markdown-файлы в режиме просмотра;
-- настраивать удобный режим чтения: тему, размер шрифта, высоту строки и ширину области документа;
-- при необходимости переходить в режим редактирования и вносить правки в файл.
+- quickly open Markdown files in reading mode;
+- adjust the reading experience: theme, font size, line height, and document width;
+- switch to editing mode when needed and make changes to the file.
 
-## Чем отличается от обычных Markdown-редакторов
+## How it differs from regular Markdown editors
 
-MarkMello сначала открывает файл для чтения.
+MarkMello opens the file for reading first.
 
-Редактирование не является основным режимом запуска: оно включается вручную, когда нужно внести правки.
+Editing is not the primary startup mode: it is enabled manually when you need to make changes.
 
-## Установка
+## Installation
 
-Скачайте актуальную сборку из раздела [Releases](../../releases/latest).
+Download the latest build from [Releases](../../releases/latest).
 
 ### Windows
 
-1. Скачайте `MarkMello-setup-win-x64.exe` или `MarkMello-setup-win-arm64.exe`, в зависимости от архитектуры компьютера.
-2. Запустите установщик.
-3. Откройте MarkMello из меню Start или откройте `.md` файл через MarkMello.
+1. Download `MarkMello-setup-win-x64.exe` or `MarkMello-setup-win-arm64.exe`, depending on your computer architecture.
+2. Run the installer.
+3. Launch MarkMello from the Start menu or open a `.md` file with MarkMello.
 
 ### macOS
 
-1. Скачайте `MarkMello-macos-arm64.dmg` для Apple Silicon или `MarkMello-macos-x64.dmg` для Intel Mac.
-2. Откройте DMG.
-3. Перетащите `MarkMello.app` в `Applications`.
-4. Запустите приложение из `Applications`.
+1. Download `MarkMello-macos-arm64.dmg` for Apple Silicon or `MarkMello-macos-x64.dmg` for Intel Mac.
+2. Open the DMG.
+3. Drag `MarkMello.app` into `Applications`.
+4. Launch the app from `Applications`.
 
 ### Linux
 
-Если к release приложен Linux AppImage, запустите его так:
+If a Linux AppImage is attached to a release, run it like this:
 
 ```bash
 chmod +x MarkMello-linux-x86_64.AppImage
 ./MarkMello-linux-x86_64.AppImage
 ```
 
-Если для нужного release нет Linux asset, соберите приложение из исходников.
+If no Linux asset is published for the release you want, build the application from source.
 
-## Временные сборки без подписи разработчика
+## Temporary unsigned builds
 
-Текущие публичные сборки MarkMello временно распространяются без подписи разработчика. Из-за этого Windows или macOS могут показать предупреждение при первом запуске.
+Current public MarkMello builds are temporarily distributed without a developer signature. Because of that, Windows or macOS may show a warning on first launch.
 
-Это временное ограничение distribution pipeline. Подпись разработчика и нормальная notarization/signing-цепочка будут добавлены в будущем.
+This is a temporary distribution pipeline limitation. Developer signing and the normal notarization/signing chain will be added in the future.
 
-### Windows: обход SmartScreen
+### Windows: bypass SmartScreen
 
-Если Windows показывает предупреждение SmartScreen:
+If Windows shows a SmartScreen warning:
 
-1. Нажмите `Подробнее`.
-2. Нажмите `Выполнить в любом случае`.
+1. Click `More info`.
+2. Click `Run anyway`.
 
-Если Windows пометила скачанный файл как заблокированный:
+If Windows marked the downloaded file as blocked:
 
-1. Откройте свойства установочного файла.
-2. Включите `Разблокировать`, если такой пункт доступен.
-3. Примените изменения и запустите установщик снова.
+1. Open the installer file properties.
+2. Enable `Unblock`, if the option is available.
+3. Apply the changes and run the installer again.
 
-### macOS: обход Gatekeeper
+### macOS: bypass Gatekeeper
 
-Если macOS сообщает, что приложение повреждено, не может быть проверено или не может быть открыто из-за неизвестного разработчика:
+If macOS says the app is damaged, cannot be verified, or cannot be opened because it is from an unknown developer:
 
-1. Откройте `Системные настройки`.
-2. Перейдите в `Конфиденциальность и безопасность`.
-3. Найдите сообщение о заблокированном `MarkMello`.
-4. Нажмите `Открыть всё равно`.
-5. Подтвердите запуск.
+1. Open `System Settings`.
+2. Go to `Privacy & Security`.
+3. Find the message about blocked `MarkMello`.
+4. Click `Open Anyway`.
+5. Confirm the launch.
 
-Если нужно разово снять quarantine-флаг вручную:
+If you need to remove the quarantine flag manually for a one-time test:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/MarkMello.app
 open /Applications/MarkMello.app
 ```
 
-## Сборка из исходников
+## Build from source
 
-Требуется .NET SDK 9.
+.NET SDK 9 is required.
 
 ```bash
 dotnet restore ./MarkMello.sln
 dotnet build ./MarkMello.sln
 ```
 
-Запуск проекта:
+Run the project:
 
 ```bash
 dotnet run --project ./src/MarkMello.Desktop/MarkMello.Desktop.csproj
 ```
 
-Открытие файла из командной строки:
+Open a file from the command line:
 
 ```bash
 dotnet run --project ./src/MarkMello.Desktop/MarkMello.Desktop.csproj -- ./sample.md
 ```
 
-## Горячие клавиши
+## Keyboard shortcuts
 
-| Действие | Windows / Linux | macOS |
+| Action | Windows / Linux | macOS |
 | --- | --- | --- |
-| Открыть файл | `Ctrl+O` | `Cmd+O` |
-| Переключить режим редактирования | `Ctrl+E` | `Cmd+E` |
-| Сохранить | `Ctrl+S` | `Cmd+S` |
-| Сохранить как | `Ctrl+Shift+S` | `Cmd+Shift+S` |
+| Open file | `Ctrl+O` | `Cmd+O` |
+| Toggle editing mode | `Ctrl+E` | `Cmd+E` |
+| Save | `Ctrl+S` | `Cmd+S` |
+| Save as | `Ctrl+Shift+S` | `Cmd+Shift+S` |
 
-## Идеи и предложения
+## Ideas and suggestions
 
-Есть идея или предложение? Напишите в [GitHub Discussions: Ideas](https://github.com/dartdavros/MarkMello/discussions/categories/ideas).
+Have an idea or suggestion? Share it in [GitHub Discussions: Ideas](https://github.com/dartdavros/MarkMello/discussions/categories/ideas).
 
-## Лицензия
+## License
 
-Проект распространяется по лицензии GPL-3.0.
+The project is distributed under the GPL-3.0 license.
 
-См. файл [LICENSE](LICENSE).
+See [LICENSE](LICENSE).
 
-## Благодарности
+## Acknowledgements
 
-Поддержка диаграмм в MarkMello основана на open-source проектах:
+Diagram support in MarkMello is built on open-source projects:
 
-- [Naiad](https://github.com/NaiadDiagrams/Naiad) — .NET-библиотека, рендерящая Mermaid-диаграммы в SVG in-process, без браузера и внешних рантаймов. MIT License.
-- [Mermaid](https://github.com/mermaid-js/mermaid) — синтаксис и спецификация диаграмм.
+- [Naiad](https://github.com/NaiadDiagrams/Naiad) — a .NET library that renders Mermaid diagrams to SVG in-process, without a browser or external runtime. MIT License.
+- [Mermaid](https://github.com/mermaid-js/mermaid) — diagram syntax and specification.
