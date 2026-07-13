@@ -13,6 +13,7 @@ namespace MarkMello.Presentation.Views;
 public partial class ViewerView : UserControl
 {
     private const double WheelStepMultiplier = 6.0;
+    private const double KeyboardPageOverlap = 48.0;
     private ScrollViewer? _scroll;
     private MarkdownDocumentView? _documentView;
     private ContentControl? _minimapHost;
@@ -44,6 +45,8 @@ public partial class ViewerView : UserControl
             _scroll.ScrollChanged += OnScrollChanged;
             _scroll.AddHandler(InputElement.PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
         }
+
+        AddHandler(KeyDownEvent, OnViewerKeyDown, RoutingStrategies.Tunnel);
 
         _minimapHost = this.FindControl<ContentControl>("MinimapHost");
         if (_minimapHost is not null)
@@ -85,6 +88,8 @@ public partial class ViewerView : UserControl
             _scroll.RemoveHandler(InputElement.PointerWheelChangedEvent, OnPointerWheelChanged);
             _scroll = null;
         }
+
+        RemoveHandler(KeyDownEvent, OnViewerKeyDown);
 
         if (_documentView is not null)
         {
@@ -131,6 +136,67 @@ public partial class ViewerView : UserControl
         e.Handled = true;
     }
 
+    private void OnViewerKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_scroll is null || e.Handled || DataContext is not MainWindowViewModel { IsViewer: true, IsEditMode: false })
+        {
+            return;
+        }
+
+        if (HasCommandModifier(e.KeyModifiers) || e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            return;
+        }
+
+        var nextOffsetY = GetKeyboardScrollOffset(
+            e.Key,
+            e.KeyModifiers,
+            _scroll.Offset.Y,
+            _scroll.ScrollBarMaximum.Y,
+            _scroll.SmallChange.Height,
+            _scroll.Viewport.Height);
+
+        if (nextOffsetY is null || Math.Abs(nextOffsetY.Value - _scroll.Offset.Y) <= double.Epsilon)
+        {
+            return;
+        }
+
+        _scroll.Offset = new Vector(_scroll.Offset.X, nextOffsetY.Value);
+        e.Handled = true;
+    }
+
+    internal static double? GetKeyboardScrollOffset(
+        Key key,
+        KeyModifiers modifiers,
+        double currentOffset,
+        double maximumOffset,
+        double smallChange,
+        double viewportHeight)
+    {
+        var max = Math.Max(0, maximumOffset);
+        var current = Math.Clamp(currentOffset, 0, max);
+        var lineStep = smallChange > 0 ? smallChange : 40.0;
+        var pageStep = Math.Max(lineStep, viewportHeight - KeyboardPageOverlap);
+
+        var target = key switch
+        {
+            Key.Down => current + lineStep,
+            Key.Up => current - lineStep,
+            Key.PageDown => current + pageStep,
+            Key.PageUp => current - pageStep,
+            Key.Home => 0,
+            Key.End => max,
+            Key.Space when modifiers.HasFlag(KeyModifiers.Shift) => current - pageStep,
+            Key.Space => current + pageStep,
+            _ => (double?)null,
+        };
+
+        return target is null ? null : Math.Clamp(target.Value, 0, max);
+    }
+
+    private static bool HasCommandModifier(KeyModifiers modifiers)
+        => modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Meta);
+
     private void OnDocumentRendered(object? sender, EventArgs e)
     {
         if (DataContext is MainWindowViewModel vm)
@@ -139,7 +205,19 @@ public partial class ViewerView : UserControl
         }
 
         _hasRenderedDocument = true;
+        FocusDocumentViewAsync();
         QueueMinimapBuild();
+    }
+
+    private void FocusDocumentViewAsync()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_documentView is not null && DataContext is MainWindowViewModel { IsViewer: true, IsEditMode: false })
+            {
+                _documentView.Focus(NavigationMethod.Unspecified);
+            }
+        }, DispatcherPriority.Background);
     }
 
     private void OnDocumentRenderInvalidated(object? sender, EventArgs e)

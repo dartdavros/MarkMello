@@ -227,7 +227,9 @@ internal sealed class MarkdownFormattedTextLayout : IDisposable
             WidthIncludingTrailingWhitespace = Math.Max(WidthIncludingTrailingWhitespace, line.WidthIncludingTrailingWhitespace);
             y += line.Height;
 
-            var consumed = line.Length + line.NewLineLength;
+            // Length already includes trailing newline TextSource positions; adding NewLineLength
+            // skips the next visual line and breaks multiline selection hit-testing.
+            var consumed = line.Length;
             if (consumed <= 0)
             {
                 break;

@@ -277,6 +277,22 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 target.Add(new MarkdownCodeInline(code.Content.ToString()));
                 return;
 
+            case AutolinkInline autolink:
+                var autolinkText = NormalizeNullable(autolink.Url) ?? string.Empty;
+                if (autolinkText.Length == 0)
+                {
+                    return;
+                }
+
+                var autolinkUrl = autolink.IsEmail && !autolinkText.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
+                    ? $"mailto:{autolinkText}"
+                    : autolinkText;
+                target.Add(new MarkdownLinkInline(
+                    [new MarkdownTextInline(autolinkText)],
+                    autolinkUrl,
+                    null));
+                return;
+
             case LinkInline link when link.IsImage:
                 var altInlines = ConvertInlines(link);
                 var altText = ExtractPlainText(altInlines);
