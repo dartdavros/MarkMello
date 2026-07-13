@@ -1,10 +1,13 @@
 using MarkMello.Domain;
+using MarkMello.Infrastructure.Images;
 using MarkMello.Infrastructure.Markdown;
 
 namespace MarkMello.Presentation.Tests;
 
 public sealed class MarkdownHtmlRenderingTests
 {
+    private const string TinyPngDataUri = "data:image/png;base64,AQIDBA==";
+
     [Fact]
     public void RenderConvertsPictureWrappedImgIntoSizedImageBlock()
     {
@@ -80,6 +83,56 @@ public sealed class MarkdownHtmlRenderingTests
                 var image = Assert.IsType<MarkdownImageInline>(inline);
                 Assert.Equal("GitHub Repo stars", image.AltText);
             });
+    }
+
+    [Fact]
+    public void RenderPreservesReferenceStyleDataUriImageInsideMixedParagraph()
+    {
+        var markdown = $"""
+Text before ![][image1] and after.
+
+[image1]: <{TinyPngDataUri}>
+""";
+
+        var renderer = new MarkdigMarkdownDocumentRenderer();
+
+        var document = renderer.Render(markdown);
+
+        var paragraph = Assert.IsType<MarkdownParagraphBlock>(Assert.Single(document.Blocks));
+        Assert.Collection(
+            paragraph.Inlines,
+            inline => Assert.Equal("Text before ", Assert.IsType<MarkdownTextInline>(inline).Text),
+            inline =>
+            {
+                var image = Assert.IsType<MarkdownImageInline>(inline);
+                Assert.Equal(TinyPngDataUri, image.Url);
+                Assert.Null(image.AltText);
+            },
+            inline => Assert.Equal(" and after.", Assert.IsType<MarkdownTextInline>(inline).Text));
+    }
+
+    [Fact]
+    public async Task RenderedReferenceStyleDataUriWithPlusCanBeOpenedByImageResolver()
+    {
+        const string markdown = """
+Text ![][image1]
+
+[image1]: <data:image/png;base64,+w==>
+""";
+
+        var renderer = new MarkdigMarkdownDocumentRenderer();
+        var resolver = new DefaultImageSourceResolver();
+
+        var document = renderer.Render(markdown);
+
+        var paragraph = Assert.IsType<MarkdownParagraphBlock>(Assert.Single(document.Blocks));
+        var image = Assert.IsType<MarkdownImageInline>(paragraph.Inlines[1]);
+        await using var stream = await resolver.TryOpenAsync(image.Url, null, CancellationToken.None);
+
+        Assert.NotNull(stream);
+        using var copy = new MemoryStream();
+        await stream!.CopyToAsync(copy);
+        Assert.Equal([251], copy.ToArray());
     }
 
     [Fact]

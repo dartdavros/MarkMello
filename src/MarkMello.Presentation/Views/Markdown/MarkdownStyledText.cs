@@ -6,12 +6,14 @@ namespace MarkMello.Presentation.Views.Markdown;
 internal sealed record MarkdownStyledText(
     string Text,
     IReadOnlyList<MarkdownTextStyleSpan> Spans,
-    IReadOnlyList<MarkdownLinkSpan> Links)
+    IReadOnlyList<MarkdownLinkSpan> Links,
+    IReadOnlyList<MarkdownInlineImageSpan> Images)
 {
     public static MarkdownStyledText Empty { get; } = new(
         string.Empty,
         Array.Empty<MarkdownTextStyleSpan>(),
-        Array.Empty<MarkdownLinkSpan>());
+        Array.Empty<MarkdownLinkSpan>(),
+        Array.Empty<MarkdownInlineImageSpan>());
 
     public static MarkdownStyledText FromInlines(IReadOnlyList<MarkdownInline> inlines)
     {
@@ -25,10 +27,11 @@ internal sealed record MarkdownStyledText(
         var builder = new StringBuilder();
         var spans = new List<MarkdownTextStyleSpan>();
         var links = new List<MarkdownLinkSpan>();
-        AppendInlines(inlines, builder, spans, links, MarkdownInlineStyleState.Default);
+        var images = new List<MarkdownInlineImageSpan>();
+        AppendInlines(inlines, builder, spans, links, images, MarkdownInlineStyleState.Default);
         return builder.Length == 0
             ? Empty
-            : new MarkdownStyledText(builder.ToString(), spans, links);
+            : new MarkdownStyledText(builder.ToString(), spans, links, images);
     }
 
     private static void AppendInlines(
@@ -36,11 +39,12 @@ internal sealed record MarkdownStyledText(
         StringBuilder builder,
         List<MarkdownTextStyleSpan> spans,
         List<MarkdownLinkSpan> links,
+        List<MarkdownInlineImageSpan> images,
         MarkdownInlineStyleState style)
     {
         foreach (var inline in inlines)
         {
-            AppendInline(inline, builder, spans, links, style);
+            AppendInline(inline, builder, spans, links, images, style);
         }
     }
 
@@ -49,6 +53,7 @@ internal sealed record MarkdownStyledText(
         StringBuilder builder,
         List<MarkdownTextStyleSpan> spans,
         List<MarkdownLinkSpan> links,
+        List<MarkdownInlineImageSpan> images,
         MarkdownInlineStyleState style)
     {
         switch (inline)
@@ -58,11 +63,11 @@ internal sealed record MarkdownStyledText(
                 return;
 
             case MarkdownStrongInline strong:
-                AppendInlines(strong.Inlines, builder, spans, links, style with { IsBold = true });
+                AppendInlines(strong.Inlines, builder, spans, links, images, style with { IsBold = true });
                 return;
 
             case MarkdownEmphasisInline emphasis:
-                AppendInlines(emphasis.Inlines, builder, spans, links, style with { IsItalic = true });
+                AppendInlines(emphasis.Inlines, builder, spans, links, images, style with { IsItalic = true });
                 return;
 
             case MarkdownCodeInline code:
@@ -70,11 +75,11 @@ internal sealed record MarkdownStyledText(
                 return;
 
             case MarkdownImageInline image:
-                AppendStyledText(GetImageInlinePlainText(image), builder, spans, style);
+                AppendImage(image, builder, spans, images, style);
                 return;
 
             case MarkdownLinkInline link:
-                AppendLink(link, builder, spans, links, style with { IsLink = true });
+                AppendLink(link, builder, spans, links, images, style with { IsLink = true });
                 return;
 
             case MarkdownLineBreakInline:
@@ -95,7 +100,40 @@ internal sealed record MarkdownStyledText(
             return image.Title;
         }
 
-        return string.IsNullOrWhiteSpace(image.Url) ? "image" : image.Url;
+        return string.IsNullOrWhiteSpace(image.Url) || image.Url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+            ? "image"
+            : image.Url;
+    }
+
+    private static void AppendImage(
+        MarkdownImageInline image,
+        StringBuilder builder,
+        List<MarkdownTextStyleSpan> spans,
+        List<MarkdownInlineImageSpan> images,
+        MarkdownInlineStyleState style)
+    {
+        var placeholderText = GetImageInlinePlainText(image);
+        if (string.IsNullOrWhiteSpace(placeholderText))
+        {
+            placeholderText = "image";
+        }
+
+        var start = builder.Length;
+        AppendStyledText(placeholderText, builder, spans, style);
+        var end = builder.Length;
+        if (end <= start)
+        {
+            return;
+        }
+
+        images.Add(new MarkdownInlineImageSpan(
+            images.Count,
+            new DocumentTextRange(start, end),
+            image.Url,
+            image.AltText,
+            image.Title,
+            placeholderText,
+            style));
     }
 
     private static void AppendLink(
@@ -103,13 +141,14 @@ internal sealed record MarkdownStyledText(
         StringBuilder builder,
         List<MarkdownTextStyleSpan> spans,
         List<MarkdownLinkSpan> links,
+        List<MarkdownInlineImageSpan> images,
         MarkdownInlineStyleState style)
     {
         var start = builder.Length;
 
         if (link.Inlines.Count > 0)
         {
-            AppendInlines(link.Inlines, builder, spans, links, style);
+            AppendInlines(link.Inlines, builder, spans, links, images, style);
         }
         else if (!string.IsNullOrWhiteSpace(link.Url))
         {
@@ -175,6 +214,15 @@ internal sealed record MarkdownStyledText(
 internal readonly record struct MarkdownTextStyleSpan(DocumentTextRange Range, MarkdownInlineStyleState Style);
 
 internal readonly record struct MarkdownLinkSpan(DocumentTextRange Range, string Url, string? Title);
+
+internal readonly record struct MarkdownInlineImageSpan(
+    int Index,
+    DocumentTextRange Range,
+    string Url,
+    string? AltText,
+    string? Title,
+    string PlaceholderText,
+    MarkdownInlineStyleState Style);
 
 internal readonly record struct MarkdownInlineStyleState(bool IsBold, bool IsItalic, bool IsCode, bool IsLink)
 {

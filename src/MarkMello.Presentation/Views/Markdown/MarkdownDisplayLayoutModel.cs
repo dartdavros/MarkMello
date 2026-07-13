@@ -101,7 +101,9 @@ internal sealed class MarkdownDisplayLayoutModel
         {
             var text = _styledText.Text;
             var spans = _styledText.Spans;
+            var images = _styledText.Images;
             var spanIndex = 0;
+            var imageIndex = 0;
             var index = 0;
 
             while (index < text.Length)
@@ -109,6 +111,19 @@ internal sealed class MarkdownDisplayLayoutModel
                 while (spanIndex < spans.Count && spans[spanIndex].Range.End <= index)
                 {
                     spanIndex++;
+                }
+
+                while (imageIndex < images.Count && images[imageIndex].Range.End <= index)
+                {
+                    imageIndex++;
+                }
+
+                if (imageIndex < images.Count && images[imageIndex].Range.Start == index)
+                {
+                    var image = images[imageIndex];
+                    AppendImageSegment(image);
+                    index = image.Range.End;
+                    continue;
                 }
 
                 MarkdownInlineStyleState style;
@@ -130,6 +145,11 @@ internal sealed class MarkdownDisplayLayoutModel
                 else
                 {
                     style = MarkdownInlineStyleState.Default;
+                }
+
+                if (imageIndex < images.Count && images[imageIndex].Range.Start > index)
+                {
+                    end = Math.Min(end, images[imageIndex].Range.Start);
                 }
 
                 if (end <= index)
@@ -164,6 +184,8 @@ internal sealed class MarkdownDisplayLayoutModel
 
                 canonicalCaretToDisplayEnd[canonicalCaret] = displayCaret;
             }
+
+            FillCompressedSegmentCaretMaps(canonicalCaretToDisplayStart, canonicalCaretToDisplayEnd);
 
             return new MarkdownDisplayLayoutModel(
                 canonicalLength,
@@ -200,6 +222,22 @@ internal sealed class MarkdownDisplayLayoutModel
                 style));
 
             _displayOffset++;
+            _displayCaretToCanonicalCaret.Add(_canonicalOffset);
+        }
+
+        private void AppendImageSegment(MarkdownInlineImageSpan image)
+        {
+            _segments.Add(new MarkdownDisplaySegment(
+                MarkdownDisplaySegmentKind.Image,
+                _displayOffset,
+                1,
+                image.Range,
+                image.PlaceholderText,
+                image.Style,
+                image.Index));
+
+            _displayOffset++;
+            _canonicalOffset = image.Range.End;
             _displayCaretToCanonicalCaret.Add(_canonicalOffset);
         }
 
@@ -272,6 +310,23 @@ internal sealed class MarkdownDisplayLayoutModel
             _canonicalOffset++;
             _displayCaretToCanonicalCaret.Add(_canonicalOffset);
         }
+
+        private void FillCompressedSegmentCaretMaps(int[] canonicalCaretToDisplayStart, int[] canonicalCaretToDisplayEnd)
+        {
+            foreach (var segment in _segments)
+            {
+                if (segment.Kind != MarkdownDisplaySegmentKind.Image || segment.CanonicalRange.IsEmpty)
+                {
+                    continue;
+                }
+
+                for (var caret = segment.CanonicalRange.Start; caret <= segment.CanonicalRange.End; caret++)
+                {
+                    canonicalCaretToDisplayStart[caret] = segment.DisplayStart;
+                    canonicalCaretToDisplayEnd[caret] = segment.DisplayEnd;
+                }
+            }
+        }
     }
 }
 
@@ -289,7 +344,8 @@ internal readonly record struct MarkdownDisplaySegment(
     int DisplayLength,
     DocumentTextRange CanonicalRange,
     string Text,
-    MarkdownInlineStyleState Style)
+    MarkdownInlineStyleState Style,
+    int ImageIndex = -1)
 {
     public int DisplayEnd => DisplayStart + DisplayLength;
 }
@@ -298,6 +354,7 @@ internal enum MarkdownDisplaySegmentKind
 {
     Text,
     LineBreak,
+    Image,
     CodePaddingLeft,
     CodePaddingRight
 }

@@ -366,6 +366,12 @@ internal static class TelegramHtmlClipboardWriter
             return;
         }
 
+        if (MarkdownClipboardTextHelpers.IsDataUri(image.Url))
+        {
+            builder.Append(HtmlClipboardEscaper.Encode(selectedLabel));
+            return;
+        }
+
         AppendLink(builder, selectedLabel, image.Url);
     }
 

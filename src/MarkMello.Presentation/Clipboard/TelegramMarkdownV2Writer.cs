@@ -469,7 +469,7 @@ internal static class TelegramMarkdownV2Writer
             ? altText
             : !string.IsNullOrWhiteSpace(title)
                 ? title
-                : url;
+                : MarkdownClipboardTextHelpers.IsDataUri(url) ? "image" : url;
         if (string.IsNullOrWhiteSpace(label))
         {
             return false;
@@ -481,7 +481,7 @@ internal static class TelegramMarkdownV2Writer
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(url) || MarkdownClipboardTextHelpers.IsDataUri(url))
         {
             builder.Append(MarkdownV2Escaper.EscapeText(selectedLabel));
         }

@@ -94,6 +94,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         nameof(EditorLinkTooltip),
         nameof(EditorListTooltip),
         nameof(EditorQuoteTooltip),
+        nameof(EditorProtectedImageDataMessage),
         nameof(EditorSourceLabel),
     ];
 
@@ -103,6 +104,7 @@ public sealed class EditorSessionViewModel : ObservableObject
     public string EditorLinkTooltip => _localization["EditorLinkTooltip"];
     public string EditorListTooltip => _localization["EditorListTooltip"];
     public string EditorQuoteTooltip => _localization["EditorQuoteTooltip"];
+    public string EditorProtectedImageDataMessage => _localization["EditorProtectedImageDataMessage"];
     public string EditorSourceLabel => _localization["EditorSourceLabel"];
 
     public void RefreshLocalizedProperties()

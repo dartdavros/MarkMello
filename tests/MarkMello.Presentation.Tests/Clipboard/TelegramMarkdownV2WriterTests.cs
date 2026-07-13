@@ -23,6 +23,24 @@ public sealed class TelegramMarkdownV2WriterTests
     }
 
     [Fact]
+    public void FormatDataUriImageUsesTextPlaceholderInsteadOfEmbeddingBase64Url()
+    {
+        var document = new RenderedMarkdownDocument(
+        [
+            new MarkdownParagraphBlock(
+            [
+                new MarkdownTextInline("Cost "),
+                new MarkdownImageInline("data:image/png;base64,AQIDBA==", null, null)
+            ])
+        ]);
+
+        var result = TelegramMarkdownFormatter.Format(document);
+
+        Assert.Equal("Cost image", result);
+        Assert.DoesNotContain("AQID", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FormatEscapesMarkdownV2TextCharacters()
     {
         var document = new RenderedMarkdownDocument(

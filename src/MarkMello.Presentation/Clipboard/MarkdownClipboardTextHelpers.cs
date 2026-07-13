@@ -105,8 +105,13 @@ internal static class MarkdownClipboardTextHelpers
             return image.Title;
         }
 
-        return string.IsNullOrWhiteSpace(image.Url) ? "image" : image.Url;
+        return string.IsNullOrWhiteSpace(image.Url) || image.Url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+            ? "image"
+            : image.Url;
     }
+
+    public static bool IsDataUri(string? url)
+        => !string.IsNullOrWhiteSpace(url) && url.StartsWith("data:", StringComparison.OrdinalIgnoreCase);
 
     public static void TrimTrailingLineBreaks(StringBuilder builder, int maxAllowed)
     {
