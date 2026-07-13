@@ -146,6 +146,8 @@ internal static class MarkdownHeadingAnchorSlugger
             return image.Title;
         }
 
-        return string.IsNullOrWhiteSpace(image.Url) ? "image" : image.Url;
+        return string.IsNullOrWhiteSpace(image.Url) || image.Url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+            ? "image"
+            : image.Url;
     }
 }

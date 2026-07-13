@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using MarkMello.Domain;
 using MarkMello.Presentation.Editing;
 using MarkMello.Presentation.ViewModels;
 
@@ -382,6 +383,11 @@ public partial class EditWorkspaceView : UserControl
 
         var selectionStart = Math.Min(editor.SelectionStart, editor.SelectionEnd);
         var selectionEnd = Math.Max(editor.SelectionStart, editor.SelectionEnd);
+        if (TryBlockUnsafeProtectedRangeEdit(editor, session, new DocumentTextRange(selectionStart, selectionEnd)))
+        {
+            return;
+        }
+
         var result = MarkdownEditorFormatter.Apply(session.SourceText, kind, selectionStart, selectionEnd);
 
         editor.Text = result.Text;
@@ -389,6 +395,107 @@ public partial class EditWorkspaceView : UserControl
         editor.SelectionEnd = result.SelectionEnd;
         editor.CaretIndex = result.SelectionEnd;
         editor.Focus();
+    }
+
+    private void OnEditorKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox editor || DataContext is not EditorSessionViewModel session)
+        {
+            return;
+        }
+
+        if (!TryGetMutationRangeForKey(editor, e, out var editRange))
+        {
+            return;
+        }
+
+        if (TryBlockUnsafeProtectedRangeEdit(editor, session, editRange))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void OnEditorTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.Text)
+            || sender is not TextBox editor
+            || DataContext is not EditorSessionViewModel session)
+        {
+            return;
+        }
+
+        var editRange = GetSelectionRange(editor);
+        if (TryBlockUnsafeProtectedRangeEdit(editor, session, editRange))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private static bool TryGetMutationRangeForKey(TextBox editor, KeyEventArgs e, out DocumentTextRange editRange)
+    {
+        editRange = DocumentTextRange.Empty;
+        var selectionRange = GetSelectionRange(editor);
+
+        if (HasCommandModifier(e.KeyModifiers))
+        {
+            if (e.Key is Key.V or Key.X)
+            {
+                editRange = selectionRange;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (!selectionRange.IsEmpty)
+        {
+            if (e.Key is Key.Back or Key.Delete or Key.Enter or Key.Space)
+            {
+                editRange = selectionRange;
+                return true;
+            }
+
+            return false;
+        }
+
+        var textLength = editor.Text?.Length ?? 0;
+        var caret = Math.Clamp(editor.CaretIndex, 0, textLength);
+        switch (e.Key)
+        {
+            case Key.Back when caret > 0:
+                editRange = new DocumentTextRange(caret - 1, caret);
+                return true;
+            case Key.Delete when caret < textLength:
+                editRange = new DocumentTextRange(caret, caret + 1);
+                return true;
+            case Key.Enter:
+            case Key.Space:
+                editRange = new DocumentTextRange(caret, caret);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static DocumentTextRange GetSelectionRange(TextBox editor)
+        => DocumentTextRange.FromBounds(editor.SelectionStart, editor.SelectionEnd);
+
+    private static bool HasCommandModifier(KeyModifiers modifiers)
+        => (modifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+
+    private static bool TryBlockUnsafeProtectedRangeEdit(
+        TextBox editor,
+        EditorSessionViewModel session,
+        DocumentTextRange editRange)
+    {
+        if (!MarkdownEditorProtectedRangeScanner.IsUnsafeEdit(editor.Text, editRange))
+        {
+            return false;
+        }
+
+        session.SetStatusMessage(session.EditorProtectedImageDataMessage);
+        editor.Focus();
+        return true;
     }
 
     private void OnSplitterDragCompleted(object? sender, VectorEventArgs e)

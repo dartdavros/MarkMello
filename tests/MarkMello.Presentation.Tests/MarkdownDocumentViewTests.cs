@@ -1,3 +1,4 @@
+using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
 using MarkMello.Presentation.Views;
 using MarkMello.Presentation.Views.Markdown;
@@ -195,12 +196,50 @@ public sealed class MarkdownDocumentViewTests
         Assert.False(fragment.SelectionRange.IsEmpty);
     }
 
+    [Fact]
+    public void ImageSourceResolverChangeRebuildsMixedParagraphImageFragment()
+    {
+        var document = new RenderedMarkdownDocument(
+        [
+            new MarkdownParagraphBlock(
+            [
+                new MarkdownTextInline("Before "),
+                new MarkdownImageInline("data:image/png;base64,AQIDBA==", null, null),
+                new MarkdownTextInline(" after")
+            ])
+        ]);
+        var resolver = new TestImageSourceResolver();
+        var view = CreateView(document);
+
+        var initialFragment = GetOnlyDocumentChild<MarkdownSelectionTextFragment>(view);
+        Assert.Null(initialFragment.ImageSourceResolver);
+
+        view.ImageSourceResolver = resolver;
+
+        var rebuiltFragment = GetOnlyDocumentChild<MarkdownSelectionTextFragment>(view);
+        Assert.Same(resolver, rebuiltFragment.ImageSourceResolver);
+    }
+
     private static MarkdownDocumentView CreateView(RenderedMarkdownDocument document)
         => new()
         {
             Document = document,
             ReadingPreferences = ReadingPreferences.Default
         };
+
+    private static T GetOnlyDocumentChild<T>(MarkdownDocumentView view)
+        where T : Control
+    {
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
+        return Assert.IsType<T>(Assert.Single(root.Children));
+    }
+
+    private sealed class TestImageSourceResolver : IImageSourceResolver
+    {
+        public Task<Stream?> TryOpenAsync(string url, string? baseDirectory, CancellationToken cancellationToken)
+            => Task.FromResult<Stream?>(new MemoryStream([1, 2, 3, 4]));
+    }
 
     private static RenderedMarkdownDocument CreateCompositeDocument()
         => new(

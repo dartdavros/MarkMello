@@ -87,6 +87,7 @@ public sealed class MarkdownDocumentView : UserControl
     static MarkdownDocumentView()
     {
         DocumentProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.Rebuild());
+        ImageSourceResolverProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.Rebuild());
         DocumentPaddingProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.ApplyDocumentPadding());
         ReadingPreferencesProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.RefreshForReadingPreferencesChange());
     }
@@ -1223,6 +1224,8 @@ public sealed class MarkdownDocumentView : UserControl
             BaseForeground = baseForeground,
             BaseLetterSpacing = letterSpacing,
             LayoutTextWrapping = textWrapping,
+            ImageSourceResolver = ImageSourceResolver,
+            BaseDirectory = Document?.BaseDirectory,
             Cursor = TryCreateCursor(StandardCursorType.Ibeam)
         };
 

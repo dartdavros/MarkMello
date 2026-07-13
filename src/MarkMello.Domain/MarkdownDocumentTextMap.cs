@@ -168,7 +168,9 @@ public sealed class MarkdownDocumentTextMap
             return image.Title;
         }
 
-        return string.IsNullOrWhiteSpace(image.Url) ? "image" : image.Url;
+        return string.IsNullOrWhiteSpace(image.Url) || image.Url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+            ? "image"
+            : image.Url;
     }
 
     private sealed class Builder
