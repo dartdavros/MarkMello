@@ -174,7 +174,7 @@ internal sealed class MarkdownFormattedTextLayout : IDisposable
         var line = _lines[lineIndex];
         var localX = Math.Clamp(point.X, 0, Math.Max(line.TextLine.WidthIncludingTrailingWhitespace, 0));
         var hit = line.TextLine.GetCharacterHitFromDistance(localX);
-        var displayCaret = line.TextLine.FirstTextSourceIndex + hit.FirstCharacterIndex + hit.TrailingLength;
+        var displayCaret = hit.FirstCharacterIndex + hit.TrailingLength;
         return _displayModel.GetCanonicalCaretForDisplayCaret(displayCaret);
     }
 
