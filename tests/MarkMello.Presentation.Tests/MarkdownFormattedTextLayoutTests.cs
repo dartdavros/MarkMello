@@ -1,51 +1,47 @@
 using Avalonia;
-using Avalonia.Headless;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using MarkMello.Presentation.Views.Markdown;
-using AvaloniaApplication = Avalonia.Application;
 
 namespace MarkMello.Presentation.Tests;
 
+[Collection(AvaloniaHeadlessTestGroup.Name)]
 public sealed class MarkdownFormattedTextLayoutTests
 {
-    [Fact]
-    public void LayoutCreatesOneVisualLinePerExplicitLineBreak()
+    private readonly AvaloniaHeadlessFixture _fixture;
+
+    public MarkdownFormattedTextLayoutTests(AvaloniaHeadlessFixture fixture)
     {
-        EnsureAvaloniaStarted();
-
-        using var layout = CreateLayout("first\nsecond\nthird");
-
-        Assert.Equal(3, layout.GetLineMetrics().Count);
+        _fixture = fixture;
     }
 
     [Fact]
-    public void CaretHitTestMapsVisualLinesToCanonicalLineStarts()
+    public Task LayoutCreatesOneVisualLinePerExplicitLineBreak()
     {
-        EnsureAvaloniaStarted();
+        return _fixture.Session.Dispatch(() =>
+        {
+            using var layout = CreateLayout("first\nsecond\nthird");
 
-        const string text = "first\nsecond\nthird";
-        using var layout = CreateLayout(text);
-        var lines = layout.GetLineMetrics();
+            Assert.Equal(3, layout.GetLineMetrics().Count);
+        }, CancellationToken.None);
+    }
 
-        Assert.Equal(text.IndexOf("second", StringComparison.Ordinal), layout.GetCanonicalCaretOffset(GetLineStartPoint(lines[1])));
-        Assert.Equal(text.IndexOf("third", StringComparison.Ordinal), layout.GetCanonicalCaretOffset(GetLineStartPoint(lines[2])));
+    [Fact]
+    public Task CaretHitTestMapsVisualLinesToCanonicalLineStarts()
+    {
+        return _fixture.Session.Dispatch(() =>
+        {
+            const string text = "first\nsecond\nthird";
+            using var layout = CreateLayout(text);
+            var lines = layout.GetLineMetrics();
+
+            Assert.Equal(text.IndexOf("second", StringComparison.Ordinal), layout.GetCanonicalCaretOffset(GetLineStartPoint(lines[1])));
+            Assert.Equal(text.IndexOf("third", StringComparison.Ordinal), layout.GetCanonicalCaretOffset(GetLineStartPoint(lines[2])));
+        }, CancellationToken.None);
     }
 
     private static Point GetLineStartPoint(MarkdownFormattedTextLineMetrics metrics)
         => new(0, metrics.Bounds.Y + metrics.Bounds.Height / 2);
-
-    private static void EnsureAvaloniaStarted()
-    {
-        if (AvaloniaApplication.Current is not null)
-        {
-            return;
-        }
-
-        AppBuilder.Configure<AvaloniaApplication>()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions())
-            .SetupWithoutStarting();
-    }
 
     private static MarkdownFormattedTextLayout CreateLayout(string text)
         => new(
