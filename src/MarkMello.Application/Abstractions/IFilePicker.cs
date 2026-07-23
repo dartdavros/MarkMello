@@ -14,4 +14,6 @@ public interface IFilePicker
     /// Возвращает null, если пользователь отменил сохранение.
     /// </summary>
     Task<string?> PickSaveMarkdownFileAsync(string suggestedFileName, CancellationToken cancellationToken = default);
+
+    Task<string?> PickSavePdfFileAsync(string suggestedFileName, CancellationToken cancellationToken = default);
 }

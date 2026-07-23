@@ -421,6 +421,73 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task ExportPdfCommandUsesPickerPathAndCurrentDocumentContent()
+    {
+        var harness = CreateHarness();
+        var sourcePath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        var pdfPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.pdf");
+        harness.Loader.Sources[sourcePath] = CreateSource(sourcePath, "# First");
+        harness.FilePicker.PdfPath = pdfPath;
+
+        await harness.ViewModel.OpenPathAsync(sourcePath);
+
+        await harness.ViewModel.ExportPdfCommand.ExecuteAsync(null);
+
+        Assert.Equal(["one.pdf"], harness.FilePicker.SuggestedPdfFileNames);
+        var export = Assert.Single(harness.PdfExporter.Exports);
+        Assert.Equal(pdfPath, export.Path);
+        Assert.Equal("one", export.Title);
+        Assert.True(harness.ViewModel.IsExportSuccessDialogOpen);
+        Assert.Equal("Export complete", harness.ViewModel.ExportSuccessDialogTitle);
+        Assert.Equal("File one.pdf was exported to PDF successfully.", harness.ViewModel.ExportSuccessDialogMessage);
+        var paragraph = Assert.IsType<MarkdownParagraphBlock>(Assert.Single(export.Document.Blocks));
+        var text = Assert.IsType<MarkdownTextInline>(Assert.Single(paragraph.Inlines));
+        Assert.Equal("# First", text.Text);
+    }
+
+    [Fact]
+    public async Task ExportPdfCommandUsesDirtyEditorBufferWithoutChangingDocumentIdentity()
+    {
+        var harness = CreateHarness();
+        var sourcePath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        var pdfPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.pdf");
+        harness.Loader.Sources[sourcePath] = CreateSource(sourcePath, "first");
+        harness.FilePicker.PdfPath = pdfPath;
+
+        await harness.ViewModel.OpenPathAsync(sourcePath);
+        await harness.ViewModel.ToggleEditModeCommand.ExecuteAsync(null);
+        harness.ViewModel.EditorSession!.SourceText = "first updated";
+
+        await harness.ViewModel.ExportPdfCommand.ExecuteAsync(null);
+
+        Assert.True(harness.ViewModel.IsDirty);
+        Assert.Equal("first", harness.ViewModel.Document!.Content);
+        var export = Assert.Single(harness.PdfExporter.Exports);
+        var paragraph = Assert.IsType<MarkdownParagraphBlock>(Assert.Single(export.Document.Blocks));
+        var text = Assert.IsType<MarkdownTextInline>(Assert.Single(paragraph.Inlines));
+        Assert.Equal("first updated", text.Text);
+    }
+
+    [Fact]
+    public async Task CloseExportSuccessDialogCommandHidesExportSuccessDialog()
+    {
+        var harness = CreateHarness();
+        var sourcePath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        var pdfPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.pdf");
+        harness.Loader.Sources[sourcePath] = CreateSource(sourcePath, "first");
+        harness.FilePicker.PdfPath = pdfPath;
+
+        await harness.ViewModel.OpenPathAsync(sourcePath);
+        await harness.ViewModel.ExportPdfCommand.ExecuteAsync(null);
+
+        harness.ViewModel.CloseExportSuccessDialogCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsExportSuccessDialogOpen);
+        Assert.Equal(string.Empty, harness.ViewModel.ExportSuccessDialogTitle);
+        Assert.Equal(string.Empty, harness.ViewModel.ExportSuccessDialogMessage);
+    }
+
+    [Fact]
     public async Task CheckForUpdatesCommandWhenUpdateAvailableShowsDownloadAction()
     {
         var harness = CreateHarness();
@@ -581,6 +648,7 @@ public sealed class MainWindowViewModelTests
     {
         var loader = new StubDocumentLoader();
         var saver = new RecordingDocumentSaver();
+        var pdfExporter = new RecordingPdfExporter();
         var picker = new StubFilePicker();
         var settings = new InMemorySettingsStore();
         var localization = new LocalizationService(AppLanguage.English);
@@ -591,6 +659,7 @@ public sealed class MainWindowViewModelTests
         var viewModel = new MainWindowViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(saver),
+            new ExportPdfUseCase(pdfExporter),
             picker,
             commandLine,
             localization,
@@ -600,12 +669,13 @@ public sealed class MainWindowViewModelTests
             new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
             updateService);
 
-        return new TestHarness(loader, saver, picker, settings, startupMetrics, updateService, commandLine, viewModel);
+        return new TestHarness(loader, saver, pdfExporter, picker, settings, startupMetrics, updateService, commandLine, viewModel);
     }
 
     private sealed record TestHarness(
         StubDocumentLoader Loader,
         RecordingDocumentSaver DocumentSaver,
+        RecordingPdfExporter PdfExporter,
         StubFilePicker FilePicker,
         InMemorySettingsStore Settings,
         RecordingStartupMetrics StartupMetrics,

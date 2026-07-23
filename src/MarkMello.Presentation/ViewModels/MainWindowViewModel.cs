@@ -19,6 +19,7 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private readonly OpenDocumentUseCase _openDocument;
     private readonly SaveDocumentUseCase _saveDocument;
+    private readonly ExportPdfUseCase _exportPdf;
     private readonly IFilePicker _filePicker;
     private readonly ICommandLineActivation _commandLine;
     private readonly ILocalizationService _localization;
@@ -46,6 +47,7 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel(
         OpenDocumentUseCase openDocument,
         SaveDocumentUseCase saveDocument,
+        ExportPdfUseCase exportPdf,
         IFilePicker filePicker,
         ICommandLineActivation commandLine,
         ILocalizationService localization,
@@ -58,6 +60,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         _openDocument = openDocument;
         _saveDocument = saveDocument;
+        _exportPdf = exportPdf;
         _filePicker = filePicker;
         _commandLine = commandLine;
         _localization = localization;
@@ -169,10 +172,19 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _isDirtyPromptOpen;
 
     [ObservableProperty]
+    private bool _isExportSuccessDialogOpen;
+
+    [ObservableProperty]
     private string _dirtyPromptTitle = string.Empty;
 
     [ObservableProperty]
     private string _dirtyPromptMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _exportSuccessDialogTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _exportSuccessDialogMessage = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDirtyPromptError))]
@@ -654,6 +666,41 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool CanSaveAs() => IsEditMode && EditorSession is not null;
 
+    [RelayCommand(CanExecute = nameof(CanExportPdf))]
+    private async Task ExportPdfAsync()
+    {
+        CloseOverlayCore();
+
+        var sourceText = EditorSession?.SourceText ?? Document?.Content;
+        if (sourceText is null)
+        {
+            return;
+        }
+
+        var suggestedFileName = NormalizeSuggestedPdfFileName(FileName);
+        var targetPath = await _filePicker.PickSavePdfFileAsync(suggestedFileName).ConfigureAwait(true);
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return;
+        }
+
+        var renderedDocument = _renderMarkdown.Execute(sourceText, baseDirectory: TryGetDirectory(CurrentDocumentPath));
+        var result = await _exportPdf
+            .ExecuteAsync(targetPath, Path.GetFileNameWithoutExtension(suggestedFileName), renderedDocument)
+            .ConfigureAwait(true);
+
+        if (result is ExportPdfResult.Success success)
+        {
+            ShowExportSuccessDialog(success.Path);
+        }
+        else
+        {
+            EditorSession?.SetStatusMessage(GetExportPdfFailureMessage(result));
+        }
+    }
+
+    private bool CanExportPdf() => State == ViewState.Viewing && (Document is not null || EditorSession is not null);
+
     [RelayCommand]
     private async Task ConfirmDirtySaveAsync()
     {
@@ -917,6 +964,12 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void ClearError()
     {
+        if (IsExportSuccessDialogOpen)
+        {
+            CloseExportSuccessDialog();
+            return;
+        }
+
         if (IsDirtyPromptOpen)
         {
             CancelDirtyPrompt();
@@ -1074,6 +1127,15 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         await LoadDocumentAsync(path, preserveEditModeAfterLoad: false).ConfigureAwait(true);
+    }
+
+    [RelayCommand]
+    private void CloseExportSuccessDialog()
+    {
+        _exportSuccessPath = null;
+        IsExportSuccessDialogOpen = false;
+        ExportSuccessDialogTitle = string.Empty;
+        ExportSuccessDialogMessage = string.Empty;
     }
 
     private Task CreateNewDocumentCoreAsync()
@@ -1480,6 +1542,7 @@ public partial class MainWindowViewModel : ObservableObject
         ToggleEditModeCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
         SaveAsCommand.NotifyCanExecuteChanged();
+        ExportPdfCommand.NotifyCanExecuteChanged();
         CheckForUpdatesCommand.NotifyCanExecuteChanged();
         DownloadUpdateCommand.NotifyCanExecuteChanged();
         OpenDownloadedUpdateCommand.NotifyCanExecuteChanged();

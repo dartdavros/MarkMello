@@ -13,6 +13,7 @@ public static class DependencyInjection
 
         services.AddSingleton<OpenDocumentUseCase>();
         services.AddSingleton<SaveDocumentUseCase>();
+        services.AddSingleton<ExportPdfUseCase>();
         services.AddSingleton<RenderMarkdownDocumentUseCase>();
         services.AddSingleton<IDiagramRenderService, DiagramRenderService>();
 

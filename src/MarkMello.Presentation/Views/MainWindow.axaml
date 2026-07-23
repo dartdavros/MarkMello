@@ -533,6 +533,29 @@
           </StackPanel>
         </Border>
       </Grid>
+
+      <Grid IsVisible="{Binding IsExportSuccessDialogOpen}"
+            Background="#66000000">
+        <Border Classes="mm-dialog-card"
+                Width="420"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+          <StackPanel>
+            <TextBlock Classes="mm-dialog-title"
+                       Text="{Binding ExportSuccessDialogTitle}" />
+            <TextBlock Classes="mm-dialog-body"
+                       Text="{Binding ExportSuccessDialogMessage}" />
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8"
+                        Margin="0,18,0,0">
+              <Button Classes="mm-dialog-primary"
+                      Content="{Binding ExportPdfSuccessOk}"
+                      Command="{Binding CloseExportSuccessDialogCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
     </Panel>
 
   </Grid>

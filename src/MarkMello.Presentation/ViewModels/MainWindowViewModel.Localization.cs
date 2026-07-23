@@ -58,6 +58,8 @@ public partial class MainWindowViewModel
         nameof(AboutVersionLabel),
         nameof(AppMenuCloseFileHint),
         nameof(AppMenuCloseFileLabel),
+        nameof(AppMenuExportPdfHint),
+        nameof(AppMenuExportPdfLabel),
         nameof(AppMenuHeader),
         nameof(AppMenuOpenFileHint),
         nameof(AppMenuOpenFileLabel),
@@ -70,6 +72,7 @@ public partial class MainWindowViewModel
         nameof(DirtyPromptSave),
         nameof(DragDropHint),
         nameof(EditToggleTooltip),
+        nameof(ExportPdfSuccessOk),
         nameof(LanguageHint),
         nameof(LanguageLabel),
         nameof(LoadErrorOpenAnotherFile),
@@ -130,6 +133,8 @@ public partial class MainWindowViewModel
     public string AboutVersionLabel => _localization["AboutVersionLabel"];
     public string AppMenuCloseFileHint => _localization["AppMenuCloseFileHint"];
     public string AppMenuCloseFileLabel => _localization["AppMenuCloseFileLabel"];
+    public string AppMenuExportPdfHint => _localization["AppMenuExportPdfHint"];
+    public string AppMenuExportPdfLabel => _localization["AppMenuExportPdfLabel"];
     public string AppMenuHeader => _localization["AppMenuHeader"];
     public string AppMenuOpenFileHint => _localization["AppMenuOpenFileHint"];
     public string AppMenuOpenFileLabel => _localization["AppMenuOpenFileLabel"];
@@ -142,6 +147,7 @@ public partial class MainWindowViewModel
     public string DirtyPromptSave => _localization["DirtyPromptSave"];
     public string DragDropHint => _localization["DragDropHint"];
     public string EditToggleTooltip => _localization["EditToggleTooltip"];
+    public string ExportPdfSuccessOk => _localization["ExportPdfSuccessOk"];
     public string LanguageHint => _localization["LanguageHint"];
     public string LanguageLabel => _localization["LanguageLabel"];
     public string LoadErrorOpenAnotherFile => _localization["LoadErrorOpenAnotherFile"];
@@ -281,6 +287,7 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(LineHeightLabel));
 
         RefreshDirtyPromptTexts();
+        RefreshExportSuccessTexts();
         RefreshLoadErrorTexts();
         RefreshUpdateStatusTexts();
     }
@@ -343,6 +350,26 @@ public partial class MainWindowViewModel
         DirtyPromptTitle = string.Empty;
         DirtyPromptMessage = string.Empty;
         DirtyPromptErrorMessage = string.Empty;
+    }
+
+    private void ShowExportSuccessDialog(string path)
+    {
+        _exportSuccessPath = path;
+        RefreshExportSuccessTexts();
+        IsExportSuccessDialogOpen = true;
+    }
+
+    private string? _exportSuccessPath;
+
+    private void RefreshExportSuccessTexts()
+    {
+        ExportSuccessDialogTitle = string.IsNullOrWhiteSpace(_exportSuccessPath)
+            ? string.Empty
+            : _localization["ExportPdfSuccessTitle"];
+
+        ExportSuccessDialogMessage = string.IsNullOrWhiteSpace(_exportSuccessPath)
+            ? string.Empty
+            : _localization.Format("ExportPdfSuccessMessage", Path.GetFileName(_exportSuccessPath));
     }
 
     private void SetLoadError(OpenDocumentResult result)
@@ -463,6 +490,16 @@ public partial class MainWindowViewModel
             _ => _localization["SaveGenericFailure"]
         };
 
+    private string GetExportPdfFailureMessage(ExportPdfResult? result)
+        => result switch
+        {
+            ExportPdfResult.InvalidPath invalidPath => _localization.Format("ExportPdfInvalidPath", invalidPath.Path),
+            ExportPdfResult.AccessDenied accessDenied => _localization.Format("ExportPdfAccessDenied", accessDenied.Path),
+            ExportPdfResult.WriteError writeError => _localization.Format("ExportPdfWriteFailure", writeError.Message),
+            null => string.Empty,
+            _ => _localization["ExportPdfGenericFailure"]
+        };
+
     private string GetUpdateReadyMessage(AppUpdatePackage package, string downloadedFilePath)
     {
         var downloadedFileName = Path.GetFileName(downloadedFilePath);
@@ -495,6 +532,17 @@ public partial class MainWindowViewModel
         return SupportedDocumentTypes.IsSupportedPath(fileName)
             ? fileName
             : $"{fileName}.md";
+    }
+
+    private string NormalizeSuggestedPdfFileName(string? fileName)
+    {
+        var normalized = string.IsNullOrWhiteSpace(fileName)
+            ? GetUntitledFileName()
+            : fileName.Trim();
+
+        return string.Equals(Path.GetExtension(normalized), ".pdf", StringComparison.OrdinalIgnoreCase)
+            ? normalized
+            : $"{Path.GetFileNameWithoutExtension(normalized)}.pdf";
     }
 
     private static AppLanguage NormalizeLanguage(AppLanguage language)
