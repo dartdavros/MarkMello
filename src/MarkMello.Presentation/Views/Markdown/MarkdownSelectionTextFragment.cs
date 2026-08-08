@@ -221,10 +221,14 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
 
         // Paint order (bottom -> top):
         //   1. Inline code "pill" backgrounds (rounded rect per span).
-        //   2. Selection highlight (on top of code backgrounds, behind glyphs).
-        //   3. Text glyphs themselves.
+        //   2. Search highlights (non-active matches, behind selection).
+        //   3. Selection highlight (on top of code backgrounds, behind glyphs).
+        //   4. Active search match (above selection so it stays visible).
+        //   5. Text glyphs themselves.
         DrawInlineCodeBackgrounds(context, layout);
+        DrawSearchHighlights(context, layout, activeOnly: false);
         DrawSelection(context, layout);
+        DrawSearchHighlights(context, layout, activeOnly: true);
         layout.Draw(context);
     }
 
@@ -329,6 +333,95 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
         {
             context.FillRectangle(selectionBrush, rect);
         }
+    }
+
+    private void DrawSearchHighlights(
+        DrawingContext context,
+        MarkdownFormattedTextLayout layout,
+        bool activeOnly)
+    {
+        var brush = ResolveOptionalBrush(activeOnly ? "MmFindActiveBrush" : "MmFindHighlightBrush");
+        if (brush is null)
+        {
+            return;
+        }
+
+        if (activeOnly)
+        {
+            if (ActiveSearchHighlight is not { } active)
+            {
+                return;
+            }
+
+            var activeRange = DocumentRange.Intersection(active);
+            if (activeRange.IsEmpty)
+            {
+                return;
+            }
+
+            var stroke = ResolveOptionalBrush("MmAccentBrush");
+            var pen = stroke is null ? null : new Pen(stroke, 1);
+            DrawSearchRange(context, layout, brush, activeRange, pen);
+            return;
+        }
+
+        if (SearchHighlightRanges.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var range in SearchHighlightRanges)
+        {
+            DrawSearchRange(context, layout, brush, range, pen: null);
+        }
+    }
+
+    private void DrawSearchRange(
+        DrawingContext context,
+        MarkdownFormattedTextLayout layout,
+        IBrush brush,
+        DocumentTextRange range,
+        Pen? pen)
+    {
+        var localStart = Math.Clamp(range.Start - DocumentRange.Start, 0, StyledText.Text.Length);
+        var localEnd = Math.Clamp(range.End - DocumentRange.Start, 0, StyledText.Text.Length);
+        if (localEnd <= localStart)
+        {
+            return;
+        }
+
+        foreach (var rect in layout.GetSelectionRects(new DocumentTextRange(localStart, localEnd)))
+        {
+            context.FillRectangle(brush, rect);
+            if (pen is not null)
+            {
+                context.DrawRectangle(pen, rect);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the top Y (in this fragment's coordinates) of the text line
+    /// containing <paramref name="localOffset"/>, for scroll positioning.
+    /// </summary>
+    internal bool TryGetLineTopForLocalOffset(int localOffset, out double y)
+    {
+        y = 0;
+        if (StyledText.Text.Length == 0 || DocumentRange.IsEmpty)
+        {
+            return false;
+        }
+
+        var layout = GetOrCreateTextLayout(Math.Max(Bounds.Width, 1));
+        var offset = Math.Clamp(localOffset, 0, Math.Max(0, StyledText.Text.Length - 1));
+        var rects = layout.GetSelectionRects(new DocumentTextRange(offset, offset + 1));
+        if (rects.Count == 0)
+        {
+            return false;
+        }
+
+        y = rects[0].Y;
+        return true;
     }
 
     private MarkdownFormattedTextLayout GetOrCreateTextLayout(double availableWidth)

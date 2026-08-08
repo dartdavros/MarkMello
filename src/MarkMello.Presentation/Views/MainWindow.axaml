@@ -40,6 +40,8 @@
     <KeyBinding Gesture="F5" Command="{Binding ReloadCommand}" />
     <KeyBinding Gesture="Ctrl+R" Command="{Binding ReloadCommand}" />
     <KeyBinding Gesture="Cmd+R" Command="{Binding ReloadCommand}" />
+    <KeyBinding Gesture="Ctrl+F" Command="{Binding ToggleFindBarCommand}" />
+    <KeyBinding Gesture="Cmd+F" Command="{Binding ToggleFindBarCommand}" />
     <KeyBinding Gesture="Escape" Command="{Binding ClearErrorCommand}" />
   </Window.KeyBindings>
 
@@ -398,6 +400,15 @@
             <views:ReadingSettingsPanelView />
           </DataTemplate>
         </ContentControl.ContentTemplate>
+      </ContentControl>
+
+      <ContentControl Name="FindBarHost"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Top"
+                      Margin="0,14,0,0"
+                      IsVisible="{Binding IsFindBarOpen}"
+                      ZIndex="3">
+        <views:FindBarView />
       </ContentControl>
 
       <Border Classes="mm-status"

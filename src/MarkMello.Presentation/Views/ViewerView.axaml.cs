@@ -10,7 +10,7 @@ using System.ComponentModel;
 
 namespace MarkMello.Presentation.Views;
 
-public partial class ViewerView : UserControl
+public partial class ViewerView : UserControl, IFindHost
 {
     private const double WheelStepMultiplier = 6.0;
     private const double KeyboardPageOverlap = 48.0;
@@ -29,6 +29,24 @@ public partial class ViewerView : UserControl
     {
         InitializeComponent();
     }
+
+    // ---------- IFindHost ----------
+
+    public string? ActiveQuery => _documentView?.ActiveSearchQuery;
+
+    public int MatchIndex => _documentView?.MatchIndex ?? -1;
+
+    public int MatchCount => _documentView?.MatchCount ?? 0;
+
+    public event EventHandler? FindStateChanged;
+
+    public void ApplyQuery(string? query) => _documentView?.ApplySearchQuery(query);
+
+    public void FindNext() => _documentView?.FindNext();
+
+    public void FindPrevious() => _documentView?.FindPrevious();
+
+    public void ClearFind() => _documentView?.ApplySearchQuery(null);
 
     protected override void OnDataContextChanged(EventArgs e)
     {
@@ -60,6 +78,7 @@ public partial class ViewerView : UserControl
             _documentView.DocumentRendered += OnDocumentRendered;
             _documentView.DocumentRenderInvalidated += OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested += OnMarkdownFileLinkRequested;
+            _documentView.SearchStateChanged += OnDocumentSearchStateChanged;
         }
 
         SizeChanged += OnViewerSizeChanged;
@@ -96,6 +115,7 @@ public partial class ViewerView : UserControl
             _documentView.DocumentRendered -= OnDocumentRendered;
             _documentView.DocumentRenderInvalidated -= OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested -= OnMarkdownFileLinkRequested;
+            _documentView.SearchStateChanged -= OnDocumentSearchStateChanged;
             _documentView = null;
         }
 
@@ -207,7 +227,16 @@ public partial class ViewerView : UserControl
         _hasRenderedDocument = true;
         FocusDocumentViewAsync();
         QueueMinimapBuild();
+
+        // Keep the active search match in view after a document re-render.
+        if (_documentView?.MatchIndex >= 0)
+        {
+            _documentView.ScrollToActiveMatch();
+        }
     }
+
+    private void OnDocumentSearchStateChanged(object? sender, EventArgs e)
+        => FindStateChanged?.Invoke(this, EventArgs.Empty);
 
     private void FocusDocumentViewAsync()
     {

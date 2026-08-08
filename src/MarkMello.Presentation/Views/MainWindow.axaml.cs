@@ -34,6 +34,8 @@ public partial class MainWindow : Window
     private bool _isConvertingWindowsNativeMaximize;
     private bool _pendingWindowsStartupMaximize;
     private bool _allowConfirmedClose;
+    private FindBarView? _findBar;
+    private IFindHost? _findHost;
 
     public MainWindow()
     {
@@ -61,6 +63,7 @@ public partial class MainWindow : Window
         ApplyStartupWindowPlacement();
         SyncOverlayWindowClasses();
         UpdateTitleBarMaximizeVisuals();
+        AttachFindBar();
 
         AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -174,6 +177,97 @@ public partial class MainWindow : Window
         return false;
     }
 
+    // ---------- Find bar (Ctrl+F) ----------
+
+    private void AttachFindBar()
+    {
+        _findBar = this.FindControl<ContentControl>("FindBarHost")?.Content as FindBarView;
+        if (_findBar is null)
+        {
+            return;
+        }
+
+        _findBar.FindNextRequested += OnFindBarFindNextRequested;
+        _findBar.FindPreviousRequested += OnFindBarFindPreviousRequested;
+        _findBar.CloseRequested += OnFindBarCloseRequested;
+    }
+
+    private void DetachFindBar()
+    {
+        if (_findBar is not null)
+        {
+            _findBar.FindNextRequested -= OnFindBarFindNextRequested;
+            _findBar.FindPreviousRequested -= OnFindBarFindPreviousRequested;
+            _findBar.CloseRequested -= OnFindBarCloseRequested;
+            _findBar = null;
+        }
+    }
+
+    private IFindHost? ResolveFindHost()
+    {
+        if (_findHost is { } cachedHost
+            && cachedHost is Visual cachedVisual
+            && cachedVisual.IsAttachedToVisualTree())
+        {
+            return cachedHost;
+        }
+
+        DetachFindHost();
+
+        var bodyPanel = this.FindControl<Panel>("BodyPanel");
+        if (bodyPanel is null)
+        {
+            return null;
+        }
+
+        _findHost = bodyPanel
+            .GetVisualDescendants()
+            .OfType<IFindHost>()
+            .FirstOrDefault();
+        if (_findHost is not null)
+        {
+            _findHost.FindStateChanged += OnFindHostStateChanged;
+        }
+
+        return _findHost;
+    }
+
+    private void DetachFindHost()
+    {
+        if (_findHost is not null)
+        {
+            _findHost.FindStateChanged -= OnFindHostStateChanged;
+            _findHost = null;
+        }
+    }
+
+    private void InvalidateFindHost() => DetachFindHost();
+
+    private void SyncFindCountersFromHost()
+    {
+        var host = ResolveFindHost();
+        _viewModel.FindMatchIndex = host?.MatchIndex ?? -1;
+        _viewModel.FindMatchCount = host?.MatchCount ?? 0;
+    }
+
+    private void OnFindBarFindNextRequested(object? sender, EventArgs e)
+    {
+        ResolveFindHost()?.FindNext();
+        SyncFindCountersFromHost();
+    }
+
+    private void OnFindBarFindPreviousRequested(object? sender, EventArgs e)
+    {
+        ResolveFindHost()?.FindPrevious();
+        SyncFindCountersFromHost();
+    }
+
+    private void OnFindBarCloseRequested(object? sender, EventArgs e)
+        => _viewModel.IsFindBarOpen = false;
+
+    private void OnFindHostStateChanged(object? sender, EventArgs e)
+        => SyncFindCountersFromHost();
+
     private static void ShutdownClassicDesktopLifetime(int exitCode)
     {
         if (global::Avalonia.Application.Current?.ApplicationLifetime
@@ -188,6 +282,9 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        DetachFindBar();
+        DetachFindHost();
+
         if (_windowsWndProcHookCallback is not null)
         {
             Win32Properties.RemoveWndProcHookCallback(this, _windowsWndProcHookCallback);
@@ -399,7 +496,41 @@ public partial class MainWindow : Window
 
         if (e.PropertyName == nameof(MainWindowViewModel.IsEditMode))
         {
+            InvalidateFindHost();
             UpdateReadingProgressBarWidth();
+            return;
+        }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.State))
+        {
+            InvalidateFindHost();
+            return;
+        }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.IsFindBarOpen))
+        {
+            if (_viewModel.IsFindBarOpen)
+            {
+                ResolveFindHost()?.ApplyQuery(_viewModel.FindQuery);
+            }
+            else
+            {
+                ResolveFindHost()?.ClearFind();
+            }
+
+            SyncFindCountersFromHost();
+            return;
+        }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.FindQuery))
+        {
+            if (_viewModel.IsFindBarOpen)
+            {
+                ResolveFindHost()?.ApplyQuery(_viewModel.FindQuery);
+                SyncFindCountersFromHost();
+            }
+
+            return;
         }
 
         if (e.PropertyName is nameof(MainWindowViewModel.TitleBarMaximize)

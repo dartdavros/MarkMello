@@ -45,6 +45,10 @@
       <SolidColorBrush x:Key="MmQuoteBarBrush">#C4BCB6</SolidColorBrush>
       <!-- Selection: warm highlight aligned with accent-soft -->
       <SolidColorBrush x:Key="MmSelectionBrush">#F5D9C4</SolidColorBrush>
+      <!-- Find (search): non-active matches, soft amber -->
+      <SolidColorBrush x:Key="MmFindHighlightBrush">#F3E3A9</SolidColorBrush>
+      <!-- Find (search): active match, stronger amber -->
+      <SolidColorBrush x:Key="MmFindActiveBrush">#EDD47E</SolidColorBrush>
       <!-- oklch(0.975 0.006 80) -->
       <SolidColorBrush x:Key="MmTitleBarBrush">#F9F6F2</SolidColorBrush>
       <!-- oklch(0.40 0.01 60) -->
@@ -82,6 +86,10 @@
       <SolidColorBrush x:Key="MmQuoteBarBrush">#4D4641</SolidColorBrush>
       <!-- Selection: warm highlight, aligned with dark accent-soft -->
       <SolidColorBrush x:Key="MmSelectionBrush">#3D2B20</SolidColorBrush>
+      <!-- Find (search): non-active matches, soft amber -->
+      <SolidColorBrush x:Key="MmFindHighlightBrush">#3A3420</SolidColorBrush>
+      <!-- Find (search): active match, stronger amber -->
+      <SolidColorBrush x:Key="MmFindActiveBrush">#54461F</SolidColorBrush>
       <!-- oklch(0.16 0.008 60) -->
       <SolidColorBrush x:Key="MmTitleBarBrush">#100C0A</SolidColorBrush>
       <!-- oklch(0.65 0.010 70) -->

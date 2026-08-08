@@ -129,6 +129,22 @@ public partial class MainWindowViewModel : ObservableObject
     private double _readingProgress;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindResultLabel))]
+    private bool _isFindBarOpen;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindResultLabel))]
+    private string _findQuery = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindResultLabel))]
+    private int _findMatchIndex;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindResultLabel))]
+    private int _findMatchCount;
+
+    [ObservableProperty]
     private ThemeMode _theme = ThemeMode.System;
 
     [ObservableProperty]
@@ -243,6 +259,21 @@ public partial class MainWindowViewModel : ObservableObject
     public object? ReadingSettingsOverlayContent => IsSettingsOpen && IsViewer ? this : null;
 
     public bool ShowsReadingStatus => IsViewer && !IsEditMode;
+
+    public string FindResultLabel
+    {
+        get
+        {
+            if (FindMatchCount == 0)
+            {
+                return FindQuery.Length > 0
+                    ? _localization["FindNoResults"]
+                    : _localization.Format("FindResultCount", 0, 0);
+            }
+
+            return _localization.Format("FindResultCount", FindMatchIndex + 1, FindMatchCount);
+        }
+    }
 
     public bool ShowsMoonThemeIcon => EffectiveTheme == ThemeMode.Light;
 
@@ -709,9 +740,29 @@ public partial class MainWindowViewModel : ObservableObject
     {
         MarkSecondaryFeaturesReady();
 
+        IsFindBarOpen = false;
         ShellOverlay = IsSettingsOpen
             ? ShellOverlayKind.None
             : ShellOverlayKind.ReadingSettings;
+    }
+
+    [RelayCommand]
+    private void ToggleFindBar()
+    {
+        if (IsFindBarOpen)
+        {
+            IsFindBarOpen = false;
+            return;
+        }
+
+        CloseOverlayCore();
+        IsFindBarOpen = true;
+    }
+
+    [RelayCommand]
+    private void CloseFindBar()
+    {
+        IsFindBarOpen = false;
     }
 
     [RelayCommand]
@@ -734,6 +785,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         MarkSecondaryFeaturesReady();
 
+        IsFindBarOpen = false;
         ShellOverlay = IsAppOverlayOpen
             ? ShellOverlayKind.None
             : ShellOverlayKind.AppMenu;
@@ -750,6 +802,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         MarkSecondaryFeaturesReady();
 
+        IsFindBarOpen = false;
         ShellOverlay = ShellOverlayKind.AppSettings;
     }
 
@@ -764,6 +817,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         MarkSecondaryFeaturesReady();
 
+        IsFindBarOpen = false;
         ShellOverlay = ShellOverlayKind.AppAbout;
     }
 
@@ -917,6 +971,12 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void ClearError()
     {
+        if (IsFindBarOpen)
+        {
+            IsFindBarOpen = false;
+            return;
+        }
+
         if (IsDirtyPromptOpen)
         {
             CancelDirtyPrompt();
@@ -979,6 +1039,11 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnStateChanged(ViewState value)
     {
+        if (value != ViewState.Viewing)
+        {
+            IsFindBarOpen = false;
+        }
+
         OnPropertyChanged(nameof(HasDocumentTitle));
         OnPropertyChanged(nameof(ShowsReadingStatus));
         OnPropertyChanged(nameof(ShowsEditToggle));
@@ -989,6 +1054,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnIsEditModeChanged(bool value)
     {
+        IsFindBarOpen = false;
+
         if (value)
         {
             CloseAppOverlayCore();
