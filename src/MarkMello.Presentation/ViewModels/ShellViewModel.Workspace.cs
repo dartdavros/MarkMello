@@ -18,6 +18,7 @@ public partial class ShellViewModel
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsSidebar))]
+    [NotifyPropertyChangedFor(nameof(SidebarContent))]
     [NotifyPropertyChangedFor(nameof(ShowsFloatingAppMenuButton))]
     private WorkspaceViewModel? _workspace;
 
@@ -27,6 +28,13 @@ public partial class ShellViewModel
     private double _persistedSidebarWidth = WorkspaceSidebarWidth.Default;
 
     public bool ShowsSidebar => Workspace is not null;
+
+    /// <summary>
+    /// Содержимое сайдбара для ленивого <c>ContentControl</c>. До открытия папки — null,
+    /// поэтому в single-file режиме контрол вообще не создаётся (ADR-0007 Rule 3):
+    /// раньше он висел в дереве скрытым и стоил памяти на каждом старте.
+    /// </summary>
+    public object? SidebarContent => Workspace is null ? null : this;
 
     /// <summary>
     /// Плавающий гамбургер живёт только без сайдбара: при открытой папке его роль

@@ -19,6 +19,9 @@ public partial class ShellViewModel
     /// <summary>Полосы вкладок нет, пока нет ни одного открытого документа.</summary>
     public bool ShowsTabStrip => OpenDocuments.HasTabs;
 
+    /// <summary>Полоса вкладок создаётся с первой вкладкой, а не висит скрытой с запуска.</summary>
+    public object? TabStripContent => OpenDocuments.HasTabs ? this : null;
+
     /// <summary>
     /// Папка открыта, но документ не выбран. Отдельно от welcome: там предлагают открыть файл,
     /// здесь — выбрать его в дереве слева (макет 07).
@@ -280,6 +283,7 @@ public partial class ShellViewModel
     private void RefreshTabState()
     {
         OnPropertyChanged(nameof(ShowsTabStrip));
+        OnPropertyChanged(nameof(TabStripContent));
         OnPropertyChanged(nameof(IsEmptyDocumentSurface));
         UpdateTabCommandStates();
 

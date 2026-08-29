@@ -17,7 +17,11 @@ public partial class ShellViewModel
 
     /// <summary>Активная вкладка изменилась на диске, а в ней есть несохранённые правки.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExternalChangeContent))]
     private bool _showsExternalChangeBanner;
+
+    /// <summary>Плашка внешнего изменения появляется по событию, а не с запуска приложения.</summary>
+    public object? ExternalChangeContent => ShowsExternalChangeBanner ? this : null;
 
     public string ExternalChangeTitle => _localization["ExternalChangeTitle"];
 

@@ -83,6 +83,51 @@
       <Setter Property="Opacity" Value="1" />
     </Style>
 
+    <Style Selector="Button.mm-dialog-destructive">
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.mm-dialog-destructive:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="Opacity" Value="0.88" />
+    </Style>
+
+    <Style Selector="Border.mm-external-change">
+      <Setter Property="Padding" Value="14,8" />
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BoxShadow" Value="0 12 40 -8 #29383C28" />
+      <Setter Property="ZIndex" Value="4" />
+    </Style>
+    <Style Selector="Border.mm-external-change TextBlock">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    </Style>
+
+    <Style Selector="Button.mm-external-change-action">
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    </Style>
+    <Style Selector="Button.mm-external-change-action:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+      <Setter Property="TextBlock.Foreground" Value="{DynamicResource MmTextBrush}" />
+    </Style>
+
     <Style Selector="Border.mm-progress">
       <Setter Property="Opacity" Value="0" />
       <Setter Property="Width" Value="0" />
@@ -174,12 +219,21 @@
       <Grid Grid.Row="1"
             ColumnDefinitions="Auto,Auto,*">
 
-        <!-- Диапазон 220-340 из макета; та же пара нормализуется в WorkspaceSidebarWidth -->
-        <views:WorkspaceSidebarView Grid.Column="0"
-                                    Width="{Binding SidebarWidth, Mode=TwoWay}"
-                                    MinWidth="220"
-                                    MaxWidth="340"
-                                    IsVisible="{Binding ShowsSidebar}" />
+        <!-- Диапазон 220-340 из макета; та же пара нормализуется в WorkspaceSidebarWidth.
+             ContentControl, а не сам контрол: в single-file режиме сайдбара не должно
+             быть в визуальном дереве вообще (ADR-0007 Rule 3). -->
+        <ContentControl Grid.Column="0"
+                        Width="{Binding SidebarWidth, Mode=TwoWay}"
+                        MinWidth="220"
+                        MaxWidth="340"
+                        IsVisible="{Binding ShowsSidebar}"
+                        Content="{Binding SidebarContent}">
+          <ContentControl.ContentTemplate>
+            <DataTemplate x:DataType="vm:ShellViewModel">
+              <views:WorkspaceSidebarView />
+            </DataTemplate>
+          </ContentControl.ContentTemplate>
+        </ContentControl>
 
         <GridSplitter Grid.Column="1"
                       Classes="mm-editor-splitter"
@@ -190,8 +244,15 @@
       <Grid Grid.Column="2"
             RowDefinitions="Auto,*">
 
-        <views:TabStripView Grid.Row="0"
-                            IsVisible="{Binding ShowsTabStrip}" />
+        <ContentControl Grid.Row="0"
+                        IsVisible="{Binding ShowsTabStrip}"
+                        Content="{Binding TabStripContent}">
+          <ContentControl.ContentTemplate>
+            <DataTemplate x:DataType="vm:ShellViewModel">
+              <views:TabStripView />
+            </DataTemplate>
+          </ContentControl.ContentTemplate>
+        </ContentControl>
 
       <Panel Grid.Row="1"
              Name="BodyPanel">
@@ -448,8 +509,13 @@
         </ContentControl>
 
         <!-- Файл изменился на диске, а во вкладке есть правки: решает пользователь -->
+        <ContentControl Content="{Binding ExternalChangeContent}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Margin="0,14,0,0">
+          <ContentControl.ContentTemplate>
+            <DataTemplate x:DataType="vm:ShellViewModel">
         <Border Classes="mm-external-change"
-                IsVisible="{Binding ShowsExternalChangeBanner}"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Top"
                 Margin="0,14,0,0">
@@ -466,6 +532,9 @@
                     Command="{Binding KeepExternalChangeCommand}" />
           </StackPanel>
         </Border>
+            </DataTemplate>
+          </ContentControl.ContentTemplate>
+        </ContentControl>
 
         <Border Classes="mm-status"
                 HorizontalAlignment="Stretch"
@@ -589,8 +658,10 @@
         </Border>
 
         <!-- Подтверждение удаления: скрим начинается под тайтлбаром, окно остаётся перетаскиваемым -->
-        <Grid IsVisible="{Binding IsDeletePromptOpen}"
-              Background="#47201915">
+        <ContentControl Content="{Binding DeletePromptContent}">
+          <ContentControl.ContentTemplate>
+            <DataTemplate x:DataType="vm:ShellViewModel">
+        <Grid Background="#47201915">
           <Border Classes="mm-dialog-card"
                   Width="420"
                   HorizontalAlignment="Center"
@@ -621,6 +692,9 @@
             </StackPanel>
           </Border>
         </Grid>
+            </DataTemplate>
+          </ContentControl.ContentTemplate>
+        </ContentControl>
 
         <Grid IsVisible="{Binding IsDirtyPromptOpen}"
               Background="#66000000">

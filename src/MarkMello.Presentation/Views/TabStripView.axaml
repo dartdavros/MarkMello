@@ -7,6 +7,129 @@
              x:Class="MarkMello.Presentation.Views.TabStripView"
              x:DataType="vm:ShellViewModel">
 
+  <!-- Стили полосы: она создаётся с первой вкладкой, до этого их незачем разбирать. -->
+  <UserControl.Styles>
+    <!-- ======================= Полоса вкладок ======================= -->
+
+    <Style Selector="Border.mm-tab-strip">
+      <Setter Property="Height" Value="34" />
+      <Setter Property="Background" Value="{DynamicResource MmTitleBarBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="6,0,0,0" />
+    </Style>
+
+    <Style Selector="Border.mm-tab">
+      <Setter Property="MinWidth" Value="120" />
+      <Setter Property="MaxWidth" Value="240" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Border.mm-tab:pointerover">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <!-- Активная вкладка — цвета документа плюс акцентная полоса сверху -->
+    <Style Selector="Border.mm-tab.active">
+      <Setter Property="Background" Value="{DynamicResource MmBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+      <Setter Property="BorderThickness" Value="1,0,1,0" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-tab-title">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="Border.mm-tab.active TextBlock.mm-tab-title">
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-tab-disambiguator">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style Selector="Button.mm-tab-close">
+      <Setter Property="Width" Value="14" />
+      <Setter Property="Height" Value="14" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <!-- Крестик появляется под курсором; у несохранённой вкладки он подменяет точку -->
+    <Style Selector="Border.mm-tab:pointerover Button.mm-tab-close">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Border.mm-tab.active Button.mm-tab-close">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Border.mm-tab:pointerover Ellipse.mm-tab-dirty">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+
+    <Style Selector="Button.mm-tab-overflow">
+      <Setter Property="Padding" Value="8,0,10,0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+      <Setter Property="BorderThickness" Value="1,0,0,0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.mm-tab-overflow:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+      <Setter Property="TextBlock.Foreground" Value="{DynamicResource MmTextBrush}" />
+    </Style>
+
+    <Style Selector="Border.mm-tab-overflow-card">
+      <Setter Property="Width" Value="236" />
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-tab-overflow-header">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+      <Setter Property="Margin" Value="8,4,8,8" />
+    </Style>
+
+    <Style Selector="Button.mm-tab-overflow-item">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Padding" Value="8,7" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    </Style>
+    <Style Selector="Button.mm-tab-overflow-item:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+  </UserControl.Styles>
+
   <Border Classes="mm-tab-strip"
           SizeChanged="OnStripSizeChanged">
     <Grid ColumnDefinitions="*,Auto">

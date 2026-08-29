@@ -13,7 +13,11 @@ public partial class ShellViewModel
     private FileTreeNodeViewModel? _deleteTarget;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DeletePromptContent))]
     private bool _isDeletePromptOpen;
+
+    /// <summary>Карточка подтверждения строится в момент вопроса, а не живёт скрытой.</summary>
+    public object? DeletePromptContent => IsDeletePromptOpen ? this : null;
 
     [ObservableProperty]
     private string _deletePromptTitle = string.Empty;
