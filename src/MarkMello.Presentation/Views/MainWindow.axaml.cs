@@ -25,6 +25,7 @@ public partial class MainWindow : Window
 
     private readonly MainWindowViewModel _viewModel = default!;
     private readonly StartupSmokeTestOptions _startupSmokeTestOptions = StartupSmokeTestOptions.Disabled;
+    private readonly IStartupMetrics? _startupMetrics;
     private readonly ISettingsStore? _settings;
     private readonly Task _startupInitializationTask = Task.CompletedTask;
     private Win32Properties.CustomWndProcHookCallback? _windowsWndProcHookCallback;
@@ -47,15 +48,18 @@ public partial class MainWindow : Window
     public MainWindow(
         MainWindowViewModel viewModel,
         StartupSmokeTestOptions startupSmokeTestOptions,
-        ISettingsStore settings)
+        ISettingsStore settings,
+        IStartupMetrics startupMetrics)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(startupSmokeTestOptions);
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(startupMetrics);
 
         _viewModel = viewModel;
         _startupSmokeTestOptions = startupSmokeTestOptions;
         _settings = settings;
+        _startupMetrics = startupMetrics;
         DataContext = viewModel;
 
         ConfigurePlatformChrome();
@@ -158,7 +162,25 @@ public partial class MainWindow : Window
         }
 
         await Task.Delay(_startupSmokeTestOptions.ExitAfterOpenDelay).ConfigureAwait(true);
+        WriteStartupTimings();
         ShutdownClassicDesktopLifetime(exitCode: 0);
+    }
+
+    /// <summary>
+    /// Печатает снимок startup-таймингов в stdout. Вызывается только в smoke-режиме,
+    /// поэтому Release-сборку можно измерять теми же командами, что и CI-прогон.
+    /// </summary>
+    private void WriteStartupTimings()
+    {
+        if (_startupMetrics is null)
+        {
+            return;
+        }
+
+        foreach (var timing in _startupMetrics.Snapshot().StageTimings.OrderBy(static pair => pair.Key))
+        {
+            Console.WriteLine($"[startup] {timing.Key,-20} {timing.Value.TotalMilliseconds,8:F1} ms");
+        }
     }
 
     internal static bool IsOverlayPopupInteractionSource(Visual source)
