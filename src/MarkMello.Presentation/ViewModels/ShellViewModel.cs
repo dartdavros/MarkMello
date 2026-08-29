@@ -1167,6 +1167,12 @@ public partial class ShellViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowsReadingStatus));
         OnPropertyChanged(nameof(ShowsEditToggle));
         OnPropertyChanged(nameof(ReadingSettingsOverlayContent));
+
+        // Пустое состояние зависит от State, а вкладка регистрируется до перехода
+        // в Viewing — без этого уведомления заглушка оставалась поверх документа.
+        OnPropertyChanged(nameof(IsEmptyDocumentSurface));
+        OnPropertyChanged(nameof(IsWelcome));
+
         RefreshWindowTitle();
         UpdateCommandStates();
     }

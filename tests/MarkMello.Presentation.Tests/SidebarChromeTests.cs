@@ -91,6 +91,20 @@ public sealed class SidebarChromeTests
         Assert.Equal("Documents: 2 · Unsaved: 1", harness.ViewModel.SidebarFooterLabel);
     }
 
+    [Fact]
+    public async Task EmptyStateDisappearsAsSoonAsADocumentOpens()
+    {
+        var harness = await CreateAsync();
+
+        // Регресс: вкладка регистрируется до перехода состояния в Viewing, и без
+        // повторного уведомления заглушка «Документ не выбран» оставалась поверх документа.
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
+
+        Assert.False(harness.ViewModel.IsEmptyDocumentSurface);
+        Assert.False(harness.ViewModel.IsWelcome);
+        Assert.True(harness.ViewModel.IsViewer);
+    }
+
     private static async Task<ChromeHarness> CreateAsync()
     {
         var shell = CreateShell();
