@@ -61,7 +61,8 @@ public sealed class SecondWindowAndSessionTests
         await harness.ViewModel.OpenFolderPathAsync(FirstRoot);
         await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
 
-        var session = harness.Settings.Session;
+        // Запись отложена и уходит с UI-потока, поэтому ждём её, а не читаем сразу.
+        var session = await WaitForSessionAsync(harness.Settings, state => state.FolderPath is not null);
 
         Assert.Equal(FirstRoot, session.FolderPath);
         Assert.Contains(@"C:\docs\first.md", session.OpenDocumentPaths);
@@ -141,6 +142,18 @@ public sealed class SecondWindowAndSessionTests
 
         Assert.NotNull(harness.ViewModel.Workspace);
         Assert.Equal(FirstRoot, harness.ViewModel.Workspace!.Folder.RootPath);
+    }
+
+    private static async Task<WorkspaceSessionState> WaitForSessionAsync(
+        InMemorySettingsStore settings,
+        Func<WorkspaceSessionState, bool> predicate)
+    {
+        for (var attempt = 0; attempt < 60 && !predicate(settings.Session); attempt++)
+        {
+            await Task.Delay(25);
+        }
+
+        return settings.Session;
     }
 
     private static SessionHarness CreateHarness()

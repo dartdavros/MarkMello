@@ -11,17 +11,25 @@ namespace MarkMello.Presentation.ViewModels;
 /// </summary>
 public partial class ShellViewModel
 {
+    /// <summary>
+    /// Пауза перед записью. Открытие папки меняет состав вкладок несколько раз подряд;
+    /// без паузы каждая правка превращалась бы в отдельную запись файла.
+    /// </summary>
+    private static readonly TimeSpan SessionWriteDelay = TimeSpan.FromMilliseconds(400);
+
     private bool _isRestoringSession;
+    private CancellationTokenSource? _sessionWriteCancellation;
 
     /// <summary>
-    /// Собирает и сохраняет снимок. Вызывается на изменение состава вкладок и активной
-    /// вкладки — записывается маленький json, отдельного дебаунса не требуется.
+    /// Собирает снимок и планирует запись. Запись уходит с UI-потока и коалесцируется:
+    /// <c>JsonSettingsStore</c> пишет файл синхронно, и на замере это стоило 50 мс
+    /// прямо посреди раскрытия узла дерева.
     /// </summary>
-    private async Task PersistSessionAsync()
+    private Task PersistSessionAsync()
     {
         if (_isRestoringSession || Workspace is not { } workspace)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         var session = new WorkspaceSessionState(
@@ -30,7 +38,28 @@ public partial class ShellViewModel
             OpenDocuments.ActiveTab?.Path,
             workspace.GetExpandedDirectories());
 
-        await _settings.SaveSessionAsync(session).ConfigureAwait(true);
+        _sessionWriteCancellation?.Cancel();
+        _sessionWriteCancellation?.Dispose();
+
+        var cancellation = new CancellationTokenSource();
+        _sessionWriteCancellation = cancellation;
+
+        return WriteSessionAfterDelayAsync(session, cancellation.Token);
+    }
+
+    private async Task WriteSessionAfterDelayAsync(WorkspaceSessionState session, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(SessionWriteDelay, cancellationToken).ConfigureAwait(false);
+            await Task
+                .Run(() => _settings.SaveSessionAsync(session, cancellationToken).AsTask(), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Состояние успело измениться — пишет уже следующий вызов.
+        }
     }
 
     /// <summary>
