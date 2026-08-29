@@ -128,10 +128,14 @@ public partial class ShellViewModel
     {
         var workspace = WorkspaceViewModel.FromOpenedFolder(
             success,
-            _expandFolderNode,
-            _searchWorkspaceFiles,
-            _localization,
-            OpenDocumentFromTreeAsync);
+            new WorkspaceViewModel.WorkspaceDependencies(
+                _expandFolderNode,
+                _searchWorkspaceFiles,
+                _fileOperations,
+                _localization,
+                OpenDocumentFromTreeAsync,
+                RequestDeleteAsync,
+                OnWorkspacePathChanged));
 
         Workspace = workspace;
         ClearLoadError();
@@ -192,6 +196,17 @@ public partial class ShellViewModel
         var width = await _settings.LoadSidebarWidthAsync().ConfigureAwait(true);
         _persistedSidebarWidth = WorkspaceSidebarWidth.Normalize(width);
         SidebarWidth = _persistedSidebarWidth;
+    }
+
+    /// <summary>
+    /// Переименование в дереве: открытые вкладки этого файла (и файлов внутри папки)
+    /// следуют за новым путём, иначе они указывали бы в пустоту (ADR-0007 Rule 7).
+    /// </summary>
+    private void OnWorkspacePathChanged(string oldPath, string newPath)
+    {
+        RetargetTabsUnderPath(oldPath, newPath);
+        SyncWorkspaceActiveDocument();
+        RefreshWindowTitle();
     }
 
     private void SyncWorkspaceActiveDocument()

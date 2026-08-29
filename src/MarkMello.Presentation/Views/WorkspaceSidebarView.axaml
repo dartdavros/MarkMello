@@ -13,7 +13,7 @@
 
       <!-- Шапка: гамбургер переезжает сюда с плавающей позиции, рядом — имя корня -->
       <Grid Grid.Row="0"
-            ColumnDefinitions="Auto,*"
+            ColumnDefinitions="Auto,*,Auto,Auto"
             Margin="10,0,8,0"
             VerticalAlignment="Center">
         <ToggleButton Grid.Column="0"
@@ -36,6 +36,33 @@
                    Margin="8,0,0,0"
                    Text="{Binding Workspace.RootDisplayName}"
                    ToolTip.Tip="{Binding Workspace.Folder.RootPath}" />
+
+        <Button Grid.Column="2"
+                Classes="mm-sidebar-action"
+                Command="{Binding Workspace.StartNewFileCommand}"
+                ToolTip.Tip="{Binding SidebarNewFile}">
+          <Path Data="M7 2.5V11.5M2.5 7H11.5"
+                Width="14"
+                Height="14"
+                Stroke="{DynamicResource MmTextSoftBrush}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round" />
+        </Button>
+
+        <Button Grid.Column="3"
+                Classes="mm-sidebar-action"
+                Command="{Binding Workspace.StartNewFolderCommand}"
+                ToolTip.Tip="{Binding SidebarNewFolder}">
+          <Path Data="M1.75 4.25A0.75 0.75 0 0 1 2.5 3.5H5.25L6.5 5H11.5A0.75 0.75 0 0 1 12.25 5.75V10.5A0.75 0.75 0 0 1 11.5 11.25H2.5A0.75 0.75 0 0 1 1.75 10.5Z M7 6.75V9.75M5.5 8.25H8.5"
+                Width="14"
+                Height="14"
+                Stretch="Uniform"
+                Stroke="{DynamicResource MmTextSoftBrush}"
+                StrokeThickness="1.3"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Fill="Transparent" />
+        </Button>
       </Grid>
 
       <!-- Поиск по именам: поле и лупа получают акцент, пока запрос активен -->
@@ -88,6 +115,31 @@
             <StackPanel Orientation="Horizontal"
                         Spacing="6"
                         Background="Transparent">
+              <StackPanel.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeOpenInNewTab}"
+                            IsEnabled="{Binding IsSupportedDocument}"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.OpenNodeCommand}"
+                            CommandParameter="{Binding}" />
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeRename}"
+                            InputGesture="F2"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.StartRenameCommand}"
+                            CommandParameter="{Binding}" />
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeDuplicate}"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.DuplicateCommand}"
+                            CommandParameter="{Binding}" />
+                  <Separator />
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeRevealInExplorer}"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.RevealCommand}"
+                            CommandParameter="{Binding}" />
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeDelete}"
+                            InputGesture="Delete"
+                            Classes="mm-menu-destructive"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.RequestDeleteCommand}"
+                            CommandParameter="{Binding}" />
+                </ContextMenu>
+              </StackPanel.ContextMenu>
+
               <TextBlock Classes="mm-tree-label"
                          Classes.inert="{Binding IsInert}"
                          Classes.active="{Binding IsActiveDocument}"
@@ -99,6 +151,23 @@
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
       </TreeView>
+
+      <!-- Инлайн-ввод имени: строка встаёт поверх дерева, снизу — ошибка (макет 09) -->
+      <Border Grid.Row="2"
+              Classes="mm-tree-edit"
+              IsVisible="{Binding Workspace.IsEditingName}">
+        <StackPanel Spacing="3">
+          <TextBox Classes="mm-tree-edit-input"
+                   Classes.invalid="{Binding Workspace.HasEditError}"
+                   Text="{Binding Workspace.EditName, Mode=TwoWay}"
+                   KeyDown="OnEditNameKeyDown"
+                   LostFocus="OnEditNameLostFocus" />
+          <TextBlock Classes="mm-tree-edit-error"
+                     IsVisible="{Binding Workspace.HasEditError}"
+                     Text="{Binding Workspace.EditError}"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
 
       <Grid Grid.Row="2"
             IsVisible="{Binding Workspace.HasSearchQuery}">

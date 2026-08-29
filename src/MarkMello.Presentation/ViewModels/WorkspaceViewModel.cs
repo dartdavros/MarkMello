@@ -15,22 +15,25 @@ public sealed partial class WorkspaceViewModel : ObservableObject
 {
     private readonly ExpandFolderNodeUseCase _expandFolderNode;
     private readonly SearchWorkspaceFilesUseCase _searchWorkspaceFiles;
+    private readonly WorkspaceFileOperationsUseCase _fileOperations;
     private readonly ILocalizationService _localization;
     private readonly Func<string, Task> _openDocumentAsync;
+    private readonly Func<FileTreeNodeViewModel, Task> _deleteRequested;
+    private readonly Action<string, string> _pathChanged;
 
     private WorkspaceViewModel(
         WorkspaceFolder folder,
         IReadOnlyList<WorkspaceEntry> rootEntries,
-        ExpandFolderNodeUseCase expandFolderNode,
-        SearchWorkspaceFilesUseCase searchWorkspaceFiles,
-        ILocalizationService localization,
-        Func<string, Task> openDocumentAsync)
+        WorkspaceDependencies dependencies)
     {
         Folder = folder;
-        _expandFolderNode = expandFolderNode;
-        _searchWorkspaceFiles = searchWorkspaceFiles;
-        _localization = localization;
-        _openDocumentAsync = openDocumentAsync;
+        _expandFolderNode = dependencies.ExpandFolderNode;
+        _searchWorkspaceFiles = dependencies.SearchWorkspaceFiles;
+        _fileOperations = dependencies.FileOperations;
+        _localization = dependencies.Localization;
+        _openDocumentAsync = dependencies.OpenDocumentAsync;
+        _deleteRequested = dependencies.DeleteRequested;
+        _pathChanged = dependencies.PathChanged;
 
         foreach (var node in CreateNodes(rootEntries, depth: 0))
         {
@@ -44,25 +47,26 @@ public sealed partial class WorkspaceViewModel : ObservableObject
     /// </summary>
     public static WorkspaceViewModel FromOpenedFolder(
         OpenFolderResult.Success result,
-        ExpandFolderNodeUseCase expandFolderNode,
-        SearchWorkspaceFilesUseCase searchWorkspaceFiles,
-        ILocalizationService localization,
-        Func<string, Task> openDocumentAsync)
+        WorkspaceDependencies dependencies)
     {
         ArgumentNullException.ThrowIfNull(result);
-        ArgumentNullException.ThrowIfNull(expandFolderNode);
-        ArgumentNullException.ThrowIfNull(searchWorkspaceFiles);
-        ArgumentNullException.ThrowIfNull(localization);
-        ArgumentNullException.ThrowIfNull(openDocumentAsync);
+        ArgumentNullException.ThrowIfNull(dependencies);
 
-        return new WorkspaceViewModel(
-            result.Folder,
-            result.Children,
-            expandFolderNode,
-            searchWorkspaceFiles,
-            localization,
-            openDocumentAsync);
+        return new WorkspaceViewModel(result.Folder, result.Children, dependencies);
     }
+
+    /// <summary>
+    /// Всё, что нужно открытой папке: use cases и обратные вызовы shell.
+    /// Свёрнуто в один тип, чтобы конструктор не превращался в список из восьми аргументов.
+    /// </summary>
+    public sealed record WorkspaceDependencies(
+        ExpandFolderNodeUseCase ExpandFolderNode,
+        SearchWorkspaceFilesUseCase SearchWorkspaceFiles,
+        WorkspaceFileOperationsUseCase FileOperations,
+        ILocalizationService Localization,
+        Func<string, Task> OpenDocumentAsync,
+        Func<FileTreeNodeViewModel, Task> DeleteRequested,
+        Action<string, string> PathChanged);
 
     public WorkspaceFolder Folder { get; }
 

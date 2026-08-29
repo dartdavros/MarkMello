@@ -1235,4 +1235,72 @@
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
+  <!-- ======================= Операции в дереве ======================= -->
+
+  <Style Selector="Button.mm-sidebar-action">
+    <Setter Property="Width" Value="24" />
+    <Setter Property="Height" Value="24" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.mm-sidebar-action:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+
+  <!-- Инлайн-ввод имени встаёт в дерево, а не в диалог: видно, куда попадёт элемент -->
+  <Style Selector="Border.mm-tree-edit">
+    <Setter Property="Margin" Value="8,2,8,0" />
+    <Setter Property="Padding" Value="22,0,0,0" />
+    <Setter Property="VerticalAlignment" Value="Top" />
+  </Style>
+
+  <Style Selector="TextBox.mm-tree-edit-input">
+    <Setter Property="Height" Value="24" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <!-- Ошибочное имя подсвечивается толстой рамкой: BoxShadow у TextBox перекрывается шаблоном -->
+  <Style Selector="TextBox.mm-tree-edit-input.invalid">
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-tree-edit-error">
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+
+  <!-- Удаление — единственное деструктивное действие в меню, поэтому оно акцентное -->
+  <Style Selector="MenuItem.mm-menu-destructive">
+    <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+
+  <Style Selector="Button.mm-dialog-destructive">
+    <Setter Property="Padding" Value="16,8" />
+    <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+  <Style Selector="Button.mm-dialog-destructive:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="Opacity" Value="0.88" />
+  </Style>
+
 </Styles>

@@ -130,7 +130,9 @@ public sealed class PerTabEditorSessionTests
             new StubUpdateService(),
             new OpenFolderUseCase(fileSystem),
             new ExpandFolderNodeUseCase(fileSystem),
-            new SearchWorkspaceFilesUseCase(fileSystem));
+            new SearchWorkspaceFilesUseCase(fileSystem),
+            new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
+            new FakePlatformServices());
 
         return new EditorTestHarness(loader, viewModel);
     }

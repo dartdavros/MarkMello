@@ -26,6 +26,136 @@ public sealed class DirectoryWorkspaceFileSystem : IWorkspaceFileSystem
             .ConfigureAwait(false);
     }
 
+    public ValueTask DeleteAsync(string path, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+        else if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    public bool Exists(string path)
+        => !string.IsNullOrWhiteSpace(path) && (File.Exists(path) || Directory.Exists(path));
+
+    public ValueTask<WorkspaceEntry> CreateFileAsync(
+        string directoryPath,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var path = Path.Combine(directoryPath, name);
+
+        // CreateNew, а не Create: перезаписать существующий файл при создании нельзя.
+        using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+        }
+
+        return ValueTask.FromResult(WorkspaceEntry.ForFile(path, name));
+    }
+
+    public ValueTask<WorkspaceEntry> CreateDirectoryAsync(
+        string directoryPath,
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var path = Path.Combine(directoryPath, name);
+        Directory.CreateDirectory(path);
+        return ValueTask.FromResult(WorkspaceEntry.ForDirectory(path, name));
+    }
+
+    public ValueTask<WorkspaceEntry> RenameAsync(
+        string path,
+        string newName,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var directory = Path.GetDirectoryName(path) ?? string.Empty;
+        var target = Path.Combine(directory, newName);
+
+        if (Directory.Exists(path))
+        {
+            Directory.Move(path, target);
+            return ValueTask.FromResult(WorkspaceEntry.ForDirectory(target, newName));
+        }
+
+        File.Move(path, target, overwrite: false);
+        return ValueTask.FromResult(WorkspaceEntry.ForFile(target, newName));
+    }
+
+    public ValueTask<WorkspaceEntry> DuplicateAsync(
+        string path,
+        string duplicateName,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var directory = Path.GetDirectoryName(path) ?? string.Empty;
+        var target = Path.Combine(directory, duplicateName);
+
+        if (Directory.Exists(path))
+        {
+            CopyDirectory(path, target, cancellationToken);
+            return ValueTask.FromResult(WorkspaceEntry.ForDirectory(target, duplicateName));
+        }
+
+        File.Copy(path, target, overwrite: false);
+        return ValueTask.FromResult(WorkspaceEntry.ForFile(target, duplicateName));
+    }
+
+    public ValueTask<IReadOnlyList<string>> GetChildNamesAsync(
+        string directoryPath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IReadOnlyList<string> names = Directory.Exists(directoryPath)
+            ? Directory.EnumerateFileSystemEntries(directoryPath).Select(Path.GetFileName).OfType<string>().ToList()
+            : [];
+
+        return ValueTask.FromResult(names);
+    }
+
+    public ValueTask<int> CountChildrenAsync(string directoryPath, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Верхний уровень без рекурсии: подтверждение удаления не должно обходить дерево.
+        var count = Directory.Exists(directoryPath)
+            ? Directory.EnumerateFileSystemEntries(directoryPath).Count()
+            : 0;
+
+        return ValueTask.FromResult(count);
+    }
+
+    private static void CopyDirectory(string source, string target, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(target);
+
+        foreach (var file in Directory.EnumerateFiles(source))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Copy(file, Path.Combine(target, Path.GetFileName(file)), overwrite: false);
+        }
+
+        foreach (var directory in Directory.EnumerateDirectories(source))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            CopyDirectory(directory, Path.Combine(target, Path.GetFileName(directory)), cancellationToken);
+        }
+    }
+
     public async ValueTask<WorkspaceSearchResult> SearchByNameAsync(
         string rootPath,
         string query,

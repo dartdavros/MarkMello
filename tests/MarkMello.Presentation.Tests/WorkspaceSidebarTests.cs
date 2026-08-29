@@ -255,7 +255,9 @@ public sealed class WorkspaceSidebarTests
             new StubUpdateService(),
             new OpenFolderUseCase(fileSystem),
             new ExpandFolderNodeUseCase(fileSystem),
-            new SearchWorkspaceFilesUseCase(fileSystem));
+            new SearchWorkspaceFilesUseCase(fileSystem),
+            new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
+            new FakePlatformServices());
 
         return new WorkspaceTestHarness(loader, settings, commandLine, viewModel);
     }

@@ -568,6 +568,40 @@
                      VerticalAlignment="Center" />
         </Border>
 
+        <!-- Подтверждение удаления: скрим начинается под тайтлбаром, окно остаётся перетаскиваемым -->
+        <Grid IsVisible="{Binding IsDeletePromptOpen}"
+              Background="#47201915">
+          <Border Classes="mm-dialog-card"
+                  Width="420"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+            <StackPanel>
+              <TextBlock Classes="mm-dialog-title"
+                         Text="{Binding DeletePromptTitle}" />
+              <TextBlock Classes="mm-dialog-body"
+                         Text="{Binding DeletePromptMessage}"
+                         TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal"
+                          HorizontalAlignment="Right"
+                          Spacing="8"
+                          Margin="0,18,0,0">
+                <Button Classes="mm-dialog-destructive"
+                        IsVisible="{Binding !IsDeleteErrorPrompt}"
+                        Content="{Binding DeleteConfirmLabel}"
+                        Command="{Binding ConfirmDeleteCommand}" />
+                <Button Classes="mm-dialog-primary"
+                        IsVisible="{Binding !IsDeleteErrorPrompt}"
+                        Content="{Binding DeleteCancelLabel}"
+                        Command="{Binding CancelDeleteCommand}" />
+                <Button Classes="mm-dialog-primary"
+                        IsVisible="{Binding IsDeleteErrorPrompt}"
+                        Content="{Binding DeleteErrorCloseLabel}"
+                        Command="{Binding CancelDeleteCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </Grid>
+
         <Grid IsVisible="{Binding IsDirtyPromptOpen}"
               Background="#66000000">
           <Border Classes="mm-dialog-card"

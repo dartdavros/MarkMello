@@ -30,6 +30,8 @@ public partial class ShellViewModel : ObservableObject
     private readonly OpenFolderUseCase _openFolder;
     private readonly ExpandFolderNodeUseCase _expandFolderNode;
     private readonly SearchWorkspaceFilesUseCase _searchWorkspaceFiles;
+    private readonly WorkspaceFileOperationsUseCase _fileOperations;
+    private readonly IPlatformServices _platform;
     private readonly IUpdateService _updateService;
     private readonly IImageSourceResolver? _imageSourceResolver;
     private readonly Func<IEditorPreviewScheduler>? _previewSchedulerFactory;
@@ -64,6 +66,8 @@ public partial class ShellViewModel : ObservableObject
         OpenFolderUseCase openFolder,
         ExpandFolderNodeUseCase expandFolderNode,
         SearchWorkspaceFilesUseCase searchWorkspaceFiles,
+        WorkspaceFileOperationsUseCase fileOperations,
+        IPlatformServices platform,
         IImageSourceResolver? imageSourceResolver = null,
         Func<IEditorPreviewScheduler>? previewSchedulerFactory = null)
     {
@@ -80,6 +84,8 @@ public partial class ShellViewModel : ObservableObject
         _openFolder = openFolder;
         _expandFolderNode = expandFolderNode;
         _searchWorkspaceFiles = searchWorkspaceFiles;
+        _fileOperations = fileOperations;
+        _platform = platform;
         _imageSourceResolver = imageSourceResolver;
         _previewSchedulerFactory = previewSchedulerFactory;
         _aboutVersion = GetProductVersion();

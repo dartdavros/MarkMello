@@ -188,7 +188,9 @@ public sealed class DocumentTabsShellTests
             new StubUpdateService(),
             new OpenFolderUseCase(fileSystem),
             new ExpandFolderNodeUseCase(fileSystem),
-            new SearchWorkspaceFilesUseCase(fileSystem));
+            new SearchWorkspaceFilesUseCase(fileSystem),
+            new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
+            new FakePlatformServices());
 
         return new TabsTestHarness(loader, viewModel);
     }

@@ -128,6 +128,8 @@ public partial class ShellViewModel
         nameof(WelcomeCreateMd),
         nameof(EmptySurfaceHint),
         nameof(EmptySurfaceTitle),
+        nameof(SidebarNewFile),
+        nameof(SidebarNewFolder),
         nameof(SidebarSearchEmpty),
         nameof(SidebarSearchPlaceholder),
         nameof(SidebarSearchReset),
@@ -136,6 +138,11 @@ public partial class ShellViewModel
         nameof(StatusCloseTab),
         nameof(StatusSwitchTabs),
         nameof(TabClose),
+        nameof(TreeDelete),
+        nameof(TreeDuplicate),
+        nameof(TreeOpenInNewTab),
+        nameof(TreeRename),
+        nameof(TreeRevealInExplorer),
         nameof(TabsCloseOthers),
         nameof(TabsOverflowHeader),
         nameof(TabsOverflowLabel),
@@ -163,6 +170,21 @@ public partial class ShellViewModel
     public string AppMenuOpenFileHint => _localization["AppMenuOpenFileHint"];
     public string AppMenuOpenFolderHint => _localization["AppMenuOpenFolderHint"];
     public string AppMenuOpenFolderLabel => _localization["AppMenuOpenFolderLabel"];
+    public string SidebarNewFile => _localization["SidebarNewFile"];
+    public string SidebarNewFolder => _localization["SidebarNewFolder"];
+    public string TreeDelete => _localization["TreeDelete"];
+    public string TreeDuplicate => _localization["TreeDuplicate"];
+    public string TreeOpenInNewTab => _localization["TreeOpenInNewTab"];
+    public string TreeRename => _localization["TreeRename"];
+
+    /// <summary>Название файлового менеджера зависит от платформы, поэтому ключей три.</summary>
+    public string TreeRevealInExplorer => _localization[_platform.PlatformName switch
+    {
+        "macOS" => "TreeRevealInExplorerMacOS",
+        "Linux" => "TreeRevealInExplorerLinux",
+        _ => "TreeRevealInExplorerWindows"
+    }];
+
     public string SidebarSearchEmpty => _localization["SidebarSearchEmpty"];
     public string SidebarSearchPlaceholder => _localization["SidebarSearchPlaceholder"];
     public string SidebarSearchReset => _localization["SidebarSearchReset"];

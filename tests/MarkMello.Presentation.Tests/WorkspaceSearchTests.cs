@@ -212,7 +212,9 @@ public sealed class WorkspaceSearchTests : IDisposable
             new StubUpdateService(),
             new OpenFolderUseCase(fileSystem),
             new ExpandFolderNodeUseCase(fileSystem),
-            new SearchWorkspaceFilesUseCase(fileSystem));
+            new SearchWorkspaceFilesUseCase(fileSystem),
+            new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
+            new FakePlatformServices());
 
         await viewModel.OpenFolderPathAsync(@"C:\docs");
 

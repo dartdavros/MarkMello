@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Views;
@@ -27,5 +28,39 @@ public partial class WorkspaceSidebarView : UserControl
 
         workspace.ClearSearchCommand.Execute(null);
         e.Handled = true;
+    }
+
+    /// <summary>Enter создаёт или переименовывает, Esc отменяет — как в любом инлайн-редакторе.</summary>
+    private void OnEditNameKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not ShellViewModel { Workspace: { } workspace })
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                workspace.CommitEditCommand.Execute(null);
+                e.Handled = true;
+                break;
+
+            case Key.Escape:
+                workspace.CancelEditCommand.Execute(null);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Потеря фокуса отменяет ввод — но не тогда, когда поле уже показывает ошибку:
+    /// иначе сообщение исчезало бы вместе с введённым именем.
+    /// </summary>
+    private void OnEditNameLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ShellViewModel { Workspace: { HasEditError: false } workspace })
+        {
+            workspace.CancelEditCommand.Execute(null);
+        }
     }
 }
