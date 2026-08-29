@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -49,19 +50,73 @@ public partial class WorkspaceSidebarView : UserControl
         }
     }
 
-    /// <summary>Enter открывает выделенную строку — клавиатурный эквивалент клика.</summary>
+    /// <summary>
+    /// Клавиатура дерева: Enter открывает строку, F2 переименовывает, Delete удаляет.
+    /// `InputGesture` в пунктах контекстного меню — только подпись, обработчика за ней нет.
+    /// </summary>
     private void OnTreeKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Enter || DataContext is not ShellViewModel { Workspace: { } workspace })
+        if (DataContext is not ShellViewModel { Workspace: { } workspace }
+            || workspace.SelectedNode is not { } node)
         {
             return;
         }
 
-        if (workspace.SelectedNode is { } node)
+        // Пока идёт ввод имени, клавиши принадлежат полю: иначе Delete из строки ввода
+        // ушёл бы в удаление файла.
+        if (workspace.IsEditingName)
         {
-            workspace.OpenNodeCommand.Execute(node);
-            e.Handled = true;
+            return;
         }
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                workspace.OpenNodeCommand.Execute(node);
+                e.Handled = true;
+                break;
+
+            case Key.F2:
+                workspace.StartRenameCommand.Execute(node);
+                e.Handled = true;
+                break;
+
+            case Key.Delete:
+                workspace.RequestDeleteCommand.Execute(node);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Поле ввода имени появляется вместе со строкой, поэтому фокус ставится здесь.
+    /// При переименовании выделено имя без расширения, у нового файла курсор перед `.md`
+    /// (макет 09).
+    /// </summary>
+    private void OnEditNameAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is not TextBox editor || DataContext is not ShellViewModel { Workspace: { } workspace })
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                editor.Focus();
+
+                var name = editor.Text ?? string.Empty;
+                if (workspace.EditKind != TreeEditKind.Rename)
+                {
+                    editor.CaretIndex = 0;
+                    return;
+                }
+
+                var extension = Path.GetExtension(name).Length;
+                editor.SelectionStart = 0;
+                editor.SelectionEnd = name.Length - extension;
+            },
+            DispatcherPriority.Input);
     }
 
     /// <summary>Esc сбрасывает поиск, не выходя из поля: это самый частый способ вернуться к дереву.</summary>

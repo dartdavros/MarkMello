@@ -15,4 +15,7 @@ public sealed record WorkspaceSearchHit(
     public string MatchedName => Entry.Name.Substring(MatchStart, MatchLength);
 
     public string NameAfterMatch => Entry.Name[(MatchStart + MatchLength)..];
+
+    /// <summary>Файл в корне папки подписи не получает: под ним не должно быть пустой строки.</summary>
+    public bool HasRelativeDirectory => !string.IsNullOrEmpty(RelativeDirectory);
 }

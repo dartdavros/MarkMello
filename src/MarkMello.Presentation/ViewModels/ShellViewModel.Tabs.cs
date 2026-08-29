@@ -277,6 +277,9 @@ public partial class ShellViewModel
             .ToList();
 
         workspace.ApplyDirtyPaths(dirtyPaths);
+
+        // Подвал считает и несохранённые вкладки, поэтому обновляется вместе с точками.
+        OnPropertyChanged(nameof(SidebarFooterLabel));
     }
 
     /// <summary>

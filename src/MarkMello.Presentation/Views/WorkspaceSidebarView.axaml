@@ -152,6 +152,29 @@
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
+    <!-- Рамку рисует контейнер поля. Без этих трёх правил Fluent подставляет
+         на фокусе и наведении системный акцент вместо палитры приложения. -->
+    <Style Selector="TextBox.mm-search-input /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.mm-search-input:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.mm-search-input:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- Шапка списка совпадений: дерево в этот момент скрыто, и список надо назвать -->
+    <Style Selector="TextBlock.mm-search-caption">
+      <Setter Property="Margin" Value="14,2,14,4" />
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="LetterSpacing" Value="0.8" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    </Style>
 
     <Style Selector="TextBlock.mm-search-count">
       <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
@@ -235,12 +258,6 @@
     </Style>
 
     <!-- Инлайн-ввод имени встаёт в дерево, а не в диалог: видно, куда попадёт элемент -->
-    <Style Selector="Border.mm-tree-edit">
-      <Setter Property="Margin" Value="8,2,8,0" />
-      <Setter Property="Padding" Value="22,0,0,0" />
-      <Setter Property="VerticalAlignment" Value="Top" />
-    </Style>
-
     <Style Selector="TextBox.mm-tree-edit-input">
       <Setter Property="Height" Value="24" />
       <Setter Property="Padding" Value="6,0" />
@@ -253,9 +270,30 @@
       <Setter Property="FontSize" Value="12.5" />
       <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="SelectionBrush" Value="{DynamicResource MmSelectionBrush}" />
+      <Setter Property="SelectionForegroundBrush" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="Margin" Value="0,1" />
+    </Style>
+    <Style Selector="TextBox.mm-tree-edit-input /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.mm-tree-edit-input:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.mm-tree-edit-input:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
     </Style>
     <!-- Ошибочное имя подсвечивается толстой рамкой: BoxShadow у TextBox перекрывается шаблоном -->
-    <Style Selector="TextBox.mm-tree-edit-input.invalid">
+    <Style Selector="TextBox.mm-tree-edit-input.invalid /template/ Border#PART_BorderElement">
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="TextBox.mm-tree-edit-input.invalid:focus /template/ Border#PART_BorderElement">
       <Setter Property="BorderThickness" Value="2" />
     </Style>
 
@@ -380,9 +418,12 @@
         </Grid>
       </Border>
 
+      <!-- Строки не уезжают за правый край: без этого поле ввода и сообщение об ошибке
+           растягивают дерево по ширине текста и обрезаются краем сайдбара. -->
       <TreeView Grid.Row="2"
                 Name="FileTree"
                 Classes="mm-tree"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                 KeyDown="OnTreeKeyDown"
                 IsVisible="{Binding Workspace.ShowsTree}"
                 ItemsSource="{Binding Workspace.Roots}"
@@ -425,7 +466,8 @@
 
               <StackPanel Grid.Column="1"
                           Orientation="Horizontal"
-                          Spacing="6">
+                          Spacing="6"
+                          IsVisible="{Binding !IsEditing}">
                 <TextBlock Classes="mm-tree-label"
                            Classes.inert="{Binding IsInert}"
                            Classes.active="{Binding IsActiveDocument}"
@@ -434,6 +476,29 @@
                            IsVisible="{Binding HasLoadError}"
                            Text="{Binding LoadError}" />
               </StackPanel>
+
+              <!-- Ввод имени стоит в самой строке, а не отдельной панелью над деревом
+                   (макет 09). Content = null, пока строка не редактируется, поэтому
+                   поле существует только в одной строке из всех. -->
+              <ContentControl Grid.Column="1"
+                              Content="{Binding Editor}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate x:DataType="vm:FileTreeNodeViewModel">
+                    <StackPanel Spacing="3">
+                      <TextBox Classes="mm-tree-edit-input"
+                               Classes.invalid="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.HasEditError}"
+                               Text="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.EditName, Mode=TwoWay}"
+                               AttachedToVisualTree="OnEditNameAttached"
+                               KeyDown="OnEditNameKeyDown"
+                               LostFocus="OnEditNameLostFocus" />
+                      <TextBlock Classes="mm-tree-edit-error"
+                                 IsVisible="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.HasEditError}"
+                                 Text="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.EditError}"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
 
               <!-- Несохранённый документ: та же точка, что и во вкладке -->
               <Ellipse Grid.Column="2"
@@ -448,26 +513,15 @@
         </TreeView.ItemTemplate>
       </TreeView>
 
-      <!-- Инлайн-ввод имени: строка встаёт поверх дерева, снизу — ошибка (макет 09) -->
-      <Border Grid.Row="2"
-              Classes="mm-tree-edit"
-              IsVisible="{Binding Workspace.IsEditingName}">
-        <StackPanel Spacing="3">
-          <TextBox Classes="mm-tree-edit-input"
-                   Classes.invalid="{Binding Workspace.HasEditError}"
-                   Text="{Binding Workspace.EditName, Mode=TwoWay}"
-                   KeyDown="OnEditNameKeyDown"
-                   LostFocus="OnEditNameLostFocus" />
-          <TextBlock Classes="mm-tree-edit-error"
-                     IsVisible="{Binding Workspace.HasEditError}"
-                     Text="{Binding Workspace.EditError}"
-                     TextWrapping="Wrap" />
-        </StackPanel>
-      </Border>
-
       <Grid Grid.Row="2"
-            IsVisible="{Binding Workspace.HasSearchQuery}">
-        <ScrollViewer>
+            IsVisible="{Binding Workspace.HasSearchQuery}"
+            RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0"
+                   Classes="mm-search-caption"
+                   IsVisible="{Binding Workspace.HasSearchHits}"
+                   Text="{Binding SidebarSearchMatches}" />
+
+        <ScrollViewer Grid.Row="1">
           <ItemsControl ItemsSource="{Binding Workspace.SearchHits}"
                         Margin="8,2,8,12">
             <ItemsControl.ItemsPanel>
@@ -481,14 +535,11 @@
                         Command="{Binding $parent[ItemsControl].((vm:ShellViewModel)DataContext).Workspace.ActivateSearchHitCommand}"
                         CommandParameter="{Binding}">
                   <StackPanel Spacing="1">
-                    <!-- Подсвечена только совпавшая часть имени -->
-                    <TextBlock Classes="mm-tree-label">
-                      <Run Text="{Binding NameBeforeMatch}" />
-                      <Run Text="{Binding MatchedName}"
-                           Foreground="{DynamicResource MmAccentBrush}" />
-                      <Run Text="{Binding NameAfterMatch}" />
-                    </TextBlock>
+                    <!-- Подсвечена только совпавшая часть имени. Переносы между Run
+                         превращаются в пробелы и разрывают имя, поэтому они в одну строку. -->
+                    <TextBlock Classes="mm-tree-label"><Run Text="{Binding NameBeforeMatch}" /><Run Text="{Binding MatchedName}" Background="{DynamicResource MmAccentSoftBrush}" Foreground="{DynamicResource MmAccentBrush}" /><Run Text="{Binding NameAfterMatch}" /></TextBlock>
                     <TextBlock Classes="mm-search-hit-path"
+                               IsVisible="{Binding HasRelativeDirectory}"
                                Text="{Binding RelativeDirectory}" />
                   </StackPanel>
                 </Button>
@@ -497,7 +548,9 @@
           </ItemsControl>
         </ScrollViewer>
 
-        <TextBlock Classes="mm-search-empty"
+        <TextBlock Grid.Row="0"
+                   Grid.RowSpan="2"
+                   Classes="mm-search-empty"
                    IsVisible="{Binding Workspace.ShowsSearchEmptyState}"
                    Text="{Binding SidebarSearchEmpty}" />
       </Grid>

@@ -41,6 +41,21 @@ public sealed partial class FileTreeNodeViewModel : ObservableObject
     private FileTreeNodeViewModel Placeholder =>
         _placeholder ??= new FileTreeNodeViewModel(PlaceholderEntry, Depth + 1, static _ => Task.CompletedTask);
 
+    /// <summary>Черновая строка на время ввода имени нового файла или папки.</summary>
+    public static FileTreeNodeViewModel CreateDraft(string directoryPath, int depth)
+        => new(
+            new WorkspaceEntry(
+                System.IO.Path.Combine(directoryPath, string.Empty),
+                string.Empty,
+                IsDirectory: false,
+                IsSupportedDocument: false),
+            depth,
+            static _ => Task.CompletedTask)
+        {
+            IsDraft = true,
+            IsEditing = true
+        };
+
     public WorkspaceEntry Entry { get; }
 
     public string Path => Entry.Path;
@@ -81,6 +96,23 @@ public sealed partial class FileTreeNodeViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private bool _isDirty;
+
+    /// <summary>
+    /// Строка редактируется: вместо имени в ней стоит поле ввода (макет 09).
+    /// Так работают и переименование, и создание — во втором случае строка черновая.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Editor))]
+    private bool _isEditing;
+
+    /// <summary>
+    /// Не-null только на время ввода имени: <c>ContentControl</c> с таким содержимым
+    /// создаёт поле ввода лишь в редактируемой строке, а не в каждой строке дерева.
+    /// </summary>
+    public FileTreeNodeViewModel? Editor => IsEditing ? this : null;
+
+    /// <summary>Строка, за которой ещё нет файла на диске: место будущего элемента.</summary>
+    public bool IsDraft { get; private init; }
 
     /// <summary>Локальная ошибка узла: нет прав, каталог исчез. Дерево при этом продолжает работать.</summary>
     [ObservableProperty]

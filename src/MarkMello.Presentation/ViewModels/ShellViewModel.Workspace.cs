@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MarkMello.Application.UseCases;
@@ -171,6 +172,12 @@ public partial class ShellViewModel
     private void CloseWorkspaceCore()
     {
         StopWatching();
+
+        if (Workspace is { } workspace)
+        {
+            workspace.PropertyChanged -= OnWorkspaceCountersChanged;
+        }
+
         Workspace = null;
         RefreshWindowTitle();
         UpdateWorkspaceCommandStates();
@@ -189,6 +196,10 @@ public partial class ShellViewModel
                 OpenDocumentFromTreeAsync,
                 RequestDeleteAsync,
                 OnWorkspacePathChanged));
+
+        // Подпись подвала живёт в shell, а считается по дереву: без подписки она
+        // не менялась бы ни после создания файла, ни после удаления.
+        workspace.PropertyChanged += OnWorkspaceCountersChanged;
 
         Workspace = workspace;
         IsSidebarCollapsed = false;
@@ -266,6 +277,14 @@ public partial class ShellViewModel
     /// Переименование в дереве: открытые вкладки этого файла (и файлов внутри папки)
     /// следуют за новым путём, иначе они указывали бы в пустоту (ADR-0007 Rule 7).
     /// </summary>
+    private void OnWorkspaceCountersChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(WorkspaceViewModel.LoadedDocumentCount))
+        {
+            OnPropertyChanged(nameof(SidebarFooterLabel));
+        }
+    }
+
     private void OnWorkspacePathChanged(string oldPath, string newPath)
     {
         RetargetTabsUnderPath(oldPath, newPath);

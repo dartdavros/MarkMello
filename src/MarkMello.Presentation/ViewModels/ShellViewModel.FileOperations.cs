@@ -149,9 +149,28 @@ public partial class ShellViewModel
         if (PathsMatch(CurrentDocumentPath, oldPath))
         {
             _currentPath = newPath;
+            RenameOpenDocument(newPath);
         }
 
         OpenDocuments.Refresh();
+    }
+
+    /// <summary>
+    /// Имя открытого документа живёт в загруженной модели и в сессии редактора,
+    /// поэтому после переименования его надо обновить в обеих — иначе заголовок окна
+    /// продолжает показывать старое имя.
+    /// </summary>
+    private void RenameOpenDocument(string newPath)
+    {
+        var fileName = Path.GetFileName(newPath);
+
+        if (Document is { } document)
+        {
+            Document = document with { Path = newPath, FileName = fileName };
+        }
+
+        EditorSession?.Rename(newPath, fileName);
+        RefreshDocumentSummary();
     }
 
     /// <summary>Удаление: открытые вкладки удалённого файла или папки закрываются.</summary>

@@ -138,6 +138,7 @@ public partial class ShellViewModel
         nameof(SidebarNewFile),
         nameof(SidebarNewFolder),
         nameof(SidebarSearchEmpty),
+        nameof(SidebarSearchMatches),
         nameof(SidebarSearchPlaceholder),
         nameof(SidebarSearchReset),
         nameof(SidebarSearchTruncated),
@@ -223,6 +224,7 @@ public partial class ShellViewModel
     }];
 
     public string SidebarSearchEmpty => _localization["SidebarSearchEmpty"];
+    public string SidebarSearchMatches => _localization["SidebarSearchMatches"];
     public string SidebarSearchPlaceholder => _localization["SidebarSearchPlaceholder"];
     public string SidebarSearchReset => _localization["SidebarSearchReset"];
     public string SidebarSearchTruncated => _localization["SidebarSearchTruncated"];

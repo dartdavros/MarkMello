@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MarkMello.Application.UseCases;
@@ -39,6 +40,10 @@ public sealed partial class WorkspaceViewModel
     /// <summary>Каталог, в котором создаётся элемент.</summary>
     private string _editDirectory = string.Empty;
 
+    /// <summary>Черновая строка и коллекция, из которой её надо убрать по завершении ввода.</summary>
+    private FileTreeNodeViewModel? _draftNode;
+    private ObservableCollection<FileTreeNodeViewModel>? _draftOwner;
+
     public bool IsEditingName => EditKind != TreeEditKind.None;
 
     public bool HasEditError => !string.IsNullOrEmpty(EditError);
@@ -59,18 +64,62 @@ public sealed partial class WorkspaceViewModel
     /// </summary>
     private void StartCreate(TreeEditKind kind)
     {
-        var directory = SelectedNode switch
+        CancelEdit();
+
+        var parent = SelectedNode switch
         {
-            { IsDirectory: true } folder => folder.Path,
-            { } file => Path.GetDirectoryName(file.Path) ?? Folder.RootPath,
-            _ => Folder.RootPath
+            { IsDirectory: true } folder => folder,
+            { } file => FindLoadedNode(Path.GetDirectoryName(file.Path) ?? Folder.RootPath),
+            _ => null
         };
 
-        _editDirectory = directory;
+        _editDirectory = parent?.Path ?? Folder.RootPath;
         EditingNode = null;
         EditName = kind == TreeEditKind.NewFile ? ".md" : string.Empty;
         EditError = null;
         EditKind = kind;
+
+        InsertDraftRow(parent, kind);
+    }
+
+    /// <summary>
+    /// Строка ввода встаёт в дерево на место будущего элемента (макет 09): папки идут
+    /// перед файлами, поэтому черновик встаёт в начало своей группы.
+    /// </summary>
+    private void InsertDraftRow(FileTreeNodeViewModel? parent, TreeEditKind kind)
+    {
+        if (parent is { IsDirectory: true })
+        {
+            // В нераскрытую папку класть черновик некуда: сначала читаются её дети.
+            parent.IsExpanded = true;
+            if (!parent.HasLoadedChildren)
+            {
+                return;
+            }
+        }
+
+        var owner = parent is null ? Roots : parent.Children;
+        var depth = parent is null ? 0 : parent.Depth + 1;
+        var draft = FileTreeNodeViewModel.CreateDraft(_editDirectory, depth);
+
+        var index = kind == TreeEditKind.NewFolder
+            ? 0
+            : owner.Count(static node => node.IsDirectory);
+
+        owner.Insert(index, draft);
+        _draftNode = draft;
+        _draftOwner = owner;
+    }
+
+    private void RemoveDraftRow()
+    {
+        if (_draftNode is not null)
+        {
+            _draftOwner?.Remove(_draftNode);
+        }
+
+        _draftNode = null;
+        _draftOwner = null;
     }
 
     [RelayCommand]
@@ -82,17 +131,27 @@ public sealed partial class WorkspaceViewModel
             return;
         }
 
+        CancelEdit();
+
         _editDirectory = Path.GetDirectoryName(target.Path) ?? Folder.RootPath;
         EditingNode = target;
         EditName = target.Name;
         EditError = null;
         EditKind = TreeEditKind.Rename;
+        target.IsEditing = true;
     }
 
     /// <summary>Esc и потеря фокуса — отмена; ничего не создаётся и не переименовывается.</summary>
     [RelayCommand]
     private void CancelEdit()
     {
+        if (EditingNode is { } editing)
+        {
+            editing.IsEditing = false;
+        }
+
+        RemoveDraftRow();
+
         EditKind = TreeEditKind.None;
         EditingNode = null;
         EditName = string.Empty;
@@ -270,6 +329,9 @@ public sealed partial class WorkspaceViewModel
                 ReplaceRoots(success.Children);
             }
 
+            // Счётчик документов в подвале считает по дереву, поэтому его надо
+            // пересчитать и после операции в корне, а не только в подкаталоге.
+            RefreshFooterCounters();
             return;
         }
 

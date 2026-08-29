@@ -142,6 +142,26 @@ public sealed class WorkspaceSearchTests : IDisposable
         Assert.Equal("0", harness.Workspace.SearchCountLabel);
     }
 
+    /// <summary>
+    /// Индикатор ожидания заводится с задержкой на токене запроса. Если запрос закончился
+    /// раньше порога, индикатор не должен зажечься задним числом: пока он горит,
+    /// пустое состояние не показывается.
+    /// </summary>
+    [Fact]
+    public async Task FastSearchNeverTurnsOnTheProgressIndicator()
+    {
+        var harness = await CreateWorkspaceAsync();
+        harness.FileSystem.SearchResult = WorkspaceSearchResult.Empty;
+
+        harness.Workspace.SearchQuery = "missing";
+        await WaitForAsync(() => harness.Workspace.ShowsSearchEmptyState);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(700));
+
+        Assert.False(harness.Workspace.IsSearchRunning);
+        Assert.True(harness.Workspace.ShowsSearchEmptyState);
+    }
+
     [Fact]
     public async Task TruncatedResultIsMarkedWithAPlus()
     {

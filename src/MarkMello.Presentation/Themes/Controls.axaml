@@ -736,6 +736,23 @@
     <Setter Property="Opacity" Value="0.85" />
   </Style>
 
+  <!-- Отмена в карточке удаления: обведённая, а не залитая — заливка тут у деструктивного
+       действия, и две сплошные кнопки рядом спорили бы за внимание (макет 10). -->
+  <Style Selector="Button.mm-dialog-outline">
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="14,8" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.mm-dialog-outline:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
   <Style Selector="Button.mm-dialog-secondary">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />

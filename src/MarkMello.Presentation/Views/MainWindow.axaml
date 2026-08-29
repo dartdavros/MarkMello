@@ -682,11 +682,11 @@
                         IsVisible="{Binding !IsDeleteErrorPrompt}"
                         Content="{Binding DeleteConfirmLabel}"
                         Command="{Binding ConfirmDeleteCommand}" />
-                <Button Classes="mm-dialog-primary"
+                <Button Classes="mm-dialog-outline"
                         IsVisible="{Binding !IsDeleteErrorPrompt}"
                         Content="{Binding DeleteCancelLabel}"
                         Command="{Binding CancelDeleteCommand}" />
-                <Button Classes="mm-dialog-primary"
+                <Button Classes="mm-dialog-outline"
                         IsVisible="{Binding IsDeleteErrorPrompt}"
                         Content="{Binding DeleteErrorCloseLabel}"
                         Command="{Binding CancelDeleteCommand}" />

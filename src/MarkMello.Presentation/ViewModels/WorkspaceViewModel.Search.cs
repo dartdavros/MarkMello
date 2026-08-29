@@ -42,6 +42,9 @@ public sealed partial class WorkspaceViewModel
 
     public bool ShowsSearchEmptyState => HasSearchQuery && !IsSearchRunning && SearchHits.Count == 0;
 
+    /// <summary>Шапка «СОВПАДЕНИЯ» появляется только над непустым списком.</summary>
+    public bool HasSearchHits => SearchHits.Count > 0;
+
     /// <summary>«200+» вместо «200»: обрезанная выдача не должна выглядеть полной.</summary>
     public string SearchCountLabel => IsSearchTruncated
         ? SearchHits.Count.ToString(CultureInfo.CurrentCulture) + "+"
@@ -165,13 +168,18 @@ public sealed partial class WorkspaceViewModel
         }
         finally
         {
+            // Индикатор ждёт своего порога на том же токене. Без отмены он зажигается
+            // уже после того, как результат показан, и больше не гаснет — а вместе с ним
+            // не показывается и пустое состояние.
+            cancellation.Cancel();
+            await progress.ConfigureAwait(true);
+
             if (ReferenceEquals(_searchCancellation, cancellation))
             {
                 IsSearchRunning = false;
                 _searchCancellation = null;
             }
 
-            await progress.ConfigureAwait(true);
             cancellation.Dispose();
         }
     }
@@ -199,5 +207,6 @@ public sealed partial class WorkspaceViewModel
 
         OnPropertyChanged(nameof(SearchCountLabel));
         OnPropertyChanged(nameof(ShowsSearchEmptyState));
+        OnPropertyChanged(nameof(HasSearchHits));
     }
 }

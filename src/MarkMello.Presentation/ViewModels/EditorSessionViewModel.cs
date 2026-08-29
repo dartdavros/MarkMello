@@ -258,6 +258,16 @@ public sealed class EditorSessionViewModel : ObservableObject, IDisposable
         RefreshPreviewNow();
     }
 
+    /// <summary>Файл переименован в дереве: сессия продолжает править тот же документ.</summary>
+    public void Rename(string path, string fileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        CurrentPath = path;
+        FileName = fileName;
+    }
+
     public void UpdateDraftFileName(string fileName)
     {
         if (!string.IsNullOrWhiteSpace(CurrentPath))
