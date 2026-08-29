@@ -81,6 +81,7 @@ public sealed class WorkspaceSidebarViewTests
             new ExpandFolderNodeUseCase(fileSystem),
             new SearchWorkspaceFilesUseCase(fileSystem),
             new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
-            new FakePlatformServices());
+            new FakePlatformServices(),
+            static () => new FakeWorkspaceWatcher());
     }
 }

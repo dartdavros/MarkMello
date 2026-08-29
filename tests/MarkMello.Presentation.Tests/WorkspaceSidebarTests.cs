@@ -257,7 +257,8 @@ public sealed class WorkspaceSidebarTests
             new ExpandFolderNodeUseCase(fileSystem),
             new SearchWorkspaceFilesUseCase(fileSystem),
             new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
-            new FakePlatformServices());
+            new FakePlatformServices(),
+            static () => new FakeWorkspaceWatcher());
 
         return new WorkspaceTestHarness(loader, settings, commandLine, viewModel);
     }

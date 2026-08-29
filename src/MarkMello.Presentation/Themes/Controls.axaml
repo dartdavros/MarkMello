@@ -1303,4 +1303,34 @@
     <Setter Property="Opacity" Value="0.88" />
   </Style>
 
+  <Style Selector="Border.mm-external-change">
+    <Setter Property="Padding" Value="14,8" />
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="BoxShadow" Value="0 12 40 -8 #29383C28" />
+    <Setter Property="ZIndex" Value="4" />
+  </Style>
+  <Style Selector="Border.mm-external-change TextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
+  <Style Selector="Button.mm-external-change-action">
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+  </Style>
+  <Style Selector="Button.mm-external-change-action:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource MmTextBrush}" />
+  </Style>
+
 </Styles>

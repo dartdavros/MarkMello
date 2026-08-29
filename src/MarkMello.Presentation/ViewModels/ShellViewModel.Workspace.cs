@@ -118,6 +118,7 @@ public partial class ShellViewModel
 
     private void CloseWorkspaceCore()
     {
+        StopWatching();
         Workspace = null;
         RefreshWindowTitle();
         UpdateWorkspaceCommandStates();
@@ -144,6 +145,8 @@ public partial class ShellViewModel
         // Ширина читается здесь, а не в InitializeAsync: старт с одним файлом
         // не должен трогать ничего из workspace-подсистемы.
         await LoadSidebarWidthAsync().ConfigureAwait(true);
+
+        StartWatching(success.Folder.RootPath);
 
         // Папка сама по себе документ не открывает — кроме README.md в корне,
         // который заменяет пустой экран осмысленным содержимым (ADR-0007 Rule 2).

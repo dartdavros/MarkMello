@@ -32,6 +32,7 @@ public partial class ShellViewModel : ObservableObject
     private readonly SearchWorkspaceFilesUseCase _searchWorkspaceFiles;
     private readonly WorkspaceFileOperationsUseCase _fileOperations;
     private readonly IPlatformServices _platform;
+    private readonly Func<IWorkspaceWatcher> _watcherFactory;
     private readonly IUpdateService _updateService;
     private readonly IImageSourceResolver? _imageSourceResolver;
     private readonly Func<IEditorPreviewScheduler>? _previewSchedulerFactory;
@@ -68,6 +69,7 @@ public partial class ShellViewModel : ObservableObject
         SearchWorkspaceFilesUseCase searchWorkspaceFiles,
         WorkspaceFileOperationsUseCase fileOperations,
         IPlatformServices platform,
+        Func<IWorkspaceWatcher> watcherFactory,
         IImageSourceResolver? imageSourceResolver = null,
         Func<IEditorPreviewScheduler>? previewSchedulerFactory = null)
     {
@@ -86,6 +88,7 @@ public partial class ShellViewModel : ObservableObject
         _searchWorkspaceFiles = searchWorkspaceFiles;
         _fileOperations = fileOperations;
         _platform = platform;
+        _watcherFactory = watcherFactory;
         _imageSourceResolver = imageSourceResolver;
         _previewSchedulerFactory = previewSchedulerFactory;
         _aboutVersion = GetProductVersion();

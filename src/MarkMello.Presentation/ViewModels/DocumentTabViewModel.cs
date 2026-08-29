@@ -38,7 +38,24 @@ public sealed partial class DocumentTabViewModel : ObservableObject, IDisposable
 
     public bool HasDisambiguator => !string.IsNullOrEmpty(Disambiguator);
 
-    public string DisplayTitle => Title;
+    /// <summary>Пометка состояния в заголовке вкладки: «(удалён)» у пропавшего файла.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayTitle))]
+    private string? _stateSuffix;
+
+    /// <summary>Файл изменился на диске, а во вкладке есть правки — ждём решения пользователя.</summary>
+    [ObservableProperty]
+    private bool _hasExternalChange;
+
+    /// <summary>
+    /// Снимок устарел: файл изменился, пока вкладка была в фоне. Перечитаем при возврате,
+    /// а не в момент чужого сохранения — на фоновую вкладку никто не смотрит.
+    /// </summary>
+    public bool NeedsReload { get; set; }
+
+    public string DisplayTitle => string.IsNullOrEmpty(StateSuffix)
+        ? Title
+        : $"{Title} {StateSuffix}";
 
     /// <summary>Полный путь в тултипе: имя без пути не отвечает на вопрос «какой из двух README».</summary>
     [ObservableProperty]

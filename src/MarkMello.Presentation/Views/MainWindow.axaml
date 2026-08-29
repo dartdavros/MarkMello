@@ -447,6 +447,26 @@
           <views:FindBarView />
         </ContentControl>
 
+        <!-- Файл изменился на диске, а во вкладке есть правки: решает пользователь -->
+        <Border Classes="mm-external-change"
+                IsVisible="{Binding ShowsExternalChangeBanner}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,14,0,0">
+          <StackPanel Orientation="Horizontal"
+                      Spacing="12"
+                      VerticalAlignment="Center">
+            <TextBlock Text="{Binding ExternalChangeTitle}"
+                       VerticalAlignment="Center" />
+            <Button Classes="mm-external-change-action"
+                    Content="{Binding ExternalChangeReload}"
+                    Command="{Binding ReloadExternalChangeCommand}" />
+            <Button Classes="mm-external-change-action"
+                    Content="{Binding ExternalChangeKeep}"
+                    Command="{Binding KeepExternalChangeCommand}" />
+          </StackPanel>
+        </Border>
+
         <Border Classes="mm-status"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Bottom"

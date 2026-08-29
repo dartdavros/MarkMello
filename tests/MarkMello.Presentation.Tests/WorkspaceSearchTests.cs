@@ -214,7 +214,8 @@ public sealed class WorkspaceSearchTests : IDisposable
             new ExpandFolderNodeUseCase(fileSystem),
             new SearchWorkspaceFilesUseCase(fileSystem),
             new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
-            new FakePlatformServices());
+            new FakePlatformServices(),
+            static () => new FakeWorkspaceWatcher());
 
         await viewModel.OpenFolderPathAsync(@"C:\docs");
 

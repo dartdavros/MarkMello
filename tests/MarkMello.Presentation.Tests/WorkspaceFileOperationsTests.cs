@@ -224,7 +224,8 @@ public sealed class WorkspaceFileOperationsTests
             new ExpandFolderNodeUseCase(fileSystem),
             new SearchWorkspaceFilesUseCase(fileSystem),
             new WorkspaceFileOperationsUseCase(fileSystem, platform),
-            platform);
+            platform,
+            static () => new FakeWorkspaceWatcher());
 
         await viewModel.OpenFolderPathAsync(Root);
 
