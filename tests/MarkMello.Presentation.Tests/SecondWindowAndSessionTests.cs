@@ -87,6 +87,25 @@ public sealed class SecondWindowAndSessionTests
         Assert.Equal(@"C:\docs\second.md", harness.ViewModel.OpenDocuments.ActiveTab!.Path);
     }
 
+    /// <summary>
+    /// Раскрытые узлы возвращаются вместе с вкладками: без этого дерево открывалось
+    /// свёрнутым, хотя в сессии папка записана как раскрытая.
+    /// </summary>
+    [Fact]
+    public async Task ReopeningAFolderRestoresExpandedDirectories()
+    {
+        var harness = CreateHarness();
+        harness.Settings.Session = new WorkspaceSessionState(FirstRoot, [], null, [@"C:\docs\adr"]);
+
+        await harness.ViewModel.OpenFolderPathAsync(FirstRoot);
+
+        var adr = harness.ViewModel.Workspace!.Roots.Single(node => node.Name == "adr");
+
+        Assert.True(adr.IsExpanded);
+        Assert.True(adr.HasLoadedChildren);
+        Assert.Contains(adr.Children, child => child.Name == "adr_0001.md");
+    }
+
     [Fact]
     public async Task SessionOfAnotherFolderIsIgnored()
     {
@@ -156,13 +175,69 @@ public sealed class SecondWindowAndSessionTests
         return settings.Session;
     }
 
+    /// <summary>
+    /// Окно, открытое из уже работающего приложения, не проходит стартовую активацию:
+    /// иначе оно открывало бы папку из аргументов процесса и её сессию, а запрошенная
+    /// папка ложилась бы поверх — с чужими вкладками.
+    /// </summary>
+    [Fact]
+    public async Task WindowOpenedFromTheAppIgnoresCommandLineActivation()
+    {
+        var harness = CreateHarness();
+        harness.CommandLine.ActivationFolderPath = FirstRoot;
+        harness.CommandLine.ActivationPath = @"C:\docs\first.md";
+        harness.Settings.Session = new WorkspaceSessionState(
+            FirstRoot,
+            [@"C:\docs\first.md"],
+            @"C:\docs\first.md",
+            []);
+
+        harness.ViewModel.SuppressStartupActivation();
+        await harness.ViewModel.InitializeAsync();
+
+        Assert.Null(harness.ViewModel.Workspace);
+        Assert.Empty(harness.ViewModel.OpenDocuments.Tabs);
+        Assert.Null(harness.ViewModel.CurrentDocumentPath);
+    }
+
+    /// <summary>
+    /// Папка без документа показывает «выберите файл», а не welcome: состояние окна
+    /// не меняется, меняется только наличие папки.
+    /// </summary>
+    [Fact]
+    public async Task OpeningAFolderWithoutADocumentSwitchesToTheEmptySurface()
+    {
+        var harness = CreateHarness();
+        var notified = new List<string>();
+        harness.ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is { } name)
+            {
+                notified.Add(name);
+            }
+        };
+
+        Assert.True(harness.ViewModel.IsWelcome);
+
+        await harness.ViewModel.OpenFolderPathAsync(SecondRoot);
+
+        Assert.True(harness.ViewModel.IsEmptyDocumentSurface);
+        Assert.False(harness.ViewModel.IsWelcome);
+
+        // Welcome-экран уходит только по уведомлению: без него он остаётся поверх дерева.
+        Assert.Contains(nameof(ShellViewModel.IsWelcome), notified);
+        Assert.Contains(nameof(ShellViewModel.IsEmptyDocumentSurface), notified);
+    }
+
     private static SessionHarness CreateHarness()
     {
         var fileSystem = new FakeWorkspaceFileSystem();
         fileSystem.AddDirectory(
             FirstRoot,
+            WorkspaceEntry.ForDirectory(@"C:\docs\adr", "adr"),
             WorkspaceEntry.ForFile(@"C:\docs\first.md", "first.md"),
             WorkspaceEntry.ForFile(@"C:\docs\second.md", "second.md"));
+        fileSystem.AddDirectory(@"C:\docs\adr", WorkspaceEntry.ForFile(@"C:\docs\adr\adr_0001.md", "adr_0001.md"));
         fileSystem.AddDirectory(SecondRoot, WorkspaceEntry.ForFile(@"C:\notes\other.md", "other.md"));
 
         var loader = new StubDocumentLoader();

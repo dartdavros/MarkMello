@@ -69,16 +69,19 @@ public sealed class WindowLauncher : IWindowLauncher
             return;
         }
 
-        var window = _services.GetRequiredService<MainWindow>();
+        // View-model создаётся до окна, чтобы успеть погасить стартовую активацию:
+        // иначе новое окно откроет папку из аргументов процесса и восстановит её сессию,
+        // а запрошенная папка ляжет поверх — с чужими вкладками.
+        var shell = _services.GetRequiredService<ShellViewModel>();
+        shell.SuppressStartupActivation();
+
+        var window = ActivatorUtilities.CreateInstance<MainWindow>(_services, shell);
         var previous = lifetime.Windows.Count > 0 ? lifetime.Windows[^1] : null;
         ApplyCascade(window, previous);
         window.Show();
 
-        if (window.DataContext is ShellViewModel shell)
-        {
-            // Папка открывается уже в новом окне: его view-model — своя, вкладки не общие.
-            _ = shell.OpenFolderPathAsync(folderPath);
-        }
+        // Папка открывается уже в новом окне: его view-model — своя, вкладки не общие.
+        _ = shell.OpenFolderPathAsync(folderPath);
     }
 
     /// <summary>

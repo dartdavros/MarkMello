@@ -152,7 +152,22 @@ public sealed partial class WorkspaceViewModel : ObservableObject
     }
 
     private IEnumerable<FileTreeNodeViewModel> CreateNodes(IReadOnlyList<WorkspaceEntry> entries, int depth)
-        => entries.Select(entry => new FileTreeNodeViewModel(entry, depth, ExpandNodeAsync));
+        => entries.Select(entry =>
+        {
+            var node = new FileTreeNodeViewModel(entry, depth, ExpandNodeAsync);
+            node.ExpansionChanged += OnNodeExpansionChanged;
+            return node;
+        });
+
+    /// <summary>
+    /// Счётчик раскрытий. Сам список раскрытых узлов живёт в дереве, а shell нужен
+    /// повод переписать сессию: без него состав раскрытых папок сохранялся только
+    /// при следующей смене вкладок.
+    /// </summary>
+    [ObservableProperty]
+    private int _expansionRevision;
+
+    private void OnNodeExpansionChanged(object? sender, EventArgs e) => ExpansionRevision++;
 
     private void ApplyActiveDocumentHighlight(FileTreeNodeViewModel parent)
     {

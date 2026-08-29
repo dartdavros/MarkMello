@@ -21,6 +21,11 @@ public partial class ShellViewModel
     [NotifyPropertyChangedFor(nameof(ShowsSidebar))]
     [NotifyPropertyChangedFor(nameof(SidebarContent))]
     [NotifyPropertyChangedFor(nameof(ShowsFloatingAppMenuButton))]
+    // Пустой экран зависит от того, открыта ли папка: без папки это welcome,
+    // с папкой — «выберите файл в дереве» (макет 07).
+    [NotifyPropertyChangedFor(nameof(IsWelcome))]
+    [NotifyPropertyChangedFor(nameof(IsEmptyDocumentSurface))]
+    [NotifyPropertyChangedFor(nameof(CanToggleSidebar))]
     private WorkspaceViewModel? _workspace;
 
     [ObservableProperty]
@@ -37,6 +42,8 @@ public partial class ShellViewModel
     [NotifyPropertyChangedFor(nameof(SidebarContent))]
     [NotifyPropertyChangedFor(nameof(ShowsFloatingAppMenuButton))]
     [NotifyPropertyChangedFor(nameof(CanToggleSidebar))]
+    [NotifyPropertyChangedFor(nameof(IsWelcome))]
+    [NotifyPropertyChangedFor(nameof(IsEmptyDocumentSurface))]
     private bool _isSidebarCollapsed;
 
     public bool ShowsSidebar => Workspace is not null && !IsSidebarCollapsed;
@@ -279,9 +286,16 @@ public partial class ShellViewModel
     /// </summary>
     private void OnWorkspaceCountersChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(WorkspaceViewModel.LoadedDocumentCount))
+        switch (e.PropertyName)
         {
-            OnPropertyChanged(nameof(SidebarFooterLabel));
+            case nameof(WorkspaceViewModel.LoadedDocumentCount):
+                OnPropertyChanged(nameof(SidebarFooterLabel));
+                break;
+
+            case nameof(WorkspaceViewModel.ExpansionRevision):
+                // Раскрытые папки — часть сессии наравне с вкладками.
+                _ = PersistSessionAsync();
+                break;
         }
     }
 

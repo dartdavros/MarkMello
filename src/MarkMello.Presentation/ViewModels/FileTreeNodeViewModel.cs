@@ -122,8 +122,16 @@ public sealed partial class FileTreeNodeViewModel : ObservableObject
 
     partial void OnLoadErrorChanged(string? value) => OnPropertyChanged(nameof(HasLoadError));
 
+    /// <summary>Строку раскрыли или свернули — по этому сигналу shell пишет сессию.</summary>
+    public event EventHandler? ExpansionChanged;
+
     partial void OnIsExpandedChanged(bool value)
     {
+        if (IsDirectory)
+        {
+            ExpansionChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         if (!value || !IsDirectory || HasLoadedChildren)
         {
             return;

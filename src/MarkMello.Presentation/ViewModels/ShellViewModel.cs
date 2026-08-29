@@ -664,6 +664,14 @@ public partial class ShellViewModel : ObservableObject
         ? _localization["ThemeSwitchToDark"]
         : _localization["ThemeSwitchToLight"];
 
+    private bool _suppressStartupActivation;
+
+    /// <summary>
+    /// Окно открыто не запуском процесса, а из уже работающего приложения:
+    /// стартовые аргументы к нему не относятся.
+    /// </summary>
+    public void SuppressStartupActivation() => _suppressStartupActivation = true;
+
     public async Task InitializeAsync()
     {
         ReadingPreferences = await _settings.LoadPreferencesAsync().ConfigureAwait(true);
@@ -676,6 +684,13 @@ public partial class ShellViewModel : ObservableObject
 
         WindowBorderMode = await _settings.LoadWindowBorderModeAsync().ConfigureAwait(true);
         _isWindowBorderLoaded = true;
+
+        // Аргументы командной строки принадлежат запуску процесса, а не каждому окну:
+        // второе окно получает свою папку от launcher'а и стартовую активацию пропускает.
+        if (_suppressStartupActivation)
+        {
+            return;
+        }
 
         // Каталог в аргументах открывает папку, файл — документ. Порядок важен:
         // «MarkMello docs notes.md» должен показать и дерево, и запрошенный документ.

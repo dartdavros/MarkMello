@@ -180,13 +180,38 @@ public sealed class ExternalChangesTests
         Assert.Equal([Root], harness.FileSystem.EnumeratedPaths);
     }
 
+    /// <summary>
+    /// Правка снаружи перечитывает каталог, но не должна сворачивать дерево:
+    /// раскрытые пользователем папки остаются раскрытыми.
+    /// </summary>
+    [Fact]
+    public async Task ExternalChangeKeepsExpandedDirectories()
+    {
+        var harness = await CreateAsync();
+        var workspace = harness.ViewModel.Workspace!;
+        var adr = workspace.Roots.Single(node => node.Name == "adr");
+        await workspace.ExpandNodeAsync(adr);
+
+        Assert.True(adr.IsExpanded);
+
+        await harness.ViewModel.ApplyWorkspaceChangesAsync(
+            [new WorkspaceChange(WorkspaceChangeKind.Created, @"C:\docs\third.md")]);
+
+        var refreshed = workspace.Roots.Single(node => node.Name == "adr");
+
+        Assert.True(refreshed.IsExpanded);
+        Assert.True(refreshed.HasLoadedChildren);
+    }
+
     private static async Task<WatcherHarness> CreateAsync()
     {
         var fileSystem = new FakeWorkspaceFileSystem();
         fileSystem.AddDirectory(
             Root,
+            WorkspaceEntry.ForDirectory(@"C:\docs\adr", "adr"),
             WorkspaceEntry.ForFile(FirstPath, "first.md"),
             WorkspaceEntry.ForFile(SecondPath, "second.md"));
+        fileSystem.AddDirectory(@"C:\docs\adr", WorkspaceEntry.ForFile(@"C:\docs\adr\adr_0001.md", "adr_0001.md"));
 
         var loader = new CountingDocumentLoader();
         loader.Sources[FirstPath] = new MarkdownSource(FirstPath, "first.md", "# first");

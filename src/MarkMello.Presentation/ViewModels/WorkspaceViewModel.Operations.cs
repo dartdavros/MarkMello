@@ -321,12 +321,17 @@ public sealed partial class WorkspaceViewModel
     /// <summary>Перечитывает один каталог после операции — обход остального дерева не нужен.</summary>
     public async Task RefreshDirectoryAsync(string directoryPath)
     {
+        // Перечитанный каталог строит новые узлы, поэтому раскрытые папки надо запомнить
+        // и вернуть: иначе любая правка снаружи сворачивала бы дерево пользователю.
+        var expanded = GetExpandedDirectories();
+
         if (PathsEqual(directoryPath, Folder.RootPath))
         {
             var result = await _expandFolderNode.ExecuteAsync(Folder.RootPath).ConfigureAwait(true);
             if (result is ExpandFolderNodeResult.Success success)
             {
                 ReplaceRoots(success.Children);
+                await RestoreExpansionAsync(expanded).ConfigureAwait(true);
             }
 
             // Счётчик документов в подвале считает по дереву, поэтому его надо
@@ -346,9 +351,18 @@ public sealed partial class WorkspaceViewModel
         {
             node.ReplaceChildren(CreateNodes(loaded.Children, node.Depth + 1));
             ApplyActiveDocumentHighlight(node);
+            await RestoreExpansionAsync(expanded).ConfigureAwait(true);
         }
 
         RefreshFooterCounters();
+    }
+
+    private async Task RestoreExpansionAsync(IReadOnlyList<string> directories)
+    {
+        foreach (var directory in directories)
+        {
+            await ExpandPathAsync(directory).ConfigureAwait(true);
+        }
     }
 
     private void ReplaceRoots(IReadOnlyList<WorkspaceEntry> entries)

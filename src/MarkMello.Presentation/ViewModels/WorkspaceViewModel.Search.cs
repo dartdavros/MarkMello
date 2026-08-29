@@ -88,6 +88,18 @@ public sealed partial class WorkspaceViewModel
             return;
         }
 
+        if (await ExpandPathAsync(path).ConfigureAwait(true) is { } node)
+        {
+            SelectedNode = node;
+        }
+    }
+
+    /// <summary>
+    /// Раскрывает узлы по пути и возвращает целевой; каталог на конце раскрывается тоже.
+    /// Выделение не трогает: восстановление раскрытых папок не должно менять выбранную строку.
+    /// </summary>
+    private async Task<FileTreeNodeViewModel?> ExpandPathAsync(string path)
+    {
         var current = Roots;
 
         foreach (var segment in EnumerateSegments(path))
@@ -97,18 +109,26 @@ public sealed partial class WorkspaceViewModel
 
             if (node is null)
             {
-                return;
+                return null;
+            }
+
+            // Присваивание нужно и для уже прочитанного каталога: ExpandNodeAsync
+            // в этом случае выходит сразу и строку не раскрывает.
+            if (node.IsDirectory)
+            {
+                node.IsExpanded = true;
+                await ExpandNodeAsync(node).ConfigureAwait(true);
             }
 
             if (string.Equals(node.Path, path, StringComparison.OrdinalIgnoreCase))
             {
-                SelectedNode = node;
-                return;
+                return node;
             }
 
-            await ExpandNodeAsync(node).ConfigureAwait(true);
             current = node.Children;
         }
+
+        return null;
     }
 
     /// <summary>Пути от корня папки до целевого элемента, сверху вниз.</summary>
