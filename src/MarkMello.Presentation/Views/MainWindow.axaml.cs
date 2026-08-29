@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private Win32Properties.CustomWndProcHookCallback? _windowsWndProcHookCallback;
     private WindowsMonitorArea? _windowsMaximizeMonitorArea;
     private WindowPlacement? _lastNormalWindowPlacement;
+    private Border? _windowBorder;
     private bool _isWindowsManualMaximized;
     private bool _isConvertingWindowsNativeMaximize;
     private bool _pendingWindowsStartupMaximize;
@@ -61,6 +62,7 @@ public partial class MainWindow : Window
         ApplyStartupWindowPlacement();
         SyncOverlayWindowClasses();
         UpdateTitleBarMaximizeVisuals();
+        UpdateWindowBorder();
 
         AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -407,6 +409,53 @@ public partial class MainWindow : Window
         {
             UpdateTitleBarMaximizeVisuals();
         }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.WindowBorderMode))
+        {
+            UpdateWindowBorder();
+        }
+    }
+
+    private void UpdateWindowBorder()
+    {
+        // GetControl throws when the name is missing, which is an authoring bug
+        // in our own XAML rather than a runtime condition — better loud at
+        // startup than a window that silently never gets its outline.
+        var border = _windowBorder ??= this.GetControl<Border>("WindowBorder");
+
+        border.BorderThickness = new Thickness(
+            ShouldDrawWindowBorder(
+                _viewModel.WindowBorderMode,
+                OperatingSystem.IsWindows(),
+                _isWindowsManualMaximized || WindowState == WindowState.Maximized)
+                ? 1
+                : 0);
+    }
+
+    /// <summary>
+    /// Whether the app draws its own window outline.
+    ///
+    /// Auto draws it only where MarkMello replaces the system chrome with its
+    /// own — that is Windows, where a light window on a light background is
+    /// otherwise indistinguishable from the one behind it. macOS and Linux keep
+    /// native decorations and already have an edge.
+    ///
+    /// A maximized window never gets one: its edges sit against the screen
+    /// bounds, so the outline would only eat a row of pixels.
+    /// </summary>
+    internal static bool ShouldDrawWindowBorder(WindowBorderMode mode, bool isWindows, bool isMaximized)
+    {
+        if (isMaximized)
+        {
+            return false;
+        }
+
+        return mode switch
+        {
+            WindowBorderMode.On => true,
+            WindowBorderMode.Off => false,
+            _ => isWindows
+        };
     }
 
     private static bool IsWithinVisual(Visual source, Visual target)
@@ -699,6 +748,7 @@ public partial class MainWindow : Window
         if (e.Property == WindowStateProperty)
         {
             UpdateTitleBarMaximizeVisuals();
+            UpdateWindowBorder();
         }
 
         if (e.Property != WindowStateProperty

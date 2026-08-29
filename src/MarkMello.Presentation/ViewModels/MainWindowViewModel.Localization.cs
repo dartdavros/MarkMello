@@ -91,6 +91,11 @@ public partial class MainWindowViewModel
         nameof(ReadingHeader),
         nameof(ReadingLineHeightHint),
         nameof(ReadingLineHeightLabel),
+        nameof(WindowBorderAuto),
+        nameof(WindowBorderHint),
+        nameof(WindowBorderLabel),
+        nameof(WindowBorderOff),
+        nameof(WindowBorderOn),
         nameof(ReadingMinimapAuto),
         nameof(ReadingMinimapHint),
         nameof(ReadingMinimapLabel),
@@ -163,6 +168,11 @@ public partial class MainWindowViewModel
     public string ReadingHeader => _localization["ReadingHeader"];
     public string ReadingLineHeightHint => _localization["ReadingLineHeightHint"];
     public string ReadingLineHeightLabel => _localization["ReadingLineHeightLabel"];
+    public string WindowBorderAuto => _localization["WindowBorderAuto"];
+    public string WindowBorderHint => _localization["WindowBorderHint"];
+    public string WindowBorderLabel => _localization["WindowBorderLabel"];
+    public string WindowBorderOff => _localization["WindowBorderOff"];
+    public string WindowBorderOn => _localization["WindowBorderOn"];
     public string ReadingMinimapAuto => _localization["ReadingMinimapAuto"];
     public string ReadingMinimapHint => _localization["ReadingMinimapHint"];
     public string ReadingMinimapLabel => _localization["ReadingMinimapLabel"];

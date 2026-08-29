@@ -92,6 +92,8 @@ internal sealed class InMemorySettingsStore : ISettingsStore
 
     public WindowPlacement? WindowPlacement { get; set; }
 
+    public WindowBorderMode WindowBorderMode { get; set; } = WindowBorderMode.Auto;
+
     public ValueTask<ReadingPreferences> LoadPreferencesAsync(CancellationToken cancellationToken = default)
         => ValueTask.FromResult(Preferences);
 
@@ -107,6 +109,15 @@ internal sealed class InMemorySettingsStore : ISettingsStore
     public ValueTask SaveThemeAsync(ThemeMode theme, CancellationToken cancellationToken = default)
     {
         Theme = theme;
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<WindowBorderMode> LoadWindowBorderModeAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(WindowBorderMode);
+
+    public ValueTask SaveWindowBorderModeAsync(WindowBorderMode mode, CancellationToken cancellationToken = default)
+    {
+        WindowBorderMode = mode;
         return ValueTask.CompletedTask;
     }
 

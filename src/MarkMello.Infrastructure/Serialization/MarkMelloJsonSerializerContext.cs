@@ -21,6 +21,7 @@ namespace MarkMello.Infrastructure.Serialization;
 [JsonSerializable(typeof(AppLanguage))]
 [JsonSerializable(typeof(FontFamilyMode))]
 [JsonSerializable(typeof(DocumentMinimapMode))]
+[JsonSerializable(typeof(WindowBorderMode))]
 [JsonSerializable(typeof(GitHubReleaseResponse))]
 [JsonSerializable(typeof(GitHubReleaseAssetResponse))]
 internal sealed partial class MarkMelloJsonSerializerContext : JsonSerializerContext;

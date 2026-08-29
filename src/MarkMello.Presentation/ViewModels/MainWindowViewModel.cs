@@ -42,6 +42,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly string _aboutLicense = "GPLv3";
     private AppUpdatePackage? _availableUpdatePackage;
     private ReadingPreferences _documentReadingPreferences = GetDocumentRenderingPreferences(ReadingPreferences.Default);
+    private WindowBorderMode _windowBorderMode = WindowBorderMode.Auto;
+    private bool _isWindowBorderLoaded;
 
     public event EventHandler? CloseRequested;
 
@@ -470,6 +472,69 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
 
+    /// <summary>
+    /// Рамка окна. Хранится отдельно от <see cref="ReadingPreferences"/>: это
+    /// настройка оболочки, а не чтения документа.
+    /// </summary>
+    public WindowBorderMode WindowBorderMode
+    {
+        get => _windowBorderMode;
+        set
+        {
+            if (_windowBorderMode == value)
+            {
+                return;
+            }
+
+            _windowBorderMode = value;
+            OnPropertyChanged();
+            RaiseWindowBorderSelectionChanged();
+
+            if (_isWindowBorderLoaded)
+            {
+                _ = _settings.SaveWindowBorderModeAsync(value).AsTask();
+            }
+        }
+    }
+
+    public bool IsWindowBorderAutoSelected
+    {
+        get => WindowBorderMode == WindowBorderMode.Auto;
+        set => SelectWindowBorderMode(value, WindowBorderMode.Auto, nameof(IsWindowBorderAutoSelected));
+    }
+
+    public bool IsWindowBorderOnSelected
+    {
+        get => WindowBorderMode == WindowBorderMode.On;
+        set => SelectWindowBorderMode(value, WindowBorderMode.On, nameof(IsWindowBorderOnSelected));
+    }
+
+    public bool IsWindowBorderOffSelected
+    {
+        get => WindowBorderMode == WindowBorderMode.Off;
+        set => SelectWindowBorderMode(value, WindowBorderMode.Off, nameof(IsWindowBorderOffSelected));
+    }
+
+    private void SelectWindowBorderMode(bool isChecked, WindowBorderMode mode, string propertyName)
+    {
+        if (!isChecked)
+        {
+            // Unchecking the active segment would leave the group with no
+            // selection; the segmented control only ever moves between options.
+            OnPropertyChanged(propertyName);
+            return;
+        }
+
+        WindowBorderMode = mode;
+    }
+
+    private void RaiseWindowBorderSelectionChanged()
+    {
+        OnPropertyChanged(nameof(IsWindowBorderAutoSelected));
+        OnPropertyChanged(nameof(IsWindowBorderOnSelected));
+        OnPropertyChanged(nameof(IsWindowBorderOffSelected));
+    }
+
     public DocumentMinimapMode SelectedDocumentMinimapMode
     {
         get => ReadingPreferences.DocumentMinimapMode;
@@ -546,6 +611,9 @@ public partial class MainWindowViewModel : ObservableObject
 
         var savedTheme = await _settings.LoadThemeAsync().ConfigureAwait(true);
         ApplyTheme(savedTheme);
+
+        WindowBorderMode = await _settings.LoadWindowBorderModeAsync().ConfigureAwait(true);
+        _isWindowBorderLoaded = true;
 
         var path = _commandLine.GetActivationFilePath();
         if (!string.IsNullOrEmpty(path))

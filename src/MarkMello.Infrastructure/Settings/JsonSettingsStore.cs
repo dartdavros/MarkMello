@@ -19,6 +19,7 @@ public sealed class JsonSettingsStore : ISettingsStore
     private ReadingPreferences _preferences = ReadingPreferences.Default;
     private ThemeMode _theme = ThemeMode.System;
     private AppLanguage _language = AppLanguage.System;
+    private WindowBorderMode _windowBorder = WindowBorderMode.Auto;
     private WindowPlacement? _windowPlacement;
 
     public JsonSettingsStore(string? settingsRootDirectory = null)
@@ -71,6 +72,31 @@ public sealed class JsonSettingsStore : ISettingsStore
         {
             EnsureLoadedCore();
             _theme = NormalizeTheme(theme);
+            PersistCore();
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<WindowBorderMode> LoadWindowBorderModeAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            return ValueTask.FromResult(_windowBorder);
+        }
+    }
+
+    public ValueTask SaveWindowBorderModeAsync(WindowBorderMode mode, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            _windowBorder = NormalizeWindowBorderMode(mode);
             PersistCore();
         }
 
@@ -151,6 +177,7 @@ public sealed class JsonSettingsStore : ISettingsStore
                         _theme = NormalizeTheme(fileModel.Theme);
                         _preferences = ReadingPreferences.Normalize(fileModel.Preferences);
                         _language = NormalizeLanguage(fileModel.Language);
+                        _windowBorder = NormalizeWindowBorderMode(fileModel.WindowBorder);
                         _windowPlacement = WindowPlacement.Normalize(fileModel.WindowPlacement);
                     }
                 }
@@ -161,6 +188,7 @@ public sealed class JsonSettingsStore : ISettingsStore
             _theme = ThemeMode.System;
             _preferences = ReadingPreferences.Default;
             _language = AppLanguage.System;
+            _windowBorder = WindowBorderMode.Auto;
             _windowPlacement = null;
         }
         finally
@@ -182,7 +210,7 @@ public sealed class JsonSettingsStore : ISettingsStore
             Directory.CreateDirectory(directory);
 
             var tempFilePath = _settingsFilePath + ".tmp";
-            var fileModel = new SettingsFileModel(_theme, _preferences, _language, _windowPlacement);
+            var fileModel = new SettingsFileModel(_theme, _preferences, _language, _windowPlacement, _windowBorder);
             var json = JsonSerializer.Serialize(
                 fileModel,
                 MarkMelloJsonSerializerContext.Default.SettingsFileModel);
@@ -203,6 +231,14 @@ public sealed class JsonSettingsStore : ISettingsStore
             ThemeMode.Light => ThemeMode.Light,
             ThemeMode.Dark => ThemeMode.Dark,
             _ => ThemeMode.System
+        };
+
+    private static WindowBorderMode NormalizeWindowBorderMode(WindowBorderMode mode)
+        => mode switch
+        {
+            WindowBorderMode.On => WindowBorderMode.On,
+            WindowBorderMode.Off => WindowBorderMode.Off,
+            _ => WindowBorderMode.Auto
         };
 
     private static AppLanguage NormalizeLanguage(AppLanguage language)
