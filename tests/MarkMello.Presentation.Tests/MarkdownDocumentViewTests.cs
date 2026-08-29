@@ -412,6 +412,19 @@ public sealed class MarkdownDocumentViewTests
     }
 
     [Fact]
+    public void QueryKeepsTheWhitespaceTheUserTyped()
+    {
+        var view = CreateView(CreateCompositeDocument());
+
+        view.ApplySearchQuery(" ");
+
+        // A trimmed query would collapse to empty here and quietly search for
+        // nothing, leaving phrases with spaces unsearchable.
+        Assert.Equal(" ", view.ActiveSearchQuery);
+        Assert.True(view.MatchCount > 0);
+    }
+
+    [Fact]
     public void DocumentChangeReappliesActiveQueryToNewText()
     {
         var view = CreateView(CreateCompositeDocument());

@@ -46,7 +46,8 @@ public partial class EditWorkspaceView : UserControl, IFindHost
 
     public void ApplyQuery(string? query)
     {
-        var normalized = query?.Trim() ?? string.Empty;
+        // Not trimmed, matching the reader: spaces are searchable text.
+        var normalized = query ?? string.Empty;
         if (string.Equals(_activeSearchQuery, normalized, StringComparison.Ordinal))
         {
             return;

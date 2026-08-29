@@ -259,7 +259,9 @@ public sealed class MarkdownDocumentView : UserControl
     /// </summary>
     public void ApplySearchQuery(string? query)
     {
-        var normalized = query?.Trim() ?? string.Empty;
+        // Not trimmed: a query is whatever the user typed, spaces included.
+        // Trimming would make " the " and a bare space unsearchable.
+        var normalized = query ?? string.Empty;
         if (string.Equals(_activeSearchQuery, normalized, StringComparison.Ordinal))
         {
             return;

@@ -30,7 +30,20 @@ public sealed class MarkdownTextSearchTests
     {
         Assert.Empty(MarkdownTextSearch.FindAll("text", string.Empty));
         Assert.Empty(MarkdownTextSearch.FindAll("text", null));
-        Assert.Empty(MarkdownTextSearch.FindAll("text", "   "));
+    }
+
+    [Fact]
+    public void FindAllTreatsWhitespaceAsSearchableText()
+    {
+        // Whitespace is not stripped from the query anywhere along the way, so
+        // phrases like " the " and a bare space stay searchable.
+        Assert.Equal(
+            [new DocumentTextRange(5, 6), new DocumentTextRange(10, 11)],
+            MarkdownTextSearch.FindAll("alpha beta gamma", " "));
+
+        Assert.Equal(
+            [new DocumentTextRange(5, 11)],
+            MarkdownTextSearch.FindAll("alpha beta gamma", " beta "));
     }
 
     [Fact]

@@ -144,7 +144,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FindResultLabel))]
-    private int _findMatchIndex;
+    private int _findMatchIndex = -1;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FindResultLabel))]
