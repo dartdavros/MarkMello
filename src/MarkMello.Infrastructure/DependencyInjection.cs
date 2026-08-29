@@ -7,6 +7,7 @@ using MarkMello.Infrastructure.Markdown;
 using MarkMello.Infrastructure.Platform;
 using MarkMello.Infrastructure.Settings;
 using MarkMello.Infrastructure.Updates;
+using MarkMello.Infrastructure.Workspace;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MarkMello.Infrastructure;
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.AddSingleton<IMarkdownDocumentRenderer, MarkdigMarkdownDocumentRenderer>();
         services.AddSingleton<IDiagramRenderer, MermaidDiagramRenderer>();
         services.AddSingleton<IImageSourceResolver, DefaultImageSourceResolver>();
+        services.AddSingleton<IWorkspaceFileSystem, DirectoryWorkspaceFileSystem>();
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<IPlatformServices, DefaultPlatformServices>();
         services.AddSingleton(_ => new CommandLineActivation(commandLineArgs));
@@ -60,7 +62,39 @@ public static class DependencyInjection
             ? StartupSmokeTestOptions.Disabled
             : new StartupSmokeTestOptions(
                 IsEnabled: true,
-                ExitAfterOpenDelay: TimeSpan.FromMilliseconds(delayMilliseconds.Value));
+                ExitAfterOpenDelay: TimeSpan.FromMilliseconds(delayMilliseconds.Value),
+                OpenFolderPath: TryGetSmokeFolderPathFromArguments(commandLineArgs));
+    }
+
+    /// <summary>
+    /// <c>--smoke-open-folder &lt;path&gt;</c>: открыть папку в smoke-режиме, чтобы снять
+    /// тайминги folder mode тем же способом, что и тайминги старта.
+    /// </summary>
+    private static string? TryGetSmokeFolderPathFromArguments(string[] commandLineArgs)
+    {
+        for (var index = 0; index < commandLineArgs.Length; index++)
+        {
+            var argument = commandLineArgs[index];
+
+            if (argument.StartsWith("--smoke-open-folder=", StringComparison.Ordinal))
+            {
+                return NormalizeFolderPath(argument["--smoke-open-folder=".Length..]);
+            }
+
+            if (string.Equals(argument, "--smoke-open-folder", StringComparison.Ordinal)
+                && index + 1 < commandLineArgs.Length)
+            {
+                return NormalizeFolderPath(commandLineArgs[index + 1]);
+            }
+        }
+
+        return null;
+    }
+
+    private static string? NormalizeFolderPath(string value)
+    {
+        var trimmed = value.Trim().Trim('"');
+        return Directory.Exists(trimmed) ? Path.GetFullPath(trimmed) : null;
     }
 
     private static int? TryGetSmokeExitDelayFromArguments(string[] commandLineArgs)
