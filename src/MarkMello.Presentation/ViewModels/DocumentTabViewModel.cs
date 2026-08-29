@@ -8,7 +8,7 @@ namespace MarkMello.Presentation.ViewModels;
 /// принадлежности папке: файл, открытый поверх папки, даёт вкладку, но в дереве
 /// не подсвечивается (ADR-0007 Rule 4).
 /// </summary>
-public sealed partial class DocumentTabViewModel : ObservableObject
+public sealed partial class DocumentTabViewModel : ObservableObject, IDisposable
 {
     /// <summary>Ширина вкладки из макета: меньше 120px имя нечитаемо, больше 240px полоса пустеет.</summary>
     public const double MinimumWidth = 120;
@@ -57,6 +57,15 @@ public sealed partial class DocumentTabViewModel : ObservableObject
     /// <summary>Позиция прокрутки: сохраняется при уходе с вкладки и восстанавливается при возврате.</summary>
     public double ScrollOffset { get; set; }
 
+    /// <summary>
+    /// Editor-сессия этой вкладки. Ленивая и живёт до закрытия вкладки: уход на соседнюю
+    /// не должен терять несохранённые правки (ADR-0007 Rule 4).
+    /// </summary>
+    public EditorSessionViewModel? EditorSession { get; set; }
+
+    /// <summary>Вкладка была в режиме правки — возвращаемся в него при активации.</summary>
+    public bool IsEditMode { get; set; }
+
     public MarkdownSource? Document { get; private set; }
 
     public RenderedMarkdownDocument RenderedDocument { get; private set; } = RenderedMarkdownDocument.Empty;
@@ -78,6 +87,13 @@ public sealed partial class DocumentTabViewModel : ObservableObject
     {
         Path = path;
         Title = title;
+    }
+
+    /// <summary>Сессия закрывается вместе со вкладкой, а не при уходе на соседнюю.</summary>
+    public void Dispose()
+    {
+        EditorSession?.Dispose();
+        EditorSession = null;
     }
 
     /// <summary>

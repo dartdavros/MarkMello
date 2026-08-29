@@ -1092,9 +1092,17 @@ public partial class ShellViewModel : ObservableObject
             return true;
         }
 
-        if (!RequiresDirtyResolution)
+        // Грязной может быть любая вкладка, а не только активная: показываем её пользователю
+        // и спрашиваем про неё, после разрешения запрос на закрытие повторяется — так окно
+        // проходит по всем несохранённым вкладкам по очереди.
+        if (FindFirstDirtyTab() is not { } dirtyTab)
         {
             return false;
+        }
+
+        if (!ReferenceEquals(OpenDocuments.ActiveTab, dirtyTab))
+        {
+            _ = RestoreTabAsync(dirtyTab);
         }
 
         QueueDirtyAction(
@@ -1133,6 +1141,8 @@ public partial class ShellViewModel : ObservableObject
 
     partial void OnIsEditModeChanged(bool value)
     {
+        SyncActiveTabEditorState();
+
         IsFindBarOpen = false;
 
         if (value)
@@ -1161,9 +1171,17 @@ public partial class ShellViewModel : ObservableObject
 
     partial void OnEditorSessionChanging(EditorSessionViewModel? oldValue, EditorSessionViewModel? newValue)
     {
-        if (oldValue is not null)
+        if (oldValue is null)
         {
-            oldValue.PropertyChanged -= OnEditorSessionPropertyChanged;
+            return;
+        }
+
+        oldValue.PropertyChanged -= OnEditorSessionPropertyChanged;
+
+        // Сессия принадлежит вкладке: выбрасываем её только если вкладка её больше не держит.
+        // Иначе переключение вкладок убивало бы несохранённые правки соседней.
+        if (!OpenDocuments.Tabs.Any(tab => ReferenceEquals(tab.EditorSession, oldValue)))
+        {
             oldValue.Dispose();
         }
     }
@@ -1176,6 +1194,8 @@ public partial class ShellViewModel : ObservableObject
             value.UpdateReadingPreferences(ReadingPreferences);
             _currentPath = value.CurrentPath;
         }
+
+        SyncActiveTabEditorState();
 
         RefreshDocumentSummary();
         RefreshWindowTitle();
@@ -1359,10 +1379,16 @@ public partial class ShellViewModel : ObservableObject
 
     private void ApplyLoadedDocument(MarkdownSource source, bool preserveEditModeAfterLoad)
     {
-        Document = source;
-        RenderedDocument = _renderMarkdown.Execute(
+        var rendered = _renderMarkdown.Execute(
             source.Content,
             baseDirectory: TryGetDirectory(source.Path));
+
+        // Вкладку переключаем до того, как трогаем EditorSession: иначе сброс сессии
+        // прилетит в предыдущую вкладку и заберёт с собой её несохранённые правки.
+        TrackLoadedDocumentTab(source, rendered);
+
+        Document = source;
+        RenderedDocument = rendered;
         _currentPath = source.Path;
         State = ViewState.Viewing;
         ReadingProgress = 0;
@@ -1392,8 +1418,6 @@ public partial class ShellViewModel : ObservableObject
             IsEditMode = false;
             EditorSession = null;
         }
-
-        TrackLoadedDocumentTab(source);
 
         if (!_documentModelReadyMarked)
         {

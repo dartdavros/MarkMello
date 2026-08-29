@@ -81,14 +81,8 @@ public partial class ShellViewModel
             return;
         }
 
-        if (RequiresDirtyResolution)
-        {
-            // Уходить с грязной вкладки без разрешения нельзя: тот же диалог, что и при открытии файла.
-            await RunWithDirtyCheckAsync(PendingDirtyActionKind.OpenFile, () => RestoreTabAsync(tab))
-                .ConfigureAwait(true);
-            return;
-        }
-
+        // Диалог тут не нужен: правки остаются в своей вкладке и никуда не деваются,
+        // спросим о них при закрытии вкладки или окна.
         await RestoreTabAsync(tab).ConfigureAwait(true);
     }
 
@@ -99,14 +93,14 @@ public partial class ShellViewModel
         {
             OpenDocuments.Activate(tab);
 
-            IsEditMode = false;
-            EditorSession = null;
+            // Сессия и режим правки принадлежат вкладке: возвращаемся ровно в то состояние,
+            // в котором её оставили, вместе с несохранённым текстом.
+            EditorSession = tab.EditorSession;
+            IsEditMode = tab.IsEditMode && tab.EditorSession is not null;
             Document = tab.Document;
             RenderedDocument = tab.RenderedDocument;
             _currentPath = tab.Path;
-            State = tab.Document is null && tab.Path is null && tab.RenderedDocument.Blocks.Count == 0
-                ? ViewState.Viewing
-                : ViewState.Viewing;
+            State = ViewState.Viewing;
             ClearLoadError();
 
             _pendingScrollOffset = tab.ScrollOffset;
@@ -131,10 +125,15 @@ public partial class ShellViewModel
     /// </summary>
     private async Task CloseTabAsync(DocumentTabViewModel tab)
     {
-        var isActive = ReferenceEquals(OpenDocuments.ActiveTab, tab);
-
-        if (isActive && RequiresDirtyResolution)
+        if (tab.EditorSession?.IsDirty == true)
         {
+            // Диалог работает с активной сессией, поэтому сначала показываем пользователю
+            // ту вкладку, о правках которой спрашиваем.
+            if (!ReferenceEquals(OpenDocuments.ActiveTab, tab))
+            {
+                await RestoreTabAsync(tab).ConfigureAwait(true);
+            }
+
             await RunWithDirtyCheckAsync(PendingDirtyActionKind.CloseFile, () => RemoveTabAsync(tab))
                 .ConfigureAwait(true);
             return;
@@ -146,7 +145,16 @@ public partial class ShellViewModel
     private async Task RemoveTabAsync(DocumentTabViewModel tab)
     {
         var wasActive = ReferenceEquals(OpenDocuments.ActiveTab, tab);
+
+        if (wasActive && ReferenceEquals(EditorSession, tab.EditorSession))
+        {
+            // Снимаем сессию с shell до удаления вкладки, иначе она останется подписанной.
+            IsEditMode = false;
+            EditorSession = null;
+        }
+
         OpenDocuments.Remove(tab);
+        tab.Dispose();
 
         if (!wasActive)
         {
@@ -184,7 +192,7 @@ public partial class ShellViewModel
     }
 
     /// <summary>Заводит вкладку под загруженный документ или обновляет уже открытую.</summary>
-    private void TrackLoadedDocumentTab(MarkdownSource source)
+    private void TrackLoadedDocumentTab(MarkdownSource source, RenderedMarkdownDocument rendered)
     {
         var tab = OpenDocuments.FindByPath(source.Path);
         if (tab is null)
@@ -192,7 +200,7 @@ public partial class ShellViewModel
             tab = OpenDocuments.Add(new DocumentTabViewModel(source.Path, source.FileName));
         }
 
-        tab.ApplyDocument(source, RenderedDocument);
+        tab.ApplyDocument(source, rendered);
         tab.Tooltip = BuildTabTooltip(source.Path);
         tab.BelongsToWorkspace = Workspace is { } workspace && IsInsideWorkspace(source.Path, workspace.Folder);
         tab.IsDirty = false;
@@ -237,6 +245,26 @@ public partial class ShellViewModel
             tab.IsDirty = IsDirty;
         }
     }
+
+    /// <summary>
+    /// Сессия и режим правки, включённые в shell, приписываются активной вкладке.
+    /// Во время восстановления вкладки зеркалирование выключено: там поток данных обратный.
+    /// </summary>
+    private void SyncActiveTabEditorState()
+    {
+        if (_isRestoringTab || OpenDocuments is null || OpenDocuments.ActiveTab is not { } tab)
+        {
+            return;
+        }
+
+        tab.EditorSession = EditorSession;
+        tab.IsEditMode = IsEditMode;
+        tab.IsDirty = EditorSession?.IsDirty == true;
+    }
+
+    /// <summary>Первая вкладка с несохранёнными правками — с неё начинается закрытие окна.</summary>
+    private DocumentTabViewModel? FindFirstDirtyTab()
+        => OpenDocuments.Tabs.FirstOrDefault(static tab => tab.EditorSession?.IsDirty == true);
 
     private void RefreshTabState()
     {
