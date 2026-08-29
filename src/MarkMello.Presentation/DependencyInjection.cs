@@ -16,13 +16,19 @@ public static class DependencyInjection
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        // TopLevel accessor: к моменту, когда FilePicker реально вызывается, MainWindow уже создан.
-        // На этапе DI build окно ещё не существует — поэтому только Func, не значение.
+        // TopLevel accessor: к моменту, когда FilePicker реально вызывается, окно уже создано.
+        // Берём активное, а не MainWindow: со вторым окном picker обязан принадлежать тому,
+        // в котором пользователь работает (ADR-0007 Rule 11).
         services.AddSingleton<Func<TopLevel?>>(_ => static () =>
         {
-            var lifetime = global::Avalonia.Application.Current?.ApplicationLifetime
-                as IClassicDesktopStyleApplicationLifetime;
-            return lifetime?.MainWindow;
+            if (global::Avalonia.Application.Current?.ApplicationLifetime
+                is not IClassicDesktopStyleApplicationLifetime lifetime)
+            {
+                return null;
+            }
+
+            return lifetime.Windows.FirstOrDefault(static window => window.IsActive)
+                ?? lifetime.MainWindow;
         });
 
         services.AddSingleton<IFilePicker, FilePicker>();
@@ -34,8 +40,11 @@ public static class DependencyInjection
         services.AddSingleton<Func<IEditorPreviewScheduler>>(
             _ => static () => new DebouncedEditorPreviewScheduler());
 
-        services.AddSingleton<ShellViewModel>();
-        services.AddSingleton<MainWindow>();
+        // Окно и его shell — по экземпляру на окно: вкладки и папка не общие.
+        // Сервисы без состояния окна (тема, локализация, настройки) остаются singleton.
+        services.AddTransient<ShellViewModel>();
+        services.AddTransient<MainWindow>();
+        services.AddSingleton<IWindowLauncher, WindowLauncher>();
 
         return services;
     }

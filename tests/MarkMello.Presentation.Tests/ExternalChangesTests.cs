@@ -211,7 +211,8 @@ public sealed class ExternalChangesTests
             new SearchWorkspaceFilesUseCase(fileSystem),
             new WorkspaceFileOperationsUseCase(fileSystem, platform),
             platform,
-            () => watcher);
+            () => watcher,
+            new RecordingWindowLauncher());
 
         await viewModel.OpenFolderPathAsync(Root);
 

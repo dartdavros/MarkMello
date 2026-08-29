@@ -225,7 +225,8 @@ public sealed class WorkspaceFileOperationsTests
             new SearchWorkspaceFilesUseCase(fileSystem),
             new WorkspaceFileOperationsUseCase(fileSystem, platform),
             platform,
-            static () => new FakeWorkspaceWatcher());
+            static () => new FakeWorkspaceWatcher(),
+            new RecordingWindowLauncher());
 
         await viewModel.OpenFolderPathAsync(Root);
 

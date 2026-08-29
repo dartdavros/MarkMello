@@ -56,6 +56,19 @@ public partial class ShellViewModel
     /// </summary>
     public async Task OpenFolderPathAsync(string path)
     {
+        // Одна папка — одно окно. Вторая папка либо переводит фокус на уже открытое окно,
+        // либо получает своё: multi-root workspace не вводится (ADR-0007 Rule 11).
+        if (Workspace is not null && !IsSameFolder(path))
+        {
+            if (_windowLauncher.TryFocusWindowWithFolder(path))
+            {
+                return;
+            }
+
+            _windowLauncher.OpenFolderInNewWindow(path);
+            return;
+        }
+
         var result = await _openFolder.ExecuteAsync(path).ConfigureAwait(true);
 
         switch (result)
@@ -148,6 +161,14 @@ public partial class ShellViewModel
 
         StartWatching(success.Folder.RootPath);
 
+        // Та же папка, что в прошлый раз: возвращаем её вкладки и раскрытые узлы.
+        await TryRestoreSessionAsync(workspace).ConfigureAwait(true);
+        if (OpenDocuments.HasTabs)
+        {
+            RefreshWindowTitle();
+            return;
+        }
+
         // Папка сама по себе документ не открывает — кроме README.md в корне,
         // который заменяет пустой экран осмысленным содержимым (ADR-0007 Rule 2).
         var readmePath = workspace.TryGetRootReadmePath();
@@ -225,6 +246,14 @@ public partial class ShellViewModel
         CloseFolderCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanCloseFolder));
     }
+
+    /// <summary>Та же самая папка — просто повторный запрос, окно не плодим.</summary>
+    private bool IsSameFolder(string path)
+        => Workspace is { } workspace
+            && string.Equals(
+                Path.TrimEndingDirectorySeparator(workspace.Folder.RootPath),
+                Path.TrimEndingDirectorySeparator(path),
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     private static bool IsInsideWorkspace(string? documentPath, WorkspaceFolder folder)
     {

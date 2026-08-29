@@ -282,6 +282,9 @@ public partial class ShellViewModel
         OnPropertyChanged(nameof(ShowsTabStrip));
         OnPropertyChanged(nameof(IsEmptyDocumentSurface));
         UpdateTabCommandStates();
+
+        // Состав вкладок изменился — снимок сессии устарел.
+        _ = PersistSessionAsync();
     }
 
     private void UpdateTabCommandStates()

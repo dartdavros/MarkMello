@@ -198,6 +198,13 @@ public sealed partial class WorkspaceViewModel : ObservableObject
         }
     }
 
+    /// <summary>Раскрытые каталоги — часть состояния сессии окна.</summary>
+    public IReadOnlyList<string> GetExpandedDirectories()
+        => EnumerateLoadedNodes()
+            .Where(static node => node is { IsDirectory: true, IsExpanded: true })
+            .Select(static node => node.Path)
+            .ToList();
+
     private IEnumerable<FileTreeNodeViewModel> EnumerateLoadedNodes()
         => Roots.SelectMany(static root => root.EnumerateLoadedNodes());
 

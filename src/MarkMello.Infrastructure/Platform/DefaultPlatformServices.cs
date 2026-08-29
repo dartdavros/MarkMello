@@ -13,8 +13,9 @@ public sealed class DefaultPlatformServices : IPlatformServices
     public string PlatformName { get; } = DetectPlatform();
 
     /// <summary>
-    /// Windows реализована через shell32, macOS и Linux — в M4. До тех пор они честно
-    /// возвращают <see cref="TrashResult.Unsupported"/>: удалять безвозвратно молча нельзя.
+    /// Windows — shell32, macOS — NSFileManager, Linux — freedesktop trash spec.
+    /// Если корзина недоступна, возвращается <see cref="TrashResult.Unsupported"/>:
+    /// удалять безвозвратно молча нельзя, об этом обязан спросить вызывающий (ADR-0007 Rule 7).
     /// </summary>
     public ValueTask<TrashResult> MoveToTrashAsync(string path, CancellationToken cancellationToken = default)
     {
@@ -25,15 +26,15 @@ public sealed class DefaultPlatformServices : IPlatformServices
             return ValueTask.FromResult(TrashResult.Failed);
         }
 
-        if (!OperatingSystem.IsWindows())
-        {
-            return ValueTask.FromResult(TrashResult.Unsupported);
-        }
-
         try
         {
-            return ValueTask.FromResult(
-                WindowsTrash.TryMoveToRecycleBin(path) ? TrashResult.Trashed : TrashResult.Failed);
+            var moved = OperatingSystem.IsWindows()
+                ? WindowsTrash.TryMoveToRecycleBin(path)
+                : UnixTrash.TryMoveToTrash(path);
+
+            // Не «Failed»: корзины может просто не быть — сетевой путь, урезанная система.
+            // Пользователю предложат безвозвратное удаление отдельным вопросом.
+            return ValueTask.FromResult(moved ? TrashResult.Trashed : TrashResult.Unsupported);
         }
         catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
         {

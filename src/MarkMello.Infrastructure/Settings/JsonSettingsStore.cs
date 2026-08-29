@@ -23,6 +23,7 @@ public sealed class JsonSettingsStore : ISettingsStore
     private WindowBorderMode _windowBorder = WindowBorderMode.Auto;
     private WindowPlacement? _windowPlacement;
     private double _sidebarWidth = WorkspaceSidebarWidth.Default;
+    private WorkspaceSessionState _session = WorkspaceSessionState.Empty;
 
     public JsonSettingsStore(string? settingsRootDirectory = null)
     {
@@ -155,6 +156,32 @@ public sealed class JsonSettingsStore : ISettingsStore
         return ValueTask.CompletedTask;
     }
 
+    public ValueTask<WorkspaceSessionState> LoadSessionAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            return ValueTask.FromResult(_session);
+        }
+    }
+
+    public ValueTask SaveSessionAsync(WorkspaceSessionState session, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(session);
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            _session = session;
+            PersistCore();
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask<WindowPlacement?> LoadWindowPlacementAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -207,6 +234,7 @@ public sealed class JsonSettingsStore : ISettingsStore
                         _windowBorder = NormalizeWindowBorderMode(fileModel.WindowBorder);
                         _windowPlacement = WindowPlacement.Normalize(fileModel.WindowPlacement);
                         _sidebarWidth = WorkspaceSidebarWidth.Normalize(fileModel.SidebarWidth);
+                        _session = fileModel.Session ?? WorkspaceSessionState.Empty;
                     }
                 }
             }
@@ -219,6 +247,7 @@ public sealed class JsonSettingsStore : ISettingsStore
             _windowBorder = WindowBorderMode.Auto;
             _windowPlacement = null;
             _sidebarWidth = WorkspaceSidebarWidth.Default;
+            _session = WorkspaceSessionState.Empty;
         }
         finally
         {
@@ -245,7 +274,8 @@ public sealed class JsonSettingsStore : ISettingsStore
                 _language,
                 _windowPlacement,
                 _windowBorder,
-                _sidebarWidth);
+                _sidebarWidth,
+                _session);
             var json = JsonSerializer.Serialize(
                 fileModel,
                 MarkMelloJsonSerializerContext.Default.SettingsFileModel);

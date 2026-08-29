@@ -7,6 +7,7 @@ using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
 using MarkMello.Presentation.Editing;
 using MarkMello.Presentation.Localization;
+using MarkMello.Presentation.Services;
 using System.Reflection;
 using System.ComponentModel;
 
@@ -33,6 +34,13 @@ public partial class ShellViewModel : ObservableObject
     private readonly WorkspaceFileOperationsUseCase _fileOperations;
     private readonly IPlatformServices _platform;
     private readonly Func<IWorkspaceWatcher> _watcherFactory;
+    private readonly IWindowLauncher _windowLauncher;
+
+    /// <summary>
+    /// Проверка существования пути при восстановлении сессии. Отдельно от файловой системы
+    /// дерева, потому что нужна и без открытой папки; в тестах подменяется.
+    /// </summary>
+    private readonly Func<string, bool> _fileExists;
     private readonly IUpdateService _updateService;
     private readonly IImageSourceResolver? _imageSourceResolver;
     private readonly Func<IEditorPreviewScheduler>? _previewSchedulerFactory;
@@ -70,6 +78,8 @@ public partial class ShellViewModel : ObservableObject
         WorkspaceFileOperationsUseCase fileOperations,
         IPlatformServices platform,
         Func<IWorkspaceWatcher> watcherFactory,
+        IWindowLauncher windowLauncher,
+        Func<string, bool>? fileExists = null,
         IImageSourceResolver? imageSourceResolver = null,
         Func<IEditorPreviewScheduler>? previewSchedulerFactory = null)
     {
@@ -89,6 +99,8 @@ public partial class ShellViewModel : ObservableObject
         _fileOperations = fileOperations;
         _platform = platform;
         _watcherFactory = watcherFactory;
+        _windowLauncher = windowLauncher;
+        _fileExists = fileExists ?? (static path => File.Exists(path) || Directory.Exists(path));
         _imageSourceResolver = imageSourceResolver;
         _previewSchedulerFactory = previewSchedulerFactory;
         _aboutVersion = GetProductVersion();
@@ -664,6 +676,14 @@ public partial class ShellViewModel : ObservableObject
 
         WindowBorderMode = await _settings.LoadWindowBorderModeAsync().ConfigureAwait(true);
         _isWindowBorderLoaded = true;
+
+        // Каталог в аргументах открывает папку, файл — документ. Порядок важен:
+        // «MarkMello docs notes.md» должен показать и дерево, и запрошенный документ.
+        var folderPath = _commandLine.GetActivationFolderPath();
+        if (!string.IsNullOrEmpty(folderPath))
+        {
+            await OpenFolderPathAsync(folderPath).ConfigureAwait(true);
+        }
 
         var path = _commandLine.GetActivationFilePath();
         if (!string.IsNullOrEmpty(path))

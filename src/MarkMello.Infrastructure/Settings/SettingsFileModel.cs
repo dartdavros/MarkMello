@@ -1,4 +1,5 @@
 using MarkMello.Domain;
+using MarkMello.Domain.Workspace;
 
 namespace MarkMello.Infrastructure.Settings;
 
@@ -8,4 +9,5 @@ internal sealed record SettingsFileModel(
     AppLanguage Language,
     WindowPlacement? WindowPlacement,
     WindowBorderMode WindowBorder = WindowBorderMode.Auto,
-    double? SidebarWidth = null);
+    double? SidebarWidth = null,
+    WorkspaceSessionState? Session = null);

@@ -26,6 +26,7 @@ public sealed class CommandLineActivation : ICommandLineActivation, IFileActivat
 {
     private readonly Lock _gate = new();
     private readonly string? _argvActivationPath;
+    private readonly string? _argvActivationFolderPath;
     private string? _cachedRuntimePath;
     private bool _initialConsumed;
 
@@ -33,6 +34,7 @@ public sealed class CommandLineActivation : ICommandLineActivation, IFileActivat
     {
         ArgumentNullException.ThrowIfNull(args);
         _argvActivationPath = ResolveFromArgs(args);
+        _argvActivationFolderPath = ResolveFolderFromArgs(args);
     }
 
     public event EventHandler<FileActivationEventArgs>? FileActivated;
@@ -45,6 +47,12 @@ public sealed class CommandLineActivation : ICommandLineActivation, IFileActivat
             return _argvActivationPath ?? _cachedRuntimePath;
         }
     }
+
+    /// <summary>
+    /// Каталог из аргументов. В отличие от файла, он не кэшируется как runtime-сигнал:
+    /// платформы присылают через события только файлы.
+    /// </summary>
+    public string? GetActivationFolderPath() => _argvActivationFolderPath;
 
     public void NotifyFileActivated(string path)
     {
@@ -90,6 +98,25 @@ public sealed class CommandLineActivation : ICommandLineActivation, IFileActivat
             if (resolved is not null)
             {
                 return resolved;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ResolveFolderFromArgs(string[] args)
+    {
+        foreach (var arg in args)
+        {
+            // Диагностические ключи smoke-режима каталогами не являются.
+            if (string.IsNullOrWhiteSpace(arg) || arg.StartsWith('-'))
+            {
+                continue;
+            }
+
+            if (Directory.Exists(arg))
+            {
+                return Path.GetFullPath(arg);
             }
         }
 

@@ -191,7 +191,8 @@ public sealed class DocumentTabsShellTests
             new SearchWorkspaceFilesUseCase(fileSystem),
             new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
             new FakePlatformServices(),
-            static () => new FakeWorkspaceWatcher());
+            static () => new FakeWorkspaceWatcher(),
+            new RecordingWindowLauncher());
 
         return new TabsTestHarness(loader, viewModel);
     }

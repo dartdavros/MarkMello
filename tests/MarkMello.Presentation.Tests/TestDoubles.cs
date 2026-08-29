@@ -81,7 +81,11 @@ internal sealed class StubCommandLineActivation : ICommandLineActivation
 {
     public string? ActivationPath { get; set; }
 
+    public string? ActivationFolderPath { get; set; }
+
     public string? GetActivationFilePath() => ActivationPath;
+
+    public string? GetActivationFolderPath() => ActivationFolderPath;
 
     public event EventHandler<FileActivationEventArgs>? FileActivated;
 
@@ -109,6 +113,17 @@ internal sealed class InMemorySettingsStore : ISettingsStore
 
     public ValueTask<ReadingPreferences> LoadPreferencesAsync(CancellationToken cancellationToken = default)
         => ValueTask.FromResult(Preferences);
+
+    public WorkspaceSessionState Session { get; set; } = WorkspaceSessionState.Empty;
+
+    public ValueTask<WorkspaceSessionState> LoadSessionAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(Session);
+
+    public ValueTask SaveSessionAsync(WorkspaceSessionState session, CancellationToken cancellationToken = default)
+    {
+        Session = session;
+        return ValueTask.CompletedTask;
+    }
 
     public ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default)
         => ValueTask.FromResult(SidebarWidth);
@@ -292,4 +307,31 @@ internal sealed class StubUpdateService : IUpdateService
         string downloadedFilePath,
         CancellationToken cancellationToken = default)
         => Task.FromResult(NextPrepareResult);
+}
+
+/// <summary>
+/// Запуск окон в тестах: реальные окна не создаём, но фиксируем, что вторая папка
+/// ушла именно в новое окно, а не подменила дерево в текущем.
+/// </summary>
+internal sealed class RecordingWindowLauncher : MarkMello.Presentation.Services.IWindowLauncher
+{
+    public List<string> NewWindowFolders { get; } = [];
+
+    public List<string> FocusedFolders { get; } = [];
+
+    /// <summary>Папки, которые считаются уже открытыми в других окнах.</summary>
+    public HashSet<string> OpenFolders { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public bool TryFocusWindowWithFolder(string folderPath)
+    {
+        if (!OpenFolders.Contains(folderPath))
+        {
+            return false;
+        }
+
+        FocusedFolders.Add(folderPath);
+        return true;
+    }
+
+    public void OpenFolderInNewWindow(string folderPath) => NewWindowFolders.Add(folderPath);
 }

@@ -24,6 +24,13 @@ public interface ISettingsStore
     ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default);
     ValueTask SaveSidebarWidthAsync(double width, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Состояние последней сессии окна. Читается только по явному запросу пользователя:
+    /// в стартовый путь восстановление не входит.
+    /// </summary>
+    ValueTask<WorkspaceSessionState> LoadSessionAsync(CancellationToken cancellationToken = default);
+    ValueTask SaveSessionAsync(WorkspaceSessionState session, CancellationToken cancellationToken = default);
+
     ValueTask<WindowPlacement?> LoadWindowPlacementAsync(CancellationToken cancellationToken = default);
     ValueTask SaveWindowPlacementAsync(WindowPlacement? placement, CancellationToken cancellationToken = default);
 }
