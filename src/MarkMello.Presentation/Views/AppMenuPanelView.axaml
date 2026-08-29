@@ -97,7 +97,31 @@
                     EndPoint="1,0.5" />
 
               <Button Classes="mm-menu-item"
-                      IsVisible="{Binding ShowsSidebar}"
+                      IsVisible="{Binding CanToggleSidebar}"
+                      Command="{Binding ToggleSidebarCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="{Binding AppMenuToggleSidebarLabel}" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="{Binding AppMenuToggleSidebarHint}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Ctrl B" />
+                </Grid>
+              </Button>
+
+              <Line Classes="mm-setting-divider"
+                    IsVisible="{Binding CanToggleSidebar}"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
+                      IsVisible="{Binding CanCloseFolder}"
                       Command="{Binding CloseFolderCommand}">
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="12">
@@ -116,7 +140,7 @@
               </Button>
 
               <Line Classes="mm-setting-divider"
-                    IsVisible="{Binding ShowsSidebar}"
+                    IsVisible="{Binding CanCloseFolder}"
                     StartPoint="0,0.5"
                     EndPoint="1,0.5" />
 

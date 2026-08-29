@@ -33,6 +33,8 @@
     <KeyBinding Gesture="Cmd+O" Command="{Binding OpenFileCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+O" Command="{Binding OpenFolderCommand}" />
     <KeyBinding Gesture="Cmd+Shift+O" Command="{Binding OpenFolderCommand}" />
+    <KeyBinding Gesture="Ctrl+B" Command="{Binding ToggleSidebarCommand}" />
+    <KeyBinding Gesture="Cmd+B" Command="{Binding ToggleSidebarCommand}" />
     <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseActiveTabCommand}" />
     <KeyBinding Gesture="Cmd+W" Command="{Binding CloseActiveTabCommand}" />
     <KeyBinding Gesture="Ctrl+Tab" Command="{Binding ActivateNextTabCommand}" />

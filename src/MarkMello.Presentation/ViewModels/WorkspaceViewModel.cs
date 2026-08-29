@@ -161,6 +161,7 @@ public sealed partial class WorkspaceViewModel : ObservableObject
                 case ExpandFolderNodeResult.Success success:
                     node.ReplaceChildren(CreateNodes(success.Children, node.Depth + 1));
                     ApplyActiveDocumentHighlight(node);
+                    RefreshFooterCounters();
                     break;
 
                 case ExpandFolderNodeResult.NotFound:
@@ -197,6 +198,16 @@ public sealed partial class WorkspaceViewModel : ObservableObject
             node.IsActiveDocument = !node.IsDirectory && PathsEqual(node.Path, ActiveDocumentPath);
         }
     }
+
+    /// <summary>
+    /// Сколько документов сейчас видно в дереве. Считаем только загруженные узлы:
+    /// полный обход папки ради счётчика запрещён (ADR-0007 Rule 5), поэтому число
+    /// растёт по мере раскрытия — подпись говорит «в дереве», а не «в папке».
+    /// </summary>
+    public int LoadedDocumentCount => EnumerateLoadedNodes().Count(static node => node.IsSupportedDocument);
+
+    /// <summary>Пересчёт после раскрытия узла или файловой операции.</summary>
+    public void RefreshFooterCounters() => OnPropertyChanged(nameof(LoadedDocumentCount));
 
     /// <summary>Раскрытые каталоги — часть состояния сессии окна.</summary>
     public IReadOnlyList<string> GetExpandedDirectories()

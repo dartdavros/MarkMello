@@ -275,6 +275,8 @@ public sealed partial class WorkspaceViewModel
             node.ReplaceChildren(CreateNodes(loaded.Children, node.Depth + 1));
             ApplyActiveDocumentHighlight(node);
         }
+
+        RefreshFooterCounters();
     }
 
     private void ReplaceRoots(IReadOnlyList<WorkspaceEntry> entries)

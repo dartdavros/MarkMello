@@ -27,14 +27,45 @@ public partial class ShellViewModel
 
     private double _persistedSidebarWidth = WorkspaceSidebarWidth.Default;
 
-    public bool ShowsSidebar => Workspace is not null;
+    /// <summary>
+    /// Сайдбар свёрнут. Папка при этом остаётся открытой: сворачивание — это про место
+    /// на экране, а не про выход из режима папки (ADR-0007 Rule 3).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsSidebar))]
+    [NotifyPropertyChangedFor(nameof(SidebarContent))]
+    [NotifyPropertyChangedFor(nameof(ShowsFloatingAppMenuButton))]
+    [NotifyPropertyChangedFor(nameof(CanToggleSidebar))]
+    private bool _isSidebarCollapsed;
+
+    public bool ShowsSidebar => Workspace is not null && !IsSidebarCollapsed;
+
+    /// <summary>Пункт меню «Показать файлы» появляется только когда папка открыта.</summary>
+    public bool CanToggleSidebar => Workspace is not null;
+
+    /// <summary>
+    /// Свернуть и развернуть — одна команда. Развернуть можно из меню приложения
+    /// и по `Ctrl B`: в макете обратного пути не было, и без него сворачивание —
+    /// ловушка.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanToggleSidebar))]
+    private void ToggleSidebar()
+    {
+        if (Workspace is null)
+        {
+            return;
+        }
+
+        IsSidebarCollapsed = !IsSidebarCollapsed;
+        CloseOverlayCore();
+    }
 
     /// <summary>
     /// Содержимое сайдбара для ленивого <c>ContentControl</c>. До открытия папки — null,
     /// поэтому в single-file режиме контрол вообще не создаётся (ADR-0007 Rule 3):
     /// раньше он висел в дереве скрытым и стоил памяти на каждом старте.
     /// </summary>
-    public object? SidebarContent => Workspace is null ? null : this;
+    public object? SidebarContent => ShowsSidebar ? this : null;
 
     /// <summary>
     /// Плавающий гамбургер живёт только без сайдбара: при открытой папке его роль
@@ -160,6 +191,7 @@ public partial class ShellViewModel
                 OnWorkspacePathChanged));
 
         Workspace = workspace;
+        IsSidebarCollapsed = false;
         ClearLoadError();
         UpdateWorkspaceCommandStates();
 
@@ -252,7 +284,9 @@ public partial class ShellViewModel
     private void UpdateWorkspaceCommandStates()
     {
         CloseFolderCommand.NotifyCanExecuteChanged();
+        ToggleSidebarCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanCloseFolder));
+        OnPropertyChanged(nameof(CanToggleSidebar));
     }
 
     /// <summary>Та же самая папка — просто повторный запрос, окно не плодим.</summary>

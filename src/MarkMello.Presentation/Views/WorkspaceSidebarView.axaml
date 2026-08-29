@@ -250,7 +250,7 @@
 
       <!-- Шапка: гамбургер переезжает сюда с плавающей позиции, рядом — имя корня -->
       <Grid Grid.Row="0"
-            ColumnDefinitions="Auto,*,Auto,Auto"
+            ColumnDefinitions="Auto,*,Auto,Auto,Auto"
             Margin="10,0,8,0"
             VerticalAlignment="Center">
         <ToggleButton Grid.Column="0"
@@ -284,6 +284,19 @@
                 Stroke="{DynamicResource MmTextSoftBrush}"
                 StrokeThickness="1.5"
                 StrokeLineCap="Round" />
+        </Button>
+
+        <Button Grid.Column="4"
+                Classes="mm-sidebar-action"
+                Command="{Binding ToggleSidebarCommand}"
+                ToolTip.Tip="{Binding SidebarCollapse}">
+          <Path Data="M8.5 3.5L4.5 7L8.5 10.5"
+                Width="14"
+                Height="14"
+                Stroke="{DynamicResource MmTextSoftBrush}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round" />
         </Button>
 
         <Button Grid.Column="3"
@@ -443,16 +456,20 @@
                    Text="{Binding SidebarSearchEmpty}" />
       </Grid>
 
-      <!-- Подвал: неполная выдача и подсказка про Esc -->
-      <StackPanel Grid.Row="3"
-                  IsVisible="{Binding Workspace.HasSearchQuery}">
+      <!-- Подвал: в поиске — неполная выдача и подсказка про Esc, иначе счётчик документов -->
+      <StackPanel Grid.Row="3">
         <Border Classes="mm-search-truncated"
                 IsVisible="{Binding Workspace.IsSearchTruncated}">
           <TextBlock Text="{Binding SidebarSearchTruncated}"
                      TextWrapping="Wrap" />
         </Border>
         <Border Classes="mm-sidebar-footer">
-          <TextBlock Text="{Binding SidebarSearchReset}" />
+          <Panel>
+            <TextBlock IsVisible="{Binding Workspace.HasSearchQuery}"
+                       Text="{Binding SidebarSearchReset}" />
+            <TextBlock IsVisible="{Binding Workspace.ShowsTree}"
+                       Text="{Binding SidebarFooterLabel}" />
+          </Panel>
         </Border>
       </StackPanel>
     </Grid>

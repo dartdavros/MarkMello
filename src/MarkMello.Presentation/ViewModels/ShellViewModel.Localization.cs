@@ -131,6 +131,10 @@ public partial class ShellViewModel
         nameof(ExternalChangeKeep),
         nameof(ExternalChangeReload),
         nameof(ExternalChangeTitle),
+        nameof(AppMenuToggleSidebarHint),
+        nameof(AppMenuToggleSidebarLabel),
+        nameof(SidebarCollapse),
+        nameof(SidebarFooterLabel),
         nameof(SidebarNewFile),
         nameof(SidebarNewFolder),
         nameof(SidebarSearchEmpty),
@@ -173,6 +177,36 @@ public partial class ShellViewModel
     public string AppMenuOpenFileHint => _localization["AppMenuOpenFileHint"];
     public string AppMenuOpenFolderHint => _localization["AppMenuOpenFolderHint"];
     public string AppMenuOpenFolderLabel => _localization["AppMenuOpenFolderLabel"];
+    public string SidebarCollapse => _localization["SidebarCollapse"];
+    public string AppMenuToggleSidebarLabel => _localization["AppMenuToggleSidebarLabel"];
+
+    public string AppMenuToggleSidebarHint => _localization[IsSidebarCollapsed
+        ? "AppMenuToggleSidebarHintShow"
+        : "AppMenuToggleSidebarHintHide"];
+
+    /// <summary>
+    /// Подвал сайдбара. Формулировка без согласования числительных: множественные формы
+    /// потребовали бы механизма выбора форм, которого в плоском словаре нет, а пользы
+    /// от «14 документов» против «Документов: 14» — ноль.
+    /// </summary>
+    public string SidebarFooterLabel
+    {
+        get
+        {
+            if (Workspace is not { } workspace)
+            {
+                return string.Empty;
+            }
+
+            var documents = _localization.Format("SidebarFooterDocuments", workspace.LoadedDocumentCount);
+            var dirty = OpenDocuments.Tabs.Count(static tab => tab is { BelongsToWorkspace: true, IsDirty: true });
+
+            return dirty == 0
+                ? documents
+                : documents + " · " + _localization.Format("SidebarFooterDirty", dirty);
+        }
+    }
+
     public string SidebarNewFile => _localization["SidebarNewFile"];
     public string SidebarNewFolder => _localization["SidebarNewFolder"];
     public string TreeDelete => _localization["TreeDelete"];
