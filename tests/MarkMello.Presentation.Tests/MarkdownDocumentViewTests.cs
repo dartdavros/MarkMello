@@ -329,6 +329,135 @@ public sealed class MarkdownDocumentViewTests
         return root.Children.ToArray();
     }
 
+    [Fact]
+    public void ApplySearchQueryCountsMatchesCaseInsensitively()
+    {
+        var view = CreateView(CreateCompositeDocument());
+
+        view.ApplySearchQuery("a");
+
+        Assert.Equal("a", view.ActiveSearchQuery);
+        Assert.Equal(GetMatchCount(view, "a"), view.MatchCount);
+        Assert.Equal(0, view.MatchIndex);
+    }
+
+    [Fact]
+    public void ApplySearchQueryMovesToFirstMatchAndHighlightsFragments()
+    {
+        var view = CreateView(CreateCompositeDocument());
+
+        view.ApplySearchQuery("Body");
+
+        Assert.True(view.MatchCount > 0);
+        Assert.Equal(0, view.MatchIndex);
+        Assert.Contains(
+            GetTextFragments(view),
+            fragment => fragment.SearchHighlightRanges.Any(range => range.Start > 0 && !range.IsEmpty));
+    }
+
+    [Fact]
+    public void FindNextCyclesThroughMatchesAndWrapsAround()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("a");
+
+        var count = view.MatchCount;
+        var visited = new List<int>();
+        for (var index = 0; index < count; index++)
+        {
+            visited.Add(view.MatchIndex);
+            view.FindNext();
+        }
+
+        Assert.Equal(count, visited.Distinct().Count());
+        Assert.Equal(0, view.MatchIndex);
+    }
+
+    [Fact]
+    public void FindPreviousWrapsAroundToLastMatch()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("a");
+
+        var count = view.MatchCount;
+        view.FindPrevious();
+
+        Assert.Equal(count - 1, view.MatchIndex);
+    }
+
+    [Fact]
+    public void NoMatchesSetsIndexToMinusOne()
+    {
+        var view = CreateView(CreateCompositeDocument());
+
+        view.ApplySearchQuery("zzz-no-such-text");
+
+        Assert.Equal(0, view.MatchCount);
+        Assert.Equal(-1, view.MatchIndex);
+    }
+
+    [Fact]
+    public void EmptyQueryClearsSearchStateAndHighlights()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("Body");
+        Assert.True(view.MatchCount > 0);
+
+        view.ApplySearchQuery(string.Empty);
+
+        Assert.Null(view.ActiveSearchQuery);
+        Assert.Equal(0, view.MatchCount);
+        Assert.Equal(-1, view.MatchIndex);
+        Assert.All(GetTextFragments(view), fragment => Assert.Empty(fragment.SearchHighlightRanges));
+    }
+
+    [Fact]
+    public void DocumentChangeReappliesActiveQueryToNewText()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("Body");
+        var originalCount = view.MatchCount;
+        Assert.True(originalCount > 0);
+
+        view.Document = new RenderedMarkdownDocument(
+        [
+            new MarkdownParagraphBlock([new MarkdownTextInline("Body")])
+        ]);
+
+        Assert.Equal("Body", view.ActiveSearchQuery);
+        Assert.Equal(1, view.MatchCount);
+        Assert.Equal(0, view.MatchIndex);
+    }
+
+    [Fact]
+    public void ReapplyingSameQueryKeepsCurrentMatchIndex()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("a");
+        view.FindNext();
+        view.FindNext();
+        var index = view.MatchIndex;
+
+        view.ApplySearchQuery("a");
+
+        Assert.Equal(index, view.MatchIndex);
+    }
+
+    private static int GetMatchCount(MarkdownDocumentView view, string query)
+    {
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
+        var textMap = MarkdownDocumentTextMap.Create(view.Document!);
+        return MarkdownTextSearch.FindAll(textMap.Text, query).Count;
+    }
+
+    private static IEnumerable<MarkdownSelectionTextFragment> GetTextFragments(MarkdownDocumentView view)
+    {
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
+        return root.Children.OfType<MarkdownSelectionTextFragment>();
+    }
+
     private static MarkdownDocumentView CreateView(RenderedMarkdownDocument document)
         => new()
         {

@@ -12,13 +12,16 @@ using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Views;
 
-public partial class EditWorkspaceView : UserControl
+public partial class EditWorkspaceView : UserControl, IFindHost
 {
     private const double ScrollSyncViewportAnchorRatio = 0.38;
     private const double ScrollSyncMinViewportAnchorY = 24;
     private const double ScrollSyncHitTestX = 2;
     private const int MaxScrollSyncAttachAttempts = 4;
 
+    private readonly List<DocumentTextRange> _searchMatches = [];
+    private string _activeSearchQuery = string.Empty;
+    private int _activeMatchIndex = -1;
     private TextBox? _editorTextBox;
     private TextPresenter? _editorTextPresenter;
     private ScrollViewer? _editorScrollViewer;
@@ -29,6 +32,140 @@ public partial class EditWorkspaceView : UserControl
     public EditWorkspaceView()
     {
         InitializeComponent();
+    }
+
+    // ---------- IFindHost ----------
+
+    public string? ActiveQuery => _activeSearchQuery.Length == 0 ? null : _activeSearchQuery;
+
+    public int MatchIndex => _searchMatches.Count == 0 ? -1 : _activeMatchIndex;
+
+    public int MatchCount => _searchMatches.Count;
+
+    public event EventHandler? FindStateChanged;
+
+    public void ApplyQuery(string? query)
+    {
+        var normalized = query?.Trim() ?? string.Empty;
+        if (string.Equals(_activeSearchQuery, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _activeSearchQuery = normalized;
+        RebuildSearchMatches(keepCurrentIndex: false);
+        _previewDocumentView?.ApplySearchQuery(normalized.Length == 0 ? null : normalized);
+    }
+
+    public void FindNext()
+    {
+        if (_searchMatches.Count == 0)
+        {
+            return;
+        }
+
+        _activeMatchIndex = MarkdownTextSearch.NextIndex(_activeMatchIndex, _searchMatches.Count);
+        ApplyCurrentMatch();
+    }
+
+    public void FindPrevious()
+    {
+        if (_searchMatches.Count == 0)
+        {
+            return;
+        }
+
+        _activeMatchIndex = MarkdownTextSearch.PreviousIndex(_activeMatchIndex, _searchMatches.Count);
+        ApplyCurrentMatch();
+    }
+
+    public void ClearFind()
+    {
+        if (_activeSearchQuery.Length == 0)
+        {
+            return;
+        }
+
+        _activeSearchQuery = string.Empty;
+        _searchMatches.Clear();
+        _activeMatchIndex = -1;
+        _previewDocumentView?.ApplySearchQuery(null);
+        FindStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RebuildSearchMatches(bool keepCurrentIndex)
+    {
+        _searchMatches.Clear();
+        if (_activeSearchQuery.Length > 0)
+        {
+            _searchMatches.AddRange(
+                MarkdownTextSearch.FindAll(_editorTextBox?.Text ?? string.Empty, _activeSearchQuery));
+        }
+
+        if (_searchMatches.Count == 0)
+        {
+            _activeMatchIndex = -1;
+        }
+        else
+        {
+            _activeMatchIndex = keepCurrentIndex && _activeMatchIndex >= 0 && _activeMatchIndex < _searchMatches.Count
+                ? _activeMatchIndex
+                : 0;
+        }
+
+        FindStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ApplyCurrentMatch()
+    {
+        if (_searchMatches.Count == 0 || _activeMatchIndex < 0 || _activeMatchIndex >= _searchMatches.Count)
+        {
+            return;
+        }
+
+        var match = _searchMatches[_activeMatchIndex];
+        if (_editorTextBox is not null)
+        {
+            _editorTextBox.SelectionStart = match.Start;
+            _editorTextBox.SelectionEnd = match.End;
+            _editorTextBox.CaretIndex = match.End;
+            ScrollEditorToOffset(match.Start);
+        }
+
+        FindStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ScrollEditorToOffset(int characterIndex)
+    {
+        if (_editorTextBox is null || _editorTextPresenter is null || _editorScrollViewer is null)
+        {
+            return;
+        }
+
+        var text = _editorTextBox.Text ?? string.Empty;
+
+        // Scroll-sync speaks in fractional source positions; a match lands at
+        // the start of its line, which is the whole-number position.
+        var sourceLine = GetSourceLineFromCharacterIndex(text, characterIndex);
+        if (!TryGetEditorVerticalOffsetForSourcePosition(sourceLine, out var offsetY))
+        {
+            return;
+        }
+
+        SetSynchronizedVerticalOffset(_editorScrollViewer, offsetY);
+    }
+
+    private void OnEditorTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_activeSearchQuery.Length == 0)
+        {
+            return;
+        }
+
+        // Refresh the match set and counter while the user is editing, but do
+        // not move their caret/selection; explicit Enter/Shift+Enter navigation
+        // re-selects the current match.
+        RebuildSearchMatches(keepCurrentIndex: true);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -86,7 +223,8 @@ public partial class EditWorkspaceView : UserControl
         if (_editorScrollViewer is null
             || _editorTextPresenter is null
             || _previewScrollViewer is null
-            || _previewDocumentView is null)
+            || _previewDocumentView is null
+            || _editorTextBox is null)
         {
             if (attempt < MaxScrollSyncAttachAttempts)
             {
@@ -100,6 +238,12 @@ public partial class EditWorkspaceView : UserControl
         _previewScrollViewer.PropertyChanged += OnScrollViewerPropertyChanged;
         _previewDocumentView.DocumentRendered += OnPreviewDocumentRendered;
         _previewDocumentView.DocumentRenderInvalidated += OnPreviewDocumentRenderInvalidated;
+        _editorTextBox.TextChanged += OnEditorTextChanged;
+
+        if (_activeSearchQuery.Length > 0)
+        {
+            _previewDocumentView.ApplySearchQuery(_activeSearchQuery);
+        }
 
         SynchronizePreviewToEditor();
     }
@@ -120,6 +264,11 @@ public partial class EditWorkspaceView : UserControl
         {
             _previewDocumentView.DocumentRendered -= OnPreviewDocumentRendered;
             _previewDocumentView.DocumentRenderInvalidated -= OnPreviewDocumentRenderInvalidated;
+        }
+
+        if (_editorTextBox is not null)
+        {
+            _editorTextBox.TextChanged -= OnEditorTextChanged;
         }
 
         _editorTextBox = null;

@@ -107,6 +107,82 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ToggleFindBarCommandOpensAndClosesFindBar()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+
+        Assert.True(harness.ViewModel.IsFindBarOpen);
+
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsFindBarOpen);
+    }
+
+    [Fact]
+    public void OpeningAppMenuClosesFindBar()
+    {
+        var harness = CreateHarness();
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+        Assert.True(harness.ViewModel.IsFindBarOpen);
+
+        harness.ViewModel.ToggleAppMenuCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsFindBarOpen);
+        Assert.True(harness.ViewModel.IsAppMenuOpen);
+    }
+
+    [Fact]
+    public void ClearErrorCommandClosesFindBarFirst()
+    {
+        var harness = CreateHarness();
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+        Assert.True(harness.ViewModel.IsFindBarOpen);
+
+        harness.ViewModel.ClearErrorCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsFindBarOpen);
+    }
+
+    [Fact]
+    public void FindResultLabelFormatsCountersAndNoResults()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.FindQuery = "alpha";
+        harness.ViewModel.FindMatchCount = 3;
+        harness.ViewModel.FindMatchIndex = 1;
+
+        Assert.Equal("2 of 3", harness.ViewModel.FindResultLabel);
+
+        harness.ViewModel.FindMatchCount = 0;
+
+        Assert.Equal("No results", harness.ViewModel.FindResultLabel);
+
+        harness.ViewModel.FindQuery = string.Empty;
+
+        Assert.Equal("0 of 0", harness.ViewModel.FindResultLabel);
+    }
+
+    [Fact]
+    public async Task EnteringEditModeClosesFindBar()
+    {
+        var harness = CreateHarness();
+        var path = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        harness.Loader.Sources[path] = CreateSource(path, "alpha beta");
+
+        await harness.ViewModel.OpenPathAsync(path);
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+        Assert.True(harness.ViewModel.IsFindBarOpen);
+
+        await harness.ViewModel.ToggleEditModeCommand.ExecuteAsync(null);
+
+        Assert.False(harness.ViewModel.IsFindBarOpen);
+        Assert.True(harness.ViewModel.IsEditMode);
+    }
+
+    [Fact]
     public async Task EnteringEditModeClosesAndHidesAppMenuOverlay()
     {
         var harness = CreateHarness();

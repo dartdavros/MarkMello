@@ -111,6 +111,7 @@ dotnet run --project ./src/MarkMello.Desktop/MarkMello.Desktop.csproj -- ./sampl
 | --- | --- | --- |
 | Open file | `Ctrl+O` | `Cmd+O` |
 | Toggle editing mode | `Ctrl+E` | `Cmd+E` |
+| Find in document | `Ctrl+F` | `Cmd+F` |
 | Save | `Ctrl+S` | `Cmd+S` |
 | Save as | `Ctrl+Shift+S` | `Cmd+Shift+S` |
 

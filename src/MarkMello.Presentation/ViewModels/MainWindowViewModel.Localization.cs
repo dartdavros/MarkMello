@@ -70,6 +70,10 @@ public partial class MainWindowViewModel
         nameof(DirtyPromptSave),
         nameof(DragDropHint),
         nameof(EditToggleTooltip),
+        nameof(FindCloseTooltip),
+        nameof(FindNextTooltip),
+        nameof(FindPlaceholder),
+        nameof(FindPreviousTooltip),
         nameof(LanguageHint),
         nameof(LanguageLabel),
         nameof(LoadErrorOpenAnotherFile),
@@ -147,6 +151,10 @@ public partial class MainWindowViewModel
     public string DirtyPromptSave => _localization["DirtyPromptSave"];
     public string DragDropHint => _localization["DragDropHint"];
     public string EditToggleTooltip => _localization["EditToggleTooltip"];
+    public string FindCloseTooltip => _localization["FindCloseTooltip"];
+    public string FindNextTooltip => _localization["FindNextTooltip"];
+    public string FindPlaceholder => _localization["FindPlaceholder"];
+    public string FindPreviousTooltip => _localization["FindPreviousTooltip"];
     public string LanguageHint => _localization["LanguageHint"];
     public string LanguageLabel => _localization["LanguageLabel"];
     public string LoadErrorOpenAnotherFile => _localization["LoadErrorOpenAnotherFile"];
@@ -276,6 +284,7 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(EditToggleLabel));
         OnPropertyChanged(nameof(EditShortcutLabel));
         OnPropertyChanged(nameof(NextThemeHint));
+        OnPropertyChanged(nameof(FindResultLabel));
         OnPropertyChanged(nameof(CheckForUpdatesLabel));
         OnPropertyChanged(nameof(DownloadUpdateLabel));
         OnPropertyChanged(nameof(DownloadedUpdateActionLabel));

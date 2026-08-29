@@ -69,6 +69,9 @@ public sealed class MarkdownDocumentView : UserControl
     // порядок). Нужен, чтобы у переиспользованного блока обновить DocumentRange:
     // правка выше по документу сдвигает абсолютные offset'ы всех блоков ниже.
     private readonly List<string> _selectionFragmentPaths = [];
+    private readonly List<DocumentTextRange> _searchMatches = [];
+    private string _activeSearchQuery = string.Empty;
+    private int _activeMatchIndex = -1;
     private readonly Dictionary<string, Control> _headingAnchorTargets = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _headingAnchorCounts = new(StringComparer.Ordinal);
 
@@ -228,6 +231,78 @@ public sealed class MarkdownDocumentView : UserControl
     public event EventHandler? DocumentRenderInvalidated;
 
     public event EventHandler<MarkdownFileLinkRequestedEventArgs>? MarkdownFileLinkRequested;
+
+    /// <summary>
+    /// Currently active search query, or null when find is not active.
+    /// </summary>
+    public string? ActiveSearchQuery => _activeSearchQuery.Length == 0 ? null : _activeSearchQuery;
+
+    /// <summary>
+    /// Total number of matches for the active query (0 when not searching).
+    /// </summary>
+    public int MatchCount => _searchMatches.Count;
+
+    /// <summary>
+    /// Zero-based index of the current match, or -1 when there are no matches.
+    /// </summary>
+    public int MatchIndex => _searchMatches.Count == 0 ? -1 : _activeMatchIndex;
+
+    /// <summary>
+    /// Raised whenever the match set or the current match changes, including
+    /// after document rebuilds that re-apply an active query.
+    /// </summary>
+    public event EventHandler? SearchStateChanged;
+
+    /// <summary>
+    /// Starts (or updates) a document-wide, case-insensitive search over the
+    /// rendered text. An empty or null query clears all search highlights.
+    /// </summary>
+    public void ApplySearchQuery(string? query)
+    {
+        var normalized = query?.Trim() ?? string.Empty;
+        if (string.Equals(_activeSearchQuery, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _activeSearchQuery = normalized;
+        RebuildSearchMatches(keepCurrentIndex: false);
+        TryScrollToActiveMatch();
+    }
+
+    public bool FindNext()
+    {
+        if (_searchMatches.Count == 0)
+        {
+            return false;
+        }
+
+        _activeMatchIndex = MarkdownTextSearch.NextIndex(_activeMatchIndex, _searchMatches.Count);
+        ApplySearchHighlightsToFragments();
+        SearchStateChanged?.Invoke(this, EventArgs.Empty);
+        TryScrollToActiveMatch();
+        return true;
+    }
+
+    public bool FindPrevious()
+    {
+        if (_searchMatches.Count == 0)
+        {
+            return false;
+        }
+
+        _activeMatchIndex = MarkdownTextSearch.PreviousIndex(_activeMatchIndex, _searchMatches.Count);
+        ApplySearchHighlightsToFragments();
+        SearchStateChanged?.Invoke(this, EventArgs.Empty);
+        TryScrollToActiveMatch();
+        return true;
+    }
+
+    /// <summary>
+    /// Scrolls the current match into view. Called after rebuilds so the
+    /// active result stays visible when the document re-renders.
+    /// </summary>
+    public void ScrollToActiveMatch() => TryScrollToActiveMatch();
 
     /// <summary>
     /// Вертикальное смещение в документе для дробной позиции в исходнике
@@ -694,6 +769,11 @@ public sealed class MarkdownDocumentView : UserControl
         SyncRootChildren(rebuilt);
         RebuildHeadingAnchorIndex();
 
+        // Re-apply the active query against the rebuilt fragments, and do it
+        // even when the document is empty or null so match counts do not go
+        // stale after the content disappears.
+        RebuildSearchMatches(keepCurrentIndex: true);
+
         if (document is null || document.Blocks.Count == 0)
         {
             return;
@@ -904,6 +984,118 @@ public sealed class MarkdownDocumentView : UserControl
 
             _headingAnchorTargets.TryAdd(anchor, control);
         }
+    }
+
+    private void RebuildSearchMatches(bool keepCurrentIndex)
+    {
+        _searchMatches.Clear();
+        if (_activeSearchQuery.Length > 0)
+        {
+            _searchMatches.AddRange(MarkdownTextSearch.FindAll(_textMap.Text, _activeSearchQuery));
+        }
+
+        if (_searchMatches.Count == 0)
+        {
+            _activeMatchIndex = -1;
+        }
+        else
+        {
+            _activeMatchIndex = keepCurrentIndex && _activeMatchIndex >= 0 && _activeMatchIndex < _searchMatches.Count
+                ? _activeMatchIndex
+                : 0;
+        }
+
+        ApplySearchHighlightsToFragments();
+        SearchStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ApplySearchHighlightsToFragments()
+    {
+        var activeRange = _activeMatchIndex >= 0 && _activeMatchIndex < _searchMatches.Count
+            ? _searchMatches[_activeMatchIndex]
+            : (DocumentTextRange?)null;
+
+        foreach (var fragment in _selectionFragments)
+        {
+            var ranges = new List<DocumentTextRange>();
+            foreach (var match in _searchMatches)
+            {
+                var intersection = fragment.DocumentRange.Intersection(match);
+                if (!intersection.IsEmpty)
+                {
+                    ranges.Add(intersection);
+                }
+            }
+
+            fragment.SearchHighlightRanges = ranges;
+
+            if (activeRange is { } active)
+            {
+                var activeIntersection = fragment.DocumentRange.Intersection(active);
+                fragment.ActiveSearchHighlight = activeIntersection.IsEmpty
+                    ? null
+                    : activeIntersection;
+            }
+            else
+            {
+                fragment.ActiveSearchHighlight = null;
+            }
+        }
+    }
+
+    private void TryScrollToActiveMatch()
+    {
+        if (_activeMatchIndex < 0 || _activeMatchIndex >= _searchMatches.Count)
+        {
+            return;
+        }
+
+        var match = _searchMatches[_activeMatchIndex];
+        var fragment = FindFragmentForDocumentOffset(match.Start);
+        if (fragment is null)
+        {
+            return;
+        }
+
+        var scrollViewer = this.FindAncestorOfType<ScrollViewer>();
+        if (scrollViewer is null)
+        {
+            return;
+        }
+
+        var yInFragment = 0.0;
+        if (fragment is MarkdownSelectionTextFragment textFragment
+            && textFragment.TryGetLineTopForLocalOffset(match.Start - fragment.DocumentRange.Start, out var lineY))
+        {
+            yInFragment = lineY;
+        }
+
+        var targetPoint = fragment.TranslatePoint(new Point(0, yInFragment), scrollViewer);
+        if (targetPoint is null)
+        {
+            return;
+        }
+
+        const double topInset = 24;
+        var nextOffsetY = Math.Clamp(
+            scrollViewer.Offset.Y + targetPoint.Value.Y - topInset,
+            0,
+            scrollViewer.ScrollBarMaximum.Y);
+
+        scrollViewer.Offset = new Vector(scrollViewer.Offset.X, nextOffsetY);
+    }
+
+    private MarkdownDocumentSelectionFragmentBase? FindFragmentForDocumentOffset(int offset)
+    {
+        foreach (var fragment in _selectionFragments)
+        {
+            if (offset >= fragment.DocumentRange.Start && offset < fragment.DocumentRange.End)
+            {
+                return fragment;
+            }
+        }
+
+        return null;
     }
 
     private void QueueDocumentRenderedNotification(long generation)
