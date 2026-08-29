@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             mc:Ignorable="d"
+             x:Class="MarkMello.Presentation.Views.WorkspaceSidebarView"
+             x:DataType="vm:MainWindowViewModel">
+
+  <Border Classes="mm-sidebar">
+    <Grid RowDefinitions="44,*">
+
+      <!-- Шапка: гамбургер переезжает сюда с плавающей позиции, рядом — имя корня -->
+      <Grid Grid.Row="0"
+            ColumnDefinitions="Auto,*"
+            Margin="10,0,8,0"
+            VerticalAlignment="Center">
+        <ToggleButton Grid.Column="0"
+                      Classes="mm-sidebar-icon"
+                      IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
+                      Command="{Binding ToggleAppMenuCommand}"
+                      IsVisible="{Binding ShowsAppMenuControl}"
+                      ToolTip.Tip="{Binding AppMenuTooltip}">
+          <Path Data="M2.5 4H11.5 M2.5 7H11.5 M2.5 10H11.5"
+                Width="14"
+                Height="14"
+                Stroke="{DynamicResource MmTextSoftBrush}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round" />
+        </ToggleButton>
+
+        <TextBlock Grid.Column="1"
+                   Classes="mm-sidebar-root"
+                   Margin="8,0,0,0"
+                   Text="{Binding Workspace.RootDisplayName}"
+                   ToolTip.Tip="{Binding Workspace.Folder.RootPath}" />
+      </Grid>
+
+      <TreeView Grid.Row="1"
+                Classes="mm-tree"
+                ItemsSource="{Binding Workspace.Roots}"
+                SelectedItem="{Binding Workspace.SelectedNode, Mode=TwoWay}">
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate x:DataType="vm:FileTreeNodeViewModel"
+                            ItemsSource="{Binding Children}">
+            <StackPanel Orientation="Horizontal"
+                        Spacing="6"
+                        Background="Transparent">
+              <TextBlock Classes="mm-tree-label"
+                         Classes.inert="{Binding IsInert}"
+                         Classes.active="{Binding IsActiveDocument}"
+                         Text="{Binding Name}" />
+              <TextBlock Classes="mm-tree-error"
+                         IsVisible="{Binding HasLoadError}"
+                         Text="{Binding LoadError}" />
+            </StackPanel>
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+    </Grid>
+  </Border>
+
+</UserControl>

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
+using MarkMello.Domain.Workspace;
 using MarkMello.Infrastructure.Serialization;
 
 namespace MarkMello.Infrastructure.Settings;
@@ -21,6 +22,7 @@ public sealed class JsonSettingsStore : ISettingsStore
     private AppLanguage _language = AppLanguage.System;
     private WindowBorderMode _windowBorder = WindowBorderMode.Auto;
     private WindowPlacement? _windowPlacement;
+    private double _sidebarWidth = WorkspaceSidebarWidth.Default;
 
     public JsonSettingsStore(string? settingsRootDirectory = null)
     {
@@ -128,6 +130,31 @@ public sealed class JsonSettingsStore : ISettingsStore
         return ValueTask.CompletedTask;
     }
 
+    public ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            return ValueTask.FromResult(_sidebarWidth);
+        }
+    }
+
+    public ValueTask SaveSidebarWidthAsync(double width, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            _sidebarWidth = WorkspaceSidebarWidth.Normalize(width);
+            PersistCore();
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask<WindowPlacement?> LoadWindowPlacementAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -179,6 +206,7 @@ public sealed class JsonSettingsStore : ISettingsStore
                         _language = NormalizeLanguage(fileModel.Language);
                         _windowBorder = NormalizeWindowBorderMode(fileModel.WindowBorder);
                         _windowPlacement = WindowPlacement.Normalize(fileModel.WindowPlacement);
+                        _sidebarWidth = WorkspaceSidebarWidth.Normalize(fileModel.SidebarWidth);
                     }
                 }
             }
@@ -190,6 +218,7 @@ public sealed class JsonSettingsStore : ISettingsStore
             _language = AppLanguage.System;
             _windowBorder = WindowBorderMode.Auto;
             _windowPlacement = null;
+            _sidebarWidth = WorkspaceSidebarWidth.Default;
         }
         finally
         {
@@ -210,7 +239,13 @@ public sealed class JsonSettingsStore : ISettingsStore
             Directory.CreateDirectory(directory);
 
             var tempFilePath = _settingsFilePath + ".tmp";
-            var fileModel = new SettingsFileModel(_theme, _preferences, _language, _windowPlacement, _windowBorder);
+            var fileModel = new SettingsFileModel(
+                _theme,
+                _preferences,
+                _language,
+                _windowPlacement,
+                _windowBorder,
+                _sidebarWidth);
             var json = JsonSerializer.Serialize(
                 fileModel,
                 MarkMelloJsonSerializerContext.Default.SettingsFileModel);

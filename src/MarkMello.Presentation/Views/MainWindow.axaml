@@ -31,6 +31,8 @@
     <KeyBinding Gesture="Cmd+N" Command="{Binding CreateNewDocumentCommand}" />
     <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}" />
     <KeyBinding Gesture="Cmd+O" Command="{Binding OpenFileCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+O" Command="{Binding OpenFolderCommand}" />
+    <KeyBinding Gesture="Cmd+Shift+O" Command="{Binding OpenFolderCommand}" />
     <KeyBinding Gesture="Ctrl+E" Command="{Binding ToggleEditModeCommand}" />
     <KeyBinding Gesture="Cmd+E" Command="{Binding ToggleEditModeCommand}" />
     <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
@@ -165,7 +167,23 @@
         </Grid>
       </Border>
 
-      <Panel Grid.Row="1"
+      <Grid Grid.Row="1"
+            ColumnDefinitions="Auto,Auto,*">
+
+        <!-- Диапазон 220-340 из макета; та же пара нормализуется в WorkspaceSidebarWidth -->
+        <views:WorkspaceSidebarView Grid.Column="0"
+                                    Width="{Binding SidebarWidth, Mode=TwoWay}"
+                                    MinWidth="220"
+                                    MaxWidth="340"
+                                    IsVisible="{Binding ShowsSidebar}" />
+
+        <GridSplitter Grid.Column="1"
+                      Classes="mm-editor-splitter"
+                      IsVisible="{Binding ShowsSidebar}"
+                      DragCompleted="OnSidebarSplitterDragCompleted"
+                      ResizeDirection="Columns" />
+
+      <Panel Grid.Column="2"
              Name="BodyPanel">
 
         <views:WelcomeView IsVisible="{Binding IsWelcome}" />
@@ -186,7 +204,7 @@
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
                 Margin="16,12,0,0"
-                IsVisible="{Binding ShowsAppMenuControl}">
+                IsVisible="{Binding ShowsFloatingAppMenuButton}">
           <ToggleButton Name="AppMenuTriggerButton"
                         Classes="topbar-ghost"
                         IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
@@ -552,6 +570,8 @@
           </Border>
         </Grid>
       </Panel>
+
+      </Grid>
 
     </Grid>
   </Border>

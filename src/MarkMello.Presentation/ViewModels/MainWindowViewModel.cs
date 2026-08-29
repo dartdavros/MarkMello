@@ -27,6 +27,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly IStartupMetrics _startupMetrics;
     private readonly RenderMarkdownDocumentUseCase _renderMarkdown;
+    private readonly OpenFolderUseCase _openFolder;
+    private readonly ExpandFolderNodeUseCase _expandFolderNode;
     private readonly IUpdateService _updateService;
     private readonly IImageSourceResolver? _imageSourceResolver;
     private readonly Func<IEditorPreviewScheduler>? _previewSchedulerFactory;
@@ -58,6 +60,8 @@ public partial class MainWindowViewModel : ObservableObject
         IStartupMetrics startupMetrics,
         RenderMarkdownDocumentUseCase renderMarkdown,
         IUpdateService updateService,
+        OpenFolderUseCase openFolder,
+        ExpandFolderNodeUseCase expandFolderNode,
         IImageSourceResolver? imageSourceResolver = null,
         Func<IEditorPreviewScheduler>? previewSchedulerFactory = null)
     {
@@ -71,6 +75,8 @@ public partial class MainWindowViewModel : ObservableObject
         _startupMetrics = startupMetrics;
         _renderMarkdown = renderMarkdown;
         _updateService = updateService;
+        _openFolder = openFolder;
+        _expandFolderNode = expandFolderNode;
         _imageSourceResolver = imageSourceResolver;
         _previewSchedulerFactory = previewSchedulerFactory;
         _aboutVersion = GetProductVersion();
@@ -1139,6 +1145,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowsReadEyeIcon));
         OnPropertyChanged(nameof(ShowsReadingStatus));
         OnPropertyChanged(nameof(ShowsAppMenuControl));
+        OnPropertyChanged(nameof(ShowsFloatingAppMenuButton));
         OnPropertyChanged(nameof(IsAppMenuOpen));
         OnPropertyChanged(nameof(IsAppSettingsOpen));
         OnPropertyChanged(nameof(IsAppAboutOpen));
@@ -1270,6 +1277,7 @@ public partial class MainWindowViewModel : ObservableObject
         State = ViewState.NoDocument;
         ReadingProgress = 0;
         ClearLoadError();
+        SyncWorkspaceActiveDocument();
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -1375,6 +1383,7 @@ public partial class MainWindowViewModel : ObservableObject
             _startupMetrics.Mark(StartupStage.DocumentModelReady);
         }
 
+        SyncWorkspaceActiveDocument();
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -1614,15 +1623,17 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void RefreshWindowTitle()
     {
-        if (State != ViewState.Viewing)
+        var folderSegment = Workspace is { } workspace
+            ? $"{workspace.RootDisplayName} — "
+            : string.Empty;
+
+        if (State != ViewState.Viewing || string.IsNullOrWhiteSpace(FileName))
         {
-            WindowTitle = "MarkMello";
+            WindowTitle = $"{folderSegment}MarkMello";
             return;
         }
 
-        WindowTitle = string.IsNullOrWhiteSpace(FileName)
-            ? "MarkMello"
-            : $"{TitleFileDisplayName} — MarkMello";
+        WindowTitle = $"{TitleFileDisplayName} — {folderSegment}MarkMello";
     }
 
     private void UpdateCommandStates()
@@ -1680,7 +1691,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private string? CurrentDocumentPath => EditorSession?.CurrentPath ?? _currentPath ?? Document?.Path;
+    /// <summary>Путь активного документа. Публичен: по нему дерево подсвечивает строку.</summary>
+    public string? CurrentDocumentPath => EditorSession?.CurrentPath ?? _currentPath ?? Document?.Path;
 
     private static int CountWords(string? text)
     {

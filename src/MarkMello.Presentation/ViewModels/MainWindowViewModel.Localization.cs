@@ -59,8 +59,12 @@ public partial class MainWindowViewModel
         nameof(AppMenuCloseFileHint),
         nameof(AppMenuCloseFileLabel),
         nameof(AppMenuHeader),
+        nameof(AppMenuCloseFolderHint),
+        nameof(AppMenuCloseFolderLabel),
         nameof(AppMenuOpenFileHint),
         nameof(AppMenuOpenFileLabel),
+        nameof(AppMenuOpenFolderHint),
+        nameof(AppMenuOpenFolderLabel),
         nameof(AppMenuSettingsHint),
         nameof(AppMenuSettingsLabel),
         nameof(AppMenuTooltip),
@@ -122,8 +126,10 @@ public partial class MainWindowViewModel
         nameof(UpdatesHint),
         nameof(UpdatesLabel),
         nameof(WelcomeCreateMd),
+        nameof(SidebarTooltip),
         nameof(WelcomeDropHint),
         nameof(WelcomeOpenFile),
+        nameof(WelcomeOpenFolder),
         nameof(WelcomeTagline),
     ];
 
@@ -140,7 +146,12 @@ public partial class MainWindowViewModel
     public string AppMenuCloseFileHint => _localization["AppMenuCloseFileHint"];
     public string AppMenuCloseFileLabel => _localization["AppMenuCloseFileLabel"];
     public string AppMenuHeader => _localization["AppMenuHeader"];
+    public string AppMenuCloseFolderHint => _localization["AppMenuCloseFolderHint"];
+    public string AppMenuCloseFolderLabel => _localization["AppMenuCloseFolderLabel"];
     public string AppMenuOpenFileHint => _localization["AppMenuOpenFileHint"];
+    public string AppMenuOpenFolderHint => _localization["AppMenuOpenFolderHint"];
+    public string AppMenuOpenFolderLabel => _localization["AppMenuOpenFolderLabel"];
+    public string SidebarTooltip => _localization["SidebarTooltip"];
     public string AppMenuOpenFileLabel => _localization["AppMenuOpenFileLabel"];
     public string AppMenuSettingsHint => _localization["AppMenuSettingsHint"];
     public string AppMenuSettingsLabel => _localization["AppMenuSettingsLabel"];
@@ -205,6 +216,7 @@ public partial class MainWindowViewModel
     public string WelcomeCreateMd => _localization["WelcomeCreateMd"];
     public string WelcomeDropHint => _localization["WelcomeDropHint"];
     public string WelcomeOpenFile => _localization["WelcomeOpenFile"];
+    public string WelcomeOpenFolder => _localization["WelcomeOpenFolder"];
     public string WelcomeTagline => _localization["WelcomeTagline"];
 
     public string WordCountStatusLabel => _localization.Format("StatusWordCount", WordCount);

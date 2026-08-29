@@ -7,4 +7,5 @@ internal sealed record SettingsFileModel(
     ReadingPreferences Preferences,
     AppLanguage Language,
     WindowPlacement? WindowPlacement,
-    WindowBorderMode WindowBorder = WindowBorderMode.Auto);
+    WindowBorderMode WindowBorder = WindowBorderMode.Auto,
+    double? SidebarWidth = null);

@@ -33,6 +33,9 @@
       <SolidColorBrush x:Key="MmTextSoftBrush">#5A544F</SolidColorBrush>
       <!-- oklch(0.62 0.010 60) -->
       <SolidColorBrush x:Key="MmTextFaintBrush">#8B8580</SolidColorBrush>
+      <!-- Не-документы в дереве: на полтона темнее faint, иначе 12.5px строка
+           даёт 3.2:1 на фоне сайдбара и 3.0:1 на наведённой строке -->
+      <SolidColorBrush x:Key="MmTreeInertTextBrush">#6F6A65</SolidColorBrush>
       <!-- oklch(0.58 0.14 42) -->
       <SolidColorBrush x:Key="MmAccentBrush">#BD592F</SolidColorBrush>
       <!-- oklch(0.94 0.04 50) -->
@@ -74,6 +77,8 @@
       <SolidColorBrush x:Key="MmTextSoftBrush">#A29E98</SolidColorBrush>
       <!-- oklch(0.55 0.010 70) -->
       <SolidColorBrush x:Key="MmTextFaintBrush">#75716B</SolidColorBrush>
+      <!-- Не-документы в дереве: значение MmTextSoftBrush, faint здесь даёт 3.5:1 -->
+      <SolidColorBrush x:Key="MmTreeInertTextBrush">#A29E98</SolidColorBrush>
       <!-- oklch(0.72 0.12 42) -->
       <SolidColorBrush x:Key="MmAccentBrush">#E38A67</SolidColorBrush>
       <!-- oklch(0.30 0.05 42) -->

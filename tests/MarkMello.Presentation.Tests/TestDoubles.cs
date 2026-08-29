@@ -2,6 +2,7 @@ using MarkMello.Application.Abstractions;
 using MarkMello.Application.Updates;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
+using MarkMello.Domain.Workspace;
 using MarkMello.Presentation.Editing;
 
 namespace MarkMello.Presentation.Tests;
@@ -56,8 +57,18 @@ internal sealed class StubFilePicker : IFilePicker
 
     public List<string> SuggestedSaveFileNames { get; } = [];
 
+    public string? OpenFolderPath { get; set; }
+
+    public int PickFolderCallCount { get; private set; }
+
     public Task<string?> PickMarkdownFileAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(OpenPath);
+
+    public Task<string?> PickFolderAsync(CancellationToken cancellationToken = default)
+    {
+        PickFolderCallCount++;
+        return Task.FromResult(OpenFolderPath);
+    }
 
     public Task<string?> PickSaveMarkdownFileAsync(string suggestedFileName, CancellationToken cancellationToken = default)
     {
@@ -94,8 +105,19 @@ internal sealed class InMemorySettingsStore : ISettingsStore
 
     public WindowBorderMode WindowBorderMode { get; set; } = WindowBorderMode.Auto;
 
+    public double SidebarWidth { get; set; } = WorkspaceSidebarWidth.Default;
+
     public ValueTask<ReadingPreferences> LoadPreferencesAsync(CancellationToken cancellationToken = default)
         => ValueTask.FromResult(Preferences);
+
+    public ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(SidebarWidth);
+
+    public ValueTask SaveSidebarWidthAsync(double width, CancellationToken cancellationToken = default)
+    {
+        SidebarWidth = WorkspaceSidebarWidth.Normalize(width);
+        return ValueTask.CompletedTask;
+    }
 
     public ValueTask SavePreferencesAsync(ReadingPreferences preferences, CancellationToken cancellationToken = default)
     {

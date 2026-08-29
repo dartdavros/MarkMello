@@ -1,4 +1,5 @@
 using MarkMello.Domain;
+using MarkMello.Domain.Workspace;
 
 namespace MarkMello.Application.Abstractions;
 
@@ -19,6 +20,9 @@ public interface ISettingsStore
 
     ValueTask<AppLanguage> LoadLanguageAsync(CancellationToken cancellationToken = default);
     ValueTask SaveLanguageAsync(AppLanguage language, CancellationToken cancellationToken = default);
+
+    ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default);
+    ValueTask SaveSidebarWidthAsync(double width, CancellationToken cancellationToken = default);
 
     ValueTask<WindowPlacement?> LoadWindowPlacementAsync(CancellationToken cancellationToken = default);
     ValueTask SaveWindowPlacementAsync(WindowPlacement? placement, CancellationToken cancellationToken = default);

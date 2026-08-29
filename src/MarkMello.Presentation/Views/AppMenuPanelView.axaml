@@ -53,6 +53,28 @@
                     EndPoint="1,0.5" />
 
               <Button Classes="mm-menu-item"
+                      Command="{Binding OpenFolderCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="{Binding AppMenuOpenFolderLabel}" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="{Binding AppMenuOpenFolderHint}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Ctrl Shift O" />
+                </Grid>
+              </Button>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
                       Command="{Binding CloseFileCommand}">
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="12">
@@ -71,6 +93,30 @@
               </Button>
 
               <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
+                      IsVisible="{Binding ShowsSidebar}"
+                      Command="{Binding CloseFolderCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="{Binding AppMenuCloseFolderLabel}" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="{Binding AppMenuCloseFolderHint}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="{Binding MetaCurrent}" />
+                </Grid>
+              </Button>
+
+              <Line Classes="mm-setting-divider"
+                    IsVisible="{Binding ShowsSidebar}"
                     StartPoint="0,0.5"
                     EndPoint="1,0.5" />
 

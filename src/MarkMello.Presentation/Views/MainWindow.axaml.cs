@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
@@ -161,9 +162,43 @@ public partial class MainWindow : Window
             return;
         }
 
+        await MeasureFolderModeAsync().ConfigureAwait(true);
         await Task.Delay(_startupSmokeTestOptions.ExitAfterOpenDelay).ConfigureAwait(true);
         WriteStartupTimings();
         ShutdownClassicDesktopLifetime(exitCode: 0);
+    }
+
+    /// <summary>
+    /// Замер folder mode: открытие папки и раскрытие первого каталога.
+    /// Открывать папку иначе, чем руками через picker, нельзя, поэтому измерение
+    /// живёт в том же smoke-режиме, что и тайминги старта, и никогда не включается
+    /// в обычном запуске.
+    /// </summary>
+    private async Task MeasureFolderModeAsync()
+    {
+        if (_startupSmokeTestOptions.OpenFolderPath is not { } folderPath)
+        {
+            return;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        await _viewModel.OpenFolderPathAsync(folderPath).ConfigureAwait(true);
+        Console.WriteLine($"[workspace] {"OpenFolder",-20} {stopwatch.Elapsed.TotalMilliseconds,8:F1} ms");
+
+        if (_viewModel.Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        var firstDirectory = workspace.Roots.FirstOrDefault(static node => node.IsDirectory);
+        if (firstDirectory is null)
+        {
+            return;
+        }
+
+        stopwatch.Restart();
+        await workspace.ExpandNodeAsync(firstDirectory).ConfigureAwait(true);
+        Console.WriteLine($"[workspace] {"ExpandNode",-20} {stopwatch.Elapsed.TotalMilliseconds,8:F1} ms");
     }
 
     /// <summary>
@@ -433,7 +468,7 @@ public partial class MainWindow : Window
 
     private void OnDragEnter(object? sender, DragEventArgs e)
     {
-        if (TryGetSupportedDroppedFilePath(e) is not null)
+        if (TryGetDroppedTarget(e) is not null)
         {
             _viewModel.IsDragHovering = true;
             e.DragEffects = DragDropEffects.Copy;
@@ -442,7 +477,7 @@ public partial class MainWindow : Window
 
     private void OnDragOver(object? sender, DragEventArgs e)
     {
-        e.DragEffects = TryGetSupportedDroppedFilePath(e) is not null
+        e.DragEffects = TryGetDroppedTarget(e) is not null
             ? DragDropEffects.Copy
             : DragDropEffects.None;
         e.Handled = true;
@@ -457,15 +492,19 @@ public partial class MainWindow : Window
     {
         _viewModel.IsDragHovering = false;
 
-        var path = TryGetSupportedDroppedFilePath(e);
-        if (string.IsNullOrEmpty(path))
+        var target = TryGetDroppedTarget(e);
+        if (target is not { } dropped)
         {
             return;
         }
 
         try
         {
-            await _viewModel.OpenDroppedFileAsync(path);
+            // Каталог открывает workspace, файл — документ. Разделение здесь,
+            // чтобы обе точки входа шли теми же путями, что picker и меню.
+            await (dropped.IsDirectory
+                ? _viewModel.OpenFolderPathAsync(dropped.Path)
+                : _viewModel.OpenDroppedFileAsync(dropped.Path));
         }
         catch
         {
@@ -473,7 +512,21 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string? TryGetSupportedDroppedFilePath(DragEventArgs e)
+    private async void OnSidebarSplitterDragCompleted(object? sender, VectorEventArgs e)
+    {
+        try
+        {
+            await _viewModel.PersistSidebarWidthAsync();
+        }
+        catch
+        {
+            // Не сохранили ширину — не повод ронять окно.
+        }
+    }
+
+    private readonly record struct DroppedTarget(string Path, bool IsDirectory);
+
+    private static DroppedTarget? TryGetDroppedTarget(DragEventArgs e)
     {
         var files = e.DataTransfer.TryGetFiles();
         if (files is null)
@@ -483,15 +536,19 @@ public partial class MainWindow : Window
 
         foreach (var item in files)
         {
-            if (item is not IStorageFile file)
+            var path = item.TryGetLocalPath();
+            if (string.IsNullOrWhiteSpace(path))
             {
                 continue;
             }
 
-            var path = file.TryGetLocalPath();
-            if (!string.IsNullOrWhiteSpace(path) && SupportedDocumentTypes.IsSupportedPath(path))
+            switch (item)
             {
-                return path;
+                case IStorageFolder:
+                    return new DroppedTarget(path, IsDirectory: true);
+
+                case IStorageFile when SupportedDocumentTypes.IsSupportedPath(path):
+                    return new DroppedTarget(path, IsDirectory: false);
             }
         }
 

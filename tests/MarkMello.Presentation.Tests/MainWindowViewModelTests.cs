@@ -653,7 +653,7 @@ public sealed class MainWindowViewModelTests
             ArchitectureName: "x64",
             InstallAction: AppUpdateInstallAction.LaunchInstaller);
 
-    private static TestHarness CreateHarness()
+    private static TestHarness CreateHarness(FakeWorkspaceFileSystem? workspaceFileSystem = null)
     {
         var loader = new StubDocumentLoader();
         var saver = new RecordingDocumentSaver();
@@ -664,6 +664,7 @@ public sealed class MainWindowViewModelTests
         var startupMetrics = new RecordingStartupMetrics();
         var updateService = new StubUpdateService();
         var commandLine = new StubCommandLineActivation();
+        var fileSystem = workspaceFileSystem ?? new FakeWorkspaceFileSystem();
         var viewModel = new MainWindowViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(saver),
@@ -674,9 +675,20 @@ public sealed class MainWindowViewModelTests
             themeService,
             startupMetrics,
             new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
-            updateService);
+            updateService,
+            new OpenFolderUseCase(fileSystem),
+            new ExpandFolderNodeUseCase(fileSystem));
 
-        return new TestHarness(loader, saver, picker, settings, startupMetrics, updateService, commandLine, viewModel);
+        return new TestHarness(
+            loader,
+            saver,
+            picker,
+            settings,
+            startupMetrics,
+            updateService,
+            commandLine,
+            fileSystem,
+            viewModel);
     }
 
     private sealed record TestHarness(
@@ -687,5 +699,6 @@ public sealed class MainWindowViewModelTests
         RecordingStartupMetrics StartupMetrics,
         StubUpdateService UpdateService,
         StubCommandLineActivation CommandLine,
+        FakeWorkspaceFileSystem WorkspaceFileSystem,
         MainWindowViewModel ViewModel);
 }
