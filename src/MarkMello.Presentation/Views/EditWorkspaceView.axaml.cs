@@ -162,8 +162,8 @@ public partial class EditWorkspaceView : UserControl
     {
         if (_previewScrollViewer is null
             || _previewDocumentView is null
-            || !TryGetEditorSourceLineAtViewportAnchor(out var sourceLine)
-            || !_previewDocumentView.TryGetVerticalOffsetForSourceLine(sourceLine, out var previewDocumentOffsetY)
+            || !TryGetEditorSourcePositionAtViewportAnchor(out var sourcePosition)
+            || !_previewDocumentView.TryGetVerticalOffsetForSourcePosition(sourcePosition, out var previewDocumentOffsetY)
             || !TryGetViewportRelativeOriginY(_previewDocumentView, _previewScrollViewer, out var previewDocumentOriginY))
         {
             return;
@@ -189,8 +189,8 @@ public partial class EditWorkspaceView : UserControl
             0,
             GetViewportAnchorY(_previewScrollViewer) - previewDocumentOriginY);
 
-        if (!_previewDocumentView.TryGetSourceLineForVerticalOffset(previewDocumentOffsetY, out var sourceLine)
-            || !TryGetEditorVerticalOffsetForSourceLine(sourceLine, out var editorOffsetY))
+        if (!_previewDocumentView.TryGetSourcePositionForVerticalOffset(previewDocumentOffsetY, out var sourcePosition)
+            || !TryGetEditorVerticalOffsetForSourcePosition(sourcePosition, out var editorOffsetY))
         {
             return;
         }
@@ -198,9 +198,18 @@ public partial class EditWorkspaceView : UserControl
         SetSynchronizedVerticalOffset(_editorScrollViewer!, editorOffsetY);
     }
 
-    private bool TryGetEditorSourceLineAtViewportAnchor(out int sourceLine)
+    /// <summary>
+    /// Позиция в исходнике под якорем вьюпорта редактора, выраженная дробно:
+    /// номер логической строки плюс доля пройденного по ней пути.
+    ///
+    /// Строка markdown-абзаца при мягком переносе занимает в редакторе много
+    /// визуальных строк. Округление до её номера теряло бы всё продвижение
+    /// внутри абзаца — именно из-за этого preview отставал тем сильнее, чем
+    /// дальше по документу уехал редактор.
+    /// </summary>
+    private bool TryGetEditorSourcePositionAtViewportAnchor(out double sourcePosition)
     {
-        sourceLine = 0;
+        sourcePosition = 0;
         if (_editorTextBox is null
             || _editorTextPresenter is null
             || _editorScrollViewer is null
@@ -221,12 +230,14 @@ public partial class EditWorkspaceView : UserControl
 
         var hit = _editorTextPresenter.TextLayout.HitTestPoint(new Point(localX, localY));
         var characterIndex = Math.Clamp(hit.TextPosition, 0, text.Length);
-        sourceLine = GetSourceLineFromCharacterIndex(text, characterIndex);
-        sourceLine = Math.Clamp(sourceLine, 0, Math.Max(0, CountSourceLines(text) - 1));
+        var lastLine = Math.Max(0, CountSourceLines(text) - 1);
+        var sourceLine = Math.Clamp(GetSourceLineFromCharacterIndex(text, characterIndex), 0, lastLine);
+
+        sourcePosition = sourceLine + GetProgressWithinSourceLine(text, sourceLine, localY);
         return true;
     }
 
-    private bool TryGetEditorVerticalOffsetForSourceLine(int sourceLine, out double offsetY)
+    private bool TryGetEditorVerticalOffsetForSourcePosition(double sourcePosition, out double offsetY)
     {
         offsetY = 0;
         if (_editorTextBox is null
@@ -238,13 +249,59 @@ public partial class EditWorkspaceView : UserControl
         }
 
         var text = _editorTextBox.Text ?? string.Empty;
-        var lineStartCharacterIndex = GetLineStartCharacterIndex(text, sourceLine);
-        var lineBounds = _editorTextPresenter.TextLayout.HitTestTextPosition(lineStartCharacterIndex);
+        var lastLine = Math.Max(0, CountSourceLines(text) - 1);
+        var sourceLine = (int)Math.Clamp(Math.Floor(sourcePosition), 0, lastLine);
+        var progress = Math.Clamp(sourcePosition - sourceLine, 0, 1);
+
+        GetSourceLineTops(text, sourceLine, out var lineTop, out var nextLineTop);
+        var localY = nextLineTop > lineTop
+            ? lineTop + ((nextLineTop - lineTop) * progress)
+            : lineTop;
+
         offsetY = _editorScrollViewer.Offset.Y
             + presenterOriginY
-            + lineBounds.Y
+            + localY
             - GetViewportAnchorY(_editorScrollViewer);
         return true;
+    }
+
+    /// <summary>
+    /// Доля [0..1] пройденного по логической строке на высоте
+    /// <paramref name="localY"/> внутри text presenter.
+    /// </summary>
+    private double GetProgressWithinSourceLine(string text, int sourceLine, double localY)
+    {
+        GetSourceLineTops(text, sourceLine, out var lineTop, out var nextLineTop);
+        if (nextLineTop <= lineTop)
+        {
+            return 0;
+        }
+
+        return Math.Clamp((localY - lineTop) / (nextLineTop - lineTop), 0, 1);
+    }
+
+    /// <summary>
+    /// Вертикальные границы логической строки внутри text presenter: её верх и
+    /// верх следующей. Обе границы берутся за один проход по тексту — метод
+    /// вызывается на каждое событие скролла.
+    /// </summary>
+    private void GetSourceLineTops(string text, int sourceLine, out double lineTop, out double nextLineTop)
+    {
+        var layout = _editorTextPresenter!.TextLayout;
+        var lineStart = GetLineStartCharacterIndex(text, sourceLine);
+        lineTop = layout.HitTestTextPosition(lineStart).Y;
+
+        var lineBreak = text.IndexOf('\n', lineStart);
+        if (lineBreak < 0)
+        {
+            // Последняя строка: её низ, иначе завершающий абзац остался бы без
+            // разрешения внутри себя.
+            var end = layout.HitTestTextPosition(text.Length);
+            nextLineTop = end.Y + end.Height;
+            return;
+        }
+
+        nextLineTop = layout.HitTestTextPosition(lineBreak + 1).Y;
     }
 
     private static bool TryGetViewportRelativeOriginY(Control control, Visual relativeTo, out double originY)

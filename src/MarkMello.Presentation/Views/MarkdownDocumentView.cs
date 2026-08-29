@@ -64,9 +64,20 @@ public sealed class MarkdownDocumentView : UserControl
     };
 
     private readonly List<MarkdownDocumentSelectionFragmentBase> _selectionFragments = [];
+
+    // Путь текстовой карты для каждого фрагмента из _selectionFragments (тот же
+    // порядок). Нужен, чтобы у переиспользованного блока обновить DocumentRange:
+    // правка выше по документу сдвигает абсолютные offset'ы всех блоков ниже.
+    private readonly List<string> _selectionFragmentPaths = [];
     private readonly Dictionary<string, Control> _headingAnchorTargets = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _headingAnchorCounts = new(StringComparer.Ordinal);
+
+    // Заголовки в порядке документа. Индекс якорей строится из этого списка в
+    // конце Rebuild: нумерация дублей зависит от порядка по всему документу и
+    // не может считаться поблочно.
+    private readonly List<(MarkdownHeadingBlock Block, Control Control)> _headingAnchorRegistrations = [];
     private readonly List<MarkdownSourceLineVisualAnchor> _sourceLineAnchors = [];
+    private List<BuiltTopLevelBlock> _builtBlocks = [];
     private MarkdownDocumentTextMap _textMap = MarkdownDocumentTextMap.Empty;
     private bool _isPointerPressed;
     private bool _isDraggingSelection;
@@ -87,7 +98,7 @@ public sealed class MarkdownDocumentView : UserControl
     static MarkdownDocumentView()
     {
         DocumentProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.Rebuild());
-        ImageSourceResolverProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.Rebuild());
+        ImageSourceResolverProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.RebuildFromScratch());
         DocumentPaddingProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.ApplyDocumentPadding());
         ReadingPreferencesProperty.Changed.AddClassHandler<MarkdownDocumentView>((view, _) => view.RefreshForReadingPreferencesChange());
     }
@@ -218,100 +229,137 @@ public sealed class MarkdownDocumentView : UserControl
 
     public event EventHandler<MarkdownFileLinkRequestedEventArgs>? MarkdownFileLinkRequested;
 
-    internal bool TryGetVerticalOffsetForSourceLine(int sourceLine, out double offsetY)
+    /// <summary>
+    /// Вертикальное смещение в документе для дробной позиции в исходнике
+    /// (номер строки плюс доля продвижения внутри неё).
+    ///
+    /// Позиция дробная не для красоты: абзац в markdown обычно записан одной
+    /// длинной строкой, поэтому целочисленный номер строки не различает начало
+    /// и конец абзаца и preview застревал бы на его верхней кромке, пока
+    /// редактор прокручивает весь абзац.
+    /// </summary>
+    internal bool TryGetVerticalOffsetForSourcePosition(double sourcePosition, out double offsetY)
     {
         offsetY = 0;
-        if (sourceLine < 0)
+        var map = CreateSourcePositionMap();
+        if (map.Count == 0)
         {
             return false;
         }
 
-        var anchors = CreateMeasuredSourceLineAnchors();
-        if (anchors.Count == 0)
+        if (sourcePosition <= map[0].SourceLine)
         {
-            return false;
+            offsetY = map[0].Y;
+            return true;
         }
 
-        anchors.Sort(static (left, right) =>
+        for (var index = 1; index < map.Count; index++)
         {
-            var sourceComparison = left.StartLine.CompareTo(right.StartLine);
-            return sourceComparison != 0
-                ? sourceComparison
-                : left.Y.CompareTo(right.Y);
-        });
-
-        var selectedIndex = 0;
-        for (var index = 0; index < anchors.Count; index++)
-        {
-            if (anchors[index].StartLine > sourceLine)
+            var next = map[index];
+            if (sourcePosition > next.SourceLine)
             {
-                break;
+                continue;
             }
 
-            selectedIndex = index;
-
-            if (sourceLine <= anchors[index].EndLine)
-            {
-                break;
-            }
+            var previous = map[index - 1];
+            var ratio = (sourcePosition - previous.SourceLine) / (next.SourceLine - previous.SourceLine);
+            offsetY = previous.Y + ((next.Y - previous.Y) * ratio);
+            return true;
         }
 
-        var selected = anchors[selectedIndex];
-        offsetY = selected.Y;
-
-        if (sourceLine > selected.StartLine
-            && sourceLine <= selected.EndLine
-            && selectedIndex + 1 < anchors.Count)
-        {
-            var next = anchors[selectedIndex + 1];
-            var lineSpan = Math.Max(1, selected.EndLine - selected.StartLine);
-            var visualSpan = Math.Max(0, next.Y - selected.Y);
-            var ratio = Math.Clamp((double)(sourceLine - selected.StartLine) / lineSpan, 0, 1);
-            offsetY = selected.Y + visualSpan * ratio;
-        }
-
-        offsetY = Math.Max(0, offsetY);
+        offsetY = map[^1].Y;
         return true;
     }
 
-    internal bool TryGetSourceLineForVerticalOffset(double offsetY, out int sourceLine)
+    /// <summary>
+    /// Обратное отображение: дробная позиция в исходнике для вертикального
+    /// смещения в документе.
+    /// </summary>
+    internal bool TryGetSourcePositionForVerticalOffset(double offsetY, out double sourcePosition)
     {
-        sourceLine = 0;
-        var anchors = CreateMeasuredSourceLineAnchors();
-        if (anchors.Count == 0)
+        sourcePosition = 0;
+        var map = CreateSourcePositionMap();
+        if (map.Count == 0)
         {
             return false;
         }
 
-        var selectedIndex = 0;
         var normalizedOffset = Math.Max(0, offsetY);
-        for (var index = 0; index < anchors.Count; index++)
+        if (normalizedOffset <= map[0].Y)
         {
-            if (anchors[index].Y > normalizedOffset)
-            {
-                break;
-            }
-
-            selectedIndex = index;
+            sourcePosition = map[0].SourceLine;
+            return true;
         }
 
-        var selected = anchors[selectedIndex];
-        sourceLine = selected.StartLine;
-
-        if (selected.EndLine > selected.StartLine && selectedIndex + 1 < anchors.Count)
+        for (var index = 1; index < map.Count; index++)
         {
-            var next = anchors[selectedIndex + 1];
-            var visualSpan = next.Y - selected.Y;
-            if (visualSpan > 1)
+            var next = map[index];
+            if (normalizedOffset > next.Y)
             {
-                var ratio = Math.Clamp((normalizedOffset - selected.Y) / visualSpan, 0, 1);
-                var lineSpan = selected.EndLine - selected.StartLine;
-                sourceLine = selected.StartLine + (int)Math.Round(lineSpan * ratio, MidpointRounding.AwayFromZero);
+                continue;
             }
+
+            var previous = map[index - 1];
+            var ratio = (normalizedOffset - previous.Y) / (next.Y - previous.Y);
+            sourcePosition = previous.SourceLine + ((next.SourceLine - previous.SourceLine) * ratio);
+            return true;
         }
 
-        sourceLine = Math.Clamp(sourceLine, selected.StartLine, selected.EndLine);
+        sourcePosition = map[^1].SourceLine;
         return true;
+    }
+
+    /// <summary>
+    /// Монотонная кусочно-линейная карта «строка исходника → Y документа».
+    ///
+    /// Собирается из измеренных якорей блоков; вложенные блоки (пункты списка,
+    /// абзацы цитаты) дают дополнительные точки и тем самым разрешение внутри
+    /// крупных блоков. Точки, не возрастающие сразу по обеим координатам,
+    /// отбрасываются — иначе интерполяция делила бы на ноль или ехала назад.
+    /// </summary>
+    private List<MarkdownSourcePositionPoint> CreateSourcePositionMap()
+    {
+        var anchors = CreateMeasuredSourceLineAnchors();
+        var map = new List<MarkdownSourcePositionPoint>(anchors.Count + 1);
+
+        foreach (var anchor in anchors)
+        {
+            if (map.Count == 0)
+            {
+                map.Add(new MarkdownSourcePositionPoint(anchor.StartLine, anchor.Y));
+                continue;
+            }
+
+            var last = map[^1];
+            if (anchor.StartLine > last.SourceLine && anchor.Y > last.Y)
+            {
+                map.Add(new MarkdownSourcePositionPoint(anchor.StartLine, anchor.Y));
+            }
+        }
+
+        if (map.Count == 0)
+        {
+            return map;
+        }
+
+        // Замыкающая точка: конец последнего блока в низу документа, иначе
+        // хвост документа не имел бы куда отображаться. Берём максимальную
+        // конечную строку, а не последний по Y якорь: им может оказаться
+        // вложенный блок с более коротким span.
+        var lastLine = 0;
+        foreach (var anchor in anchors)
+        {
+            lastLine = Math.Max(lastLine, anchor.EndLine);
+        }
+
+        var documentBottom = _root.TranslatePoint(new Point(0, _root.Bounds.Height), this)?.Y;
+        var tailLine = lastLine + 1;
+        if (documentBottom is { } bottom && tailLine > map[^1].SourceLine && bottom > map[^1].Y)
+        {
+            map.Add(new MarkdownSourcePositionPoint(tailLine, bottom));
+        }
+
+        return map;
     }
 
     // Test-only: enumerates registered source-line anchor spans without
@@ -602,14 +650,18 @@ public sealed class MarkdownDocumentView : UserControl
         ApplySelectionToFragments();
     }
 
+    /// <summary>
+    /// Пересобирает preview, переиспользуя контролы блоков, которые не
+    /// изменились с прошлого рендера.
+    ///
+    /// Полная пересборка стоит порядка полусекунды на документе в сотню
+    /// килобайт, а правка обычно затрагивает один блок, поэтому неизменившиеся
+    /// блоки остаются в дереве как есть — им не нужны ни повторное построение,
+    /// ни повторный layout.
+    /// </summary>
     private void Rebuild()
     {
         DocumentRenderInvalidated?.Invoke(this, EventArgs.Empty);
-        DisposeSelectionFragments();
-        _root.Children.Clear();
-        _headingAnchorTargets.Clear();
-        _headingAnchorCounts.Clear();
-        _sourceLineAnchors.Clear();
         ResetPointerState();
 
         var document = Document;
@@ -619,17 +671,239 @@ public sealed class MarkdownDocumentView : UserControl
         var generation = ++_renderGeneration;
         _hasPendingRenderedNotification = false;
 
+        var reusable = CreateReusableBlockIndex();
+        var previous = _builtBlocks;
+        var rebuilt = new List<BuiltTopLevelBlock>(document?.Blocks.Count ?? 0);
+
+        _selectionFragments.Clear();
+        _selectionFragmentPaths.Clear();
+        _headingAnchorRegistrations.Clear();
+        _sourceLineAnchors.Clear();
+
+        if (document is not null)
+        {
+            for (var index = 0; index < document.Blocks.Count; index++)
+            {
+                var block = document.Blocks[index];
+                rebuilt.Add(TryReuseBlock(reusable, block, index) ?? BuildTopLevelBlock(block, index));
+            }
+        }
+
+        _builtBlocks = rebuilt;
+        DisposeReplacedBlocks(previous, rebuilt);
+        SyncRootChildren(rebuilt);
+        RebuildHeadingAnchorIndex();
+
         if (document is null || document.Blocks.Count == 0)
         {
             return;
         }
 
-        for (var index = 0; index < document.Blocks.Count; index++)
+        QueueDocumentRenderedNotification(generation);
+    }
+
+    /// <summary>
+    /// Индексирует блоки прошлого рендера по содержимому. Каждая запись может
+    /// быть выдана один раз — один и тот же контрол не может стоять в дереве дважды.
+    /// </summary>
+    private Dictionary<MarkdownBlock, Queue<BuiltTopLevelBlock>> CreateReusableBlockIndex()
+    {
+        var index = new Dictionary<MarkdownBlock, Queue<BuiltTopLevelBlock>>(
+            _builtBlocks.Count,
+            MarkdownBlockStructuralComparer.Instance);
+
+        foreach (var built in _builtBlocks)
         {
-            _root.Children.Add(BuildBlock(document.Blocks[index], $"b{index}", nested: false));
+            if (!index.TryGetValue(built.Block, out var bucket))
+            {
+                bucket = new Queue<BuiltTopLevelBlock>();
+                index[built.Block] = bucket;
+            }
+
+            bucket.Enqueue(built);
         }
 
-        QueueDocumentRenderedNotification(generation);
+        return index;
+    }
+
+    private BuiltTopLevelBlock? TryReuseBlock(
+        Dictionary<MarkdownBlock, Queue<BuiltTopLevelBlock>> reusable,
+        MarkdownBlock block,
+        int index)
+    {
+        if (!reusable.TryGetValue(block, out var bucket) || bucket.Count == 0)
+        {
+            return null;
+        }
+
+        var built = bucket.Dequeue();
+        var path = $"b{index}";
+
+        // Содержимое то же, но позиция в документе могла измениться: обновляем
+        // текстовые диапазоны выделения и исходные строки для scroll sync.
+        for (var i = 0; i < built.Fragments.Length; i++)
+        {
+            var fragment = built.Fragments[i];
+            var fragmentPath = path + built.FragmentRelativePaths[i];
+            if (_textMap.TryGetFragment(fragmentPath, out var mapped))
+            {
+                fragment.DocumentRange = mapped.Range;
+            }
+
+            _selectionFragments.Add(fragment);
+            _selectionFragmentPaths.Add(fragmentPath);
+        }
+
+        var startLine = block.SourceSpan?.StartLine ?? 0;
+        foreach (var anchor in built.SourceAnchors)
+        {
+            _sourceLineAnchors.Add(new MarkdownSourceLineVisualAnchor(
+                anchor.Control,
+                new MarkdownSourceSpan(startLine + anchor.RelativeStartLine, startLine + anchor.RelativeEndLine)));
+        }
+
+        foreach (var heading in built.HeadingAnchors)
+        {
+            _headingAnchorRegistrations.Add(heading);
+        }
+
+        built.Block = block;
+        return built;
+    }
+
+    private BuiltTopLevelBlock BuildTopLevelBlock(MarkdownBlock block, int index)
+    {
+        var path = $"b{index}";
+        var fragmentStart = _selectionFragments.Count;
+        var anchorStart = _sourceLineAnchors.Count;
+        var headingStart = _headingAnchorRegistrations.Count;
+
+        var control = BuildBlock(block, path, nested: false);
+
+        var fragmentCount = _selectionFragments.Count - fragmentStart;
+        var fragments = new MarkdownDocumentSelectionFragmentBase[fragmentCount];
+        var relativePaths = new string[fragmentCount];
+        for (var i = 0; i < fragmentCount; i++)
+        {
+            fragments[i] = _selectionFragments[fragmentStart + i];
+            relativePaths[i] = _selectionFragmentPaths[fragmentStart + i][path.Length..];
+        }
+
+        var startLine = block.SourceSpan?.StartLine ?? 0;
+        var anchorCount = _sourceLineAnchors.Count - anchorStart;
+        var anchors = new BuiltSourceAnchor[anchorCount];
+        for (var i = 0; i < anchorCount; i++)
+        {
+            var anchor = _sourceLineAnchors[anchorStart + i];
+            anchors[i] = new BuiltSourceAnchor(
+                anchor.Control,
+                anchor.SourceSpan.StartLine - startLine,
+                anchor.SourceSpan.EndLine - startLine);
+        }
+
+        return new BuiltTopLevelBlock
+        {
+            Block = block,
+            Control = control,
+            Fragments = fragments,
+            FragmentRelativePaths = relativePaths,
+            SourceAnchors = anchors,
+            HeadingAnchors = _headingAnchorRegistrations
+                .GetRange(headingStart, _headingAnchorRegistrations.Count - headingStart)
+                .ToArray()
+        };
+    }
+
+    private static void DisposeReplacedBlocks(
+        List<BuiltTopLevelBlock> previous,
+        List<BuiltTopLevelBlock> current)
+    {
+        if (previous.Count == 0)
+        {
+            return;
+        }
+
+        var kept = new HashSet<BuiltTopLevelBlock>(current);
+        foreach (var built in previous)
+        {
+            if (kept.Contains(built))
+            {
+                continue;
+            }
+
+            foreach (var fragment in built.Fragments)
+            {
+                fragment.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Приводит детей корневого стека к целевому списку, не трогая уже стоящие
+    /// на своих местах контролы: удаление и повторная вставка означали бы
+    /// detach/attach со всей повторной стилизацией, ради избавления от которой
+    /// переиспользование и делается.
+    /// </summary>
+    private void SyncRootChildren(List<BuiltTopLevelBlock> blocks)
+    {
+        var desired = new HashSet<Control>(blocks.Count);
+        foreach (var built in blocks)
+        {
+            desired.Add(built.Control);
+        }
+
+        for (var index = _root.Children.Count - 1; index >= 0; index--)
+        {
+            if (!desired.Contains(_root.Children[index]))
+            {
+                _root.Children.RemoveAt(index);
+            }
+        }
+
+        for (var index = 0; index < blocks.Count; index++)
+        {
+            var control = blocks[index].Control;
+            if (index < _root.Children.Count && ReferenceEquals(_root.Children[index], control))
+            {
+                continue;
+            }
+
+            var existing = _root.Children.IndexOf(control);
+            if (existing >= 0)
+            {
+                _root.Children.Move(existing, index);
+            }
+            else
+            {
+                _root.Children.Insert(index, control);
+            }
+        }
+    }
+
+    private void RebuildHeadingAnchorIndex()
+    {
+        _headingAnchorTargets.Clear();
+        _headingAnchorCounts.Clear();
+
+        foreach (var (block, control) in _headingAnchorRegistrations)
+        {
+            var baseAnchor = MarkdownHeadingAnchorSlugger.CreateAnchor(block.Inlines);
+            if (string.IsNullOrEmpty(baseAnchor))
+            {
+                continue;
+            }
+
+            var count = _headingAnchorCounts.TryGetValue(baseAnchor, out var currentCount)
+                ? currentCount
+                : 0;
+            _headingAnchorCounts[baseAnchor] = count + 1;
+
+            var anchor = count == 0
+                ? baseAnchor
+                : string.Create(CultureInfo.InvariantCulture, $"{baseAnchor}-{count}");
+
+            _headingAnchorTargets.TryAdd(anchor, control);
+        }
     }
 
     private void QueueDocumentRenderedNotification(long generation)
@@ -685,8 +959,21 @@ public sealed class MarkdownDocumentView : UserControl
             return;
         }
 
-        Rebuild();
+        RebuildFromScratch();
         _root.Opacity = 1;
+    }
+
+    /// <summary>
+    /// Полная пересборка без переиспользования. Нужна там, где изменился не сам
+    /// документ, а способ его отрисовки (шрифты reading preferences, resolver
+    /// изображений): содержимое блоков осталось прежним, но готовые контролы
+    /// уже не соответствуют новым настройкам.
+    /// </summary>
+    private void RebuildFromScratch()
+    {
+        DisposeSelectionFragments();
+        _root.Children.Clear();
+        Rebuild();
     }
 
     private void ApplyDocumentPadding()
@@ -702,6 +989,8 @@ public sealed class MarkdownDocumentView : UserControl
         }
 
         _selectionFragments.Clear();
+        _selectionFragmentPaths.Clear();
+        _builtBlocks = [];
     }
 
     private Control BuildBlock(MarkdownBlock block, string path, bool nested, bool insideQuote = false)
@@ -1206,7 +1495,7 @@ public sealed class MarkdownDocumentView : UserControl
             };
 
             imageFlow.Classes.Add(fallbackClassName);
-            _selectionFragments.Add(imageFlow);
+            RegisterSelectionFragment(imageFlow, path);
             imageFlow.SelectionRange = new DocumentTextRange(SelectionStart, SelectionEnd);
             return imageFlow;
         }
@@ -1230,9 +1519,15 @@ public sealed class MarkdownDocumentView : UserControl
         };
 
         control.Classes.Add(fallbackClassName);
-        _selectionFragments.Add(control);
+        RegisterSelectionFragment(control, path);
         control.SelectionRange = new DocumentTextRange(SelectionStart, SelectionEnd);
         return control;
+    }
+
+    private void RegisterSelectionFragment(MarkdownDocumentSelectionFragmentBase fragment, string path)
+    {
+        _selectionFragments.Add(fragment);
+        _selectionFragmentPaths.Add(path);
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -1690,24 +1985,7 @@ public sealed class MarkdownDocumentView : UserControl
     }
 
     private void RegisterHeadingAnchor(MarkdownHeadingBlock block, Control headingControl)
-    {
-        var baseAnchor = MarkdownHeadingAnchorSlugger.CreateAnchor(block.Inlines);
-        if (string.IsNullOrEmpty(baseAnchor))
-        {
-            return;
-        }
-
-        var count = _headingAnchorCounts.TryGetValue(baseAnchor, out var currentCount)
-            ? currentCount
-            : 0;
-        _headingAnchorCounts[baseAnchor] = count + 1;
-
-        var anchor = count == 0
-            ? baseAnchor
-            : string.Create(CultureInfo.InvariantCulture, $"{baseAnchor}-{count}");
-
-        _headingAnchorTargets.TryAdd(anchor, headingControl);
-    }
+        => _headingAnchorRegistrations.Add((block, headingControl));
 
     internal bool HasHeadingAnchor(string linkTarget)
         => MarkdownHeadingAnchorSlugger.TryNormalizeFragment(linkTarget, out var anchor)
@@ -1964,4 +2242,36 @@ public sealed class MarkdownDocumentView : UserControl
 
 internal readonly record struct MarkdownSourceLineVisualAnchor(Control Control, MarkdownSourceSpan SourceSpan);
 
+/// <summary>
+/// Source-line anchor stored relative to its top-level block's start line, so a
+/// reused block can be re-anchored after an edit shifted it up or down.
+/// </summary>
+internal readonly record struct BuiltSourceAnchor(Control Control, int RelativeStartLine, int RelativeEndLine);
+
+/// <summary>
+/// Everything one top-level block contributed to the last render, kept so the
+/// block can be re-adopted verbatim when the next parse produces an equal block.
+/// </summary>
+internal sealed class BuiltTopLevelBlock
+{
+    public required MarkdownBlock Block { get; set; }
+
+    public required Control Control { get; init; }
+
+    public required MarkdownDocumentSelectionFragmentBase[] Fragments { get; init; }
+
+    /// <summary>Fragment paths with the leading <c>b{index}</c> segment removed.</summary>
+    public required string[] FragmentRelativePaths { get; init; }
+
+    public required BuiltSourceAnchor[] SourceAnchors { get; init; }
+
+    public required (MarkdownHeadingBlock Block, Control Control)[] HeadingAnchors { get; init; }
+}
+
 internal readonly record struct MarkdownSourceLineAnchorSnapshot(int StartLine, int EndLine, double Y);
+
+/// <summary>
+/// One knot of the monotone source-line ↔ document-offset map used by edit-mode
+/// scroll synchronization.
+/// </summary>
+internal readonly record struct MarkdownSourcePositionPoint(double SourceLine, double Y);

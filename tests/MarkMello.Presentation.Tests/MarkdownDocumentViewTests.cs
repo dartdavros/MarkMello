@@ -9,6 +9,8 @@ namespace MarkMello.Presentation.Tests;
 
 public sealed class MarkdownDocumentViewTests
 {
+    private static readonly int[] ShiftedStartLines = [2, 4, 6];
+
     [Fact]
     public void SelectAllReturnsCanonicalTextAcrossAllBlockTypes()
     {
@@ -218,6 +220,113 @@ public sealed class MarkdownDocumentViewTests
 
         var rebuiltFragment = GetOnlyDocumentChild<MarkdownSelectionTextFragment>(view);
         Assert.Same(resolver, rebuiltFragment.ImageSourceResolver);
+    }
+
+    [Fact]
+    public void EditingOneBlockKeepsTheControlsOfEveryOtherBlock()
+    {
+        var view = CreateView(CreateThreeParagraphDocument("first", "second", "third"));
+        var before = GetBlockControls(view);
+
+        view.Document = CreateThreeParagraphDocument("first", "second edited", "third");
+
+        var after = GetBlockControls(view);
+        Assert.Equal(3, after.Length);
+        Assert.Same(before[0], after[0]);
+        Assert.NotSame(before[1], after[1]);
+        Assert.Same(before[2], after[2]);
+    }
+
+    [Fact]
+    public void ReusedBlocksExposeTheDocumentTextOfTheNewParse()
+    {
+        var view = CreateView(CreateThreeParagraphDocument("first", "second", "third"));
+        var edited = CreateThreeParagraphDocument("first", "second is now much longer", "third");
+
+        view.Document = edited;
+        view.SelectAll();
+
+        // "third" is a reused control, but its document range moved with the
+        // longer paragraph above it.
+        Assert.Equal(MarkdownDocumentTextMap.Create(edited).Text, view.SelectedText);
+    }
+
+    [Fact]
+    public void ReusedBlocksPickUpShiftedSourceSpans()
+    {
+        var view = CreateView(CreateThreeParagraphDocument("first", "second", "third"));
+
+        // Same content, every block pushed down two lines by an insertion above.
+        view.Document = CreateThreeParagraphDocument("first", "second", "third", firstLine: 2);
+
+        var startLines = view.EnumerateRegisteredSourceSpans()
+            .Select(span => span.StartLine)
+            .ToArray();
+        Assert.Equal(ShiftedStartLines, startLines);
+    }
+
+    [Fact]
+    public void HeadingAnchorsStayResolvableAfterAnEdit()
+    {
+        var view = CreateView(CreateHeadingDocument("Alpha", "Beta"));
+        Assert.True(view.HasHeadingAnchor("#alpha"));
+        Assert.True(view.HasHeadingAnchor("#beta"));
+
+        view.Document = CreateHeadingDocument("Alpha", "Gamma");
+
+        Assert.True(view.HasHeadingAnchor("#alpha"));
+        Assert.True(view.HasHeadingAnchor("#gamma"));
+        Assert.False(view.HasHeadingAnchor("#beta"));
+    }
+
+    [Fact]
+    public void DuplicateHeadingsKeepStableAnchorNumberingAfterAnEdit()
+    {
+        var view = CreateView(CreateHeadingDocument("Same", "Same", "Tail"));
+        Assert.True(view.HasHeadingAnchor("#same"));
+        Assert.True(view.HasHeadingAnchor("#same-1"));
+
+        view.Document = CreateHeadingDocument("Same", "Same", "Same");
+
+        Assert.True(view.HasHeadingAnchor("#same"));
+        Assert.True(view.HasHeadingAnchor("#same-1"));
+        Assert.True(view.HasHeadingAnchor("#same-2"));
+    }
+
+    private static RenderedMarkdownDocument CreateThreeParagraphDocument(
+        string first,
+        string second,
+        string third,
+        int firstLine = 0)
+        => new(
+        [
+            new MarkdownParagraphBlock([new MarkdownTextInline(first)])
+            {
+                SourceSpan = new MarkdownSourceSpan(firstLine)
+            },
+            new MarkdownParagraphBlock([new MarkdownTextInline(second)])
+            {
+                SourceSpan = new MarkdownSourceSpan(firstLine + 2)
+            },
+            new MarkdownParagraphBlock([new MarkdownTextInline(third)])
+            {
+                SourceSpan = new MarkdownSourceSpan(firstLine + 4)
+            }
+        ]);
+
+    private static RenderedMarkdownDocument CreateHeadingDocument(params string[] headings)
+        => new(headings
+            .Select((text, index) => (MarkdownBlock)new MarkdownHeadingBlock(2, [new MarkdownTextInline(text)])
+            {
+                SourceSpan = new MarkdownSourceSpan(index * 2)
+            })
+            .ToArray());
+
+    private static Control[] GetBlockControls(MarkdownDocumentView view)
+    {
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
+        return root.Children.ToArray();
     }
 
     private static MarkdownDocumentView CreateView(RenderedMarkdownDocument document)

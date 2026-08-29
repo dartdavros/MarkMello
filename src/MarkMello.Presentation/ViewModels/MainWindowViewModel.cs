@@ -5,6 +5,7 @@ using MarkMello.Application.Updates;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
+using MarkMello.Presentation.Editing;
 using MarkMello.Presentation.Localization;
 using System.Reflection;
 using System.ComponentModel;
@@ -28,6 +29,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly RenderMarkdownDocumentUseCase _renderMarkdown;
     private readonly IUpdateService _updateService;
     private readonly IImageSourceResolver? _imageSourceResolver;
+    private readonly Func<IEditorPreviewScheduler>? _previewSchedulerFactory;
 
     private bool _documentModelReadyMarked;
     private bool _readableDocumentMarked;
@@ -54,7 +56,8 @@ public partial class MainWindowViewModel : ObservableObject
         IStartupMetrics startupMetrics,
         RenderMarkdownDocumentUseCase renderMarkdown,
         IUpdateService updateService,
-        IImageSourceResolver? imageSourceResolver = null)
+        IImageSourceResolver? imageSourceResolver = null,
+        Func<IEditorPreviewScheduler>? previewSchedulerFactory = null)
     {
         _openDocument = openDocument;
         _saveDocument = saveDocument;
@@ -67,6 +70,7 @@ public partial class MainWindowViewModel : ObservableObject
         _renderMarkdown = renderMarkdown;
         _updateService = updateService;
         _imageSourceResolver = imageSourceResolver;
+        _previewSchedulerFactory = previewSchedulerFactory;
         _aboutVersion = GetProductVersion();
         _localization.PropertyChanged += OnLocalizationChanged;
         _commandLine.FileActivated += OnFileActivated;
@@ -1017,6 +1021,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (oldValue is not null)
         {
             oldValue.PropertyChanged -= OnEditorSessionPropertyChanged;
+            oldValue.Dispose();
         }
     }
 
@@ -1097,7 +1102,8 @@ public partial class MainWindowViewModel : ObservableObject
             ReadingPreferences,
             _renderMarkdown,
             _imageSourceResolver,
-            _localization);
+            _localization,
+            CreatePreviewScheduler());
 
         if (!_editorActivationMarked)
         {
@@ -1147,7 +1153,8 @@ public partial class MainWindowViewModel : ObservableObject
                 ReadingPreferences,
                 _renderMarkdown,
                 _imageSourceResolver,
-                _localization);
+                _localization,
+                CreatePreviewScheduler());
         }
 
         if (!_editorActivationMarked)
@@ -1211,7 +1218,8 @@ public partial class MainWindowViewModel : ObservableObject
                     ReadingPreferences,
                     _renderMarkdown,
                     _imageSourceResolver,
-                    _localization);
+                    _localization,
+                    CreatePreviewScheduler());
             }
             else
             {
@@ -1273,7 +1281,8 @@ public partial class MainWindowViewModel : ObservableObject
                 ReadingPreferences,
                 _renderMarkdown,
                 _imageSourceResolver,
-                _localization);
+                _localization,
+                CreatePreviewScheduler());
         }
         else
         {
@@ -1311,6 +1320,14 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private bool RequiresDirtyResolution => IsEditMode && EditorSession?.IsDirty == true;
+
+    /// <summary>
+    /// Каждая editor-сессия получает собственный планировщик preview: отложенный
+    /// рендер прошлой сессии не должен долетать до новой. Без фабрики (unit-тесты)
+    /// сессия работает синхронно.
+    /// </summary>
+    private IEditorPreviewScheduler? CreatePreviewScheduler()
+        => _previewSchedulerFactory?.Invoke();
 
     private void QueueDirtyAction(PendingDirtyActionKind kind, Func<Task> action)
     {

@@ -149,6 +149,7 @@
                    Classes="mm-editor-textarea"
                    AcceptsReturn="True"
                    AcceptsTab="True"
+                   NewLine="{Binding DocumentNewLine}"
                    TextWrapping="Wrap"
                    ScrollViewer.AllowAutoHide="False"
                    ScrollViewer.VerticalScrollBarVisibility="Auto"

@@ -2,6 +2,7 @@ using MarkMello.Application.Abstractions;
 using MarkMello.Application.Updates;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
+using MarkMello.Presentation.Editing;
 
 namespace MarkMello.Presentation.Tests;
 
@@ -162,13 +163,57 @@ internal sealed class RecordingStartupMetrics : IStartupMetrics
 
 internal sealed class TestMarkdownRenderer : IMarkdownDocumentRenderer
 {
+    /// <summary>
+    /// Number of completed renders. Edit-mode preview must not run one of these
+    /// per keystroke — see <c>EditorSessionViewModelTests</c>.
+    /// </summary>
+    public int RenderCount { get; private set; }
+
     public RenderedMarkdownDocument Render(string markdown)
-        => RenderedMarkdownDocument.PlainText(markdown);
+    {
+        RenderCount++;
+        return RenderedMarkdownDocument.PlainText(markdown);
+    }
 
     public RenderedMarkdownDocument Render(string markdown, string? baseDirectory)
     {
+        RenderCount++;
         var document = RenderedMarkdownDocument.PlainText(markdown);
         return baseDirectory is null ? document : document with { BaseDirectory = baseDirectory };
+    }
+}
+
+/// <summary>
+/// <see cref="IEditorPreviewScheduler"/> that holds the pending render until the
+/// test flushes it, standing in for the debounce timer used in production.
+/// </summary>
+internal sealed class ManualEditorPreviewScheduler : IEditorPreviewScheduler
+{
+    private Action? _pending;
+
+    public int ScheduleCount { get; private set; }
+
+    public int CancelCount { get; private set; }
+
+    public bool HasPendingRender => _pending is not null;
+
+    public void Schedule<T>(Func<T> render, Action<T> apply)
+    {
+        ScheduleCount++;
+        _pending = () => apply(render());
+    }
+
+    public void Cancel()
+    {
+        CancelCount++;
+        _pending = null;
+    }
+
+    public void Flush()
+    {
+        var pending = _pending;
+        _pending = null;
+        pending?.Invoke();
     }
 }
 

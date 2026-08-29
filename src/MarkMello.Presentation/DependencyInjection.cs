@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using MarkMello.Application.Abstractions;
+using MarkMello.Presentation.Editing;
 using MarkMello.Presentation.Localization;
 using MarkMello.Presentation.Services;
 using MarkMello.Presentation.ViewModels;
@@ -27,6 +28,11 @@ public static class DependencyInjection
         services.AddSingleton<IFilePicker, FilePicker>();
         services.AddSingleton<IThemeService, AvaloniaThemeService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
+
+        // Каждая editor-сессия получает свой планировщик preview: он держит
+        // DispatcherTimer и номер поколения, которые нельзя делить между сессиями.
+        services.AddSingleton<Func<IEditorPreviewScheduler>>(
+            _ => static () => new DebouncedEditorPreviewScheduler());
 
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
