@@ -58,8 +58,6 @@ AppUpdatesURL=https://github.com/{#MyReleaseOwner}/{#MyReleaseRepo}/releases/lat
 ; per-user one. A hard-coded {localappdata} would keep offering a profile
 ; directory even after the user chose "install for all users".
 DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
-DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed={#MyArchitecturesAllowed}
@@ -92,6 +90,10 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 Source: "{#MyPublishDir}\*"; Excludes: "*.pdb"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
+; A flat Start menu entry rather than a {group} folder holding a single
+; shortcut. {autoprograms} follows the install mode: the all-users Start menu
+; for an all-users install, the current user's for a per-user one.
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
