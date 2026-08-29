@@ -411,6 +411,54 @@ public sealed class MarkdownDocumentViewTests
         Assert.All(GetTextFragments(view), fragment => Assert.Empty(fragment.SearchHighlightRanges));
     }
 
+    [Theory]
+    [InlineData("e")]
+    [InlineData("a")]
+    [InlineData(" ")]
+    [InlineData("Body")]
+    public void EveryFragmentGetsExactlyTheMatchesThatOverlapIt(string query)
+    {
+        // The lookup narrows to a window of the sorted match list instead of
+        // testing every match against every fragment; this pins the result to
+        // the naive computation so the narrowing cannot quietly drop a match.
+        var document = CreateCompositeDocument();
+        var view = CreateView(document);
+        var allMatches = MarkdownTextSearch.FindAll(MarkdownDocumentTextMap.Create(document).Text, query);
+
+        view.ApplySearchQuery(query);
+
+        Assert.NotEmpty(allMatches);
+        foreach (var fragment in GetTextFragments(view))
+        {
+            var expected = allMatches
+                .Select(match => fragment.DocumentRange.Intersection(match))
+                .Where(intersection => !intersection.IsEmpty)
+                .ToArray();
+
+            Assert.Equal(expected, fragment.SearchHighlightRanges);
+        }
+    }
+
+    [Fact]
+    public void NavigatingMatchesLeavesTheHighlightRangesUntouched()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("e");
+        var before = GetTextFragments(view)
+            .Select(fragment => fragment.SearchHighlightRanges.ToArray())
+            .ToArray();
+
+        view.FindNext();
+        view.FindNext();
+        view.FindPrevious();
+
+        var after = GetTextFragments(view)
+            .Select(fragment => fragment.SearchHighlightRanges.ToArray())
+            .ToArray();
+        Assert.Equal(before, after);
+        Assert.Equal(1, view.MatchIndex);
+    }
+
     [Fact]
     public void QueryKeepsTheWhitespaceTheUserTyped()
     {

@@ -280,7 +280,7 @@ public sealed class MarkdownDocumentView : UserControl
         }
 
         _activeMatchIndex = MarkdownTextSearch.NextIndex(_activeMatchIndex, _searchMatches.Count);
-        ApplySearchHighlightsToFragments();
+        ApplyActiveSearchHighlightToFragments();
         SearchStateChanged?.Invoke(this, EventArgs.Empty);
         TryScrollToActiveMatch();
         return true;
@@ -294,7 +294,7 @@ public sealed class MarkdownDocumentView : UserControl
         }
 
         _activeMatchIndex = MarkdownTextSearch.PreviousIndex(_activeMatchIndex, _searchMatches.Count);
-        ApplySearchHighlightsToFragments();
+        ApplyActiveSearchHighlightToFragments();
         SearchStateChanged?.Invoke(this, EventArgs.Empty);
         TryScrollToActiveMatch();
         return true;
@@ -1011,7 +1011,32 @@ public sealed class MarkdownDocumentView : UserControl
         SearchStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Раскладывает совпадения по фрагментам.
+    ///
+    /// Совпадения приходят из <see cref="MarkdownTextSearch.FindAll"/>
+    /// отсортированными и без перекрытий, поэтому фрагменту нужны не все они, а
+    /// только окно: находим бинарным поиском первое дотягивающееся до фрагмента
+    /// и идём вперёд, пока совпадения начинаются раньше его конца. Перебор всех
+    /// совпадений для каждого фрагмента на документе в сотню килобайт — это
+    /// порядка миллиона проверок на каждое нажатие в поле поиска.
+    /// </summary>
     private void ApplySearchHighlightsToFragments()
+    {
+        foreach (var fragment in _selectionFragments)
+        {
+            fragment.SearchHighlightRanges = CollectMatchesWithin(fragment.DocumentRange);
+        }
+
+        ApplyActiveSearchHighlightToFragments();
+    }
+
+    /// <summary>
+    /// Обновляет только активное совпадение. Переход к следующему или
+    /// предыдущему результату не меняет набор совпадений, поэтому пересобирать
+    /// списки диапазонов ради одной подсветки незачем.
+    /// </summary>
+    private void ApplyActiveSearchHighlightToFragments()
     {
         var activeRange = _activeMatchIndex >= 0 && _activeMatchIndex < _searchMatches.Count
             ? _searchMatches[_activeMatchIndex]
@@ -1019,30 +1044,66 @@ public sealed class MarkdownDocumentView : UserControl
 
         foreach (var fragment in _selectionFragments)
         {
-            var ranges = new List<DocumentTextRange>();
-            foreach (var match in _searchMatches)
+            if (activeRange is not { } active)
             {
-                var intersection = fragment.DocumentRange.Intersection(match);
-                if (!intersection.IsEmpty)
-                {
-                    ranges.Add(intersection);
-                }
+                fragment.ActiveSearchHighlight = null;
+                continue;
             }
 
-            fragment.SearchHighlightRanges = ranges;
+            var intersection = fragment.DocumentRange.Intersection(active);
+            fragment.ActiveSearchHighlight = intersection.IsEmpty ? null : intersection;
+        }
+    }
 
-            if (activeRange is { } active)
+    private IReadOnlyList<DocumentTextRange> CollectMatchesWithin(DocumentTextRange fragmentRange)
+    {
+        List<DocumentTextRange>? ranges = null;
+
+        for (var index = FindFirstMatchReaching(fragmentRange.Start); index < _searchMatches.Count; index++)
+        {
+            var match = _searchMatches[index];
+            if (match.Start >= fragmentRange.End)
             {
-                var activeIntersection = fragment.DocumentRange.Intersection(active);
-                fragment.ActiveSearchHighlight = activeIntersection.IsEmpty
-                    ? null
-                    : activeIntersection;
+                break;
+            }
+
+            var intersection = fragmentRange.Intersection(match);
+            if (!intersection.IsEmpty)
+            {
+                // Большинство фрагментов не содержит ни одного совпадения —
+                // список заводим только когда есть что в него положить.
+                ranges ??= [];
+                ranges.Add(intersection);
+            }
+        }
+
+        return ranges ?? (IReadOnlyList<DocumentTextRange>)Array.Empty<DocumentTextRange>();
+    }
+
+    /// <summary>
+    /// Индекс первого совпадения, которое заканчивается после
+    /// <paramref name="offset"/>. Совпадения отсортированы по началу и не
+    /// перекрываются, поэтому конец монотонен и бинарный поиск корректен.
+    /// </summary>
+    private int FindFirstMatchReaching(int offset)
+    {
+        var low = 0;
+        var high = _searchMatches.Count;
+
+        while (low < high)
+        {
+            var middle = low + ((high - low) / 2);
+            if (_searchMatches[middle].End <= offset)
+            {
+                low = middle + 1;
             }
             else
             {
-                fragment.ActiveSearchHighlight = null;
+                high = middle;
             }
         }
+
+        return low;
     }
 
     private void TryScrollToActiveMatch()
