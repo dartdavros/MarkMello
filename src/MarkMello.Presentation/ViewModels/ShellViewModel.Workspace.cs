@@ -10,7 +10,7 @@ namespace MarkMello.Presentation.ViewModels;
 /// «Открыть папку»: при старте с одним файлом <see cref="Workspace"/> остаётся null,
 /// сайдбар не монтируется, каталоги не читаются (ADR-0007 Rule 1).
 /// </summary>
-public partial class MainWindowViewModel
+public partial class ShellViewModel
 {
     /// <summary>
     /// Папка открыта. Дерево, поиск и файловые операции живут внутри

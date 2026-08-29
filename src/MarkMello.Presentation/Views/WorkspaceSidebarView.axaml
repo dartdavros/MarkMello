@@ -5,7 +5,7 @@
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.WorkspaceSidebarView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
 
   <Border Classes="mm-sidebar">
     <Grid RowDefinitions="44,*">

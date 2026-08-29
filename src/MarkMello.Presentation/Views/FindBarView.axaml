@@ -5,7 +5,7 @@
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.FindBarView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
 
   <UserControl.Styles>
     <Style Selector="Border.mm-find-bar">

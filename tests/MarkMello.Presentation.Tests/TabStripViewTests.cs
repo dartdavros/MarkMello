@@ -83,7 +83,7 @@ public sealed class TabStripViewTests
         }, CancellationToken.None);
     }
 
-    private static MainWindowViewModel CreateViewModel()
+    private static ShellViewModel CreateViewModel()
     {
         var loader = new StubDocumentLoader();
         loader.Sources[@"C:\docs\first.md"] = new MarkdownSource(@"C:\docs\first.md", "first.md", "# first");
@@ -91,7 +91,7 @@ public sealed class TabStripViewTests
 
         var fileSystem = new FakeWorkspaceFileSystem();
 
-        return new MainWindowViewModel(
+        return new ShellViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(new RecordingDocumentSaver()),
             new StubFilePicker(),

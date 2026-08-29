@@ -23,7 +23,7 @@ public partial class ViewerView : UserControl, IFindHost
     private bool _hasRenderedDocument;
     private Size _lastMinimapExtent;
     private Size _lastMinimapViewport;
-    private MainWindowViewModel? _viewModel;
+    private ShellViewModel? _viewModel;
 
     public ViewerView()
     {
@@ -51,7 +51,7 @@ public partial class ViewerView : UserControl, IFindHost
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        AttachViewModel(DataContext as MainWindowViewModel);
+        AttachViewModel(DataContext as ShellViewModel);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -84,7 +84,7 @@ public partial class ViewerView : UserControl, IFindHost
         SizeChanged += OnViewerSizeChanged;
         ActualThemeVariantChanged += OnViewerAppearanceChanged;
         ResourcesChanged += OnViewerResourcesChanged;
-        AttachViewModel(DataContext as MainWindowViewModel);
+        AttachViewModel(DataContext as ShellViewModel);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -158,7 +158,7 @@ public partial class ViewerView : UserControl, IFindHost
 
     private void OnViewerKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_scroll is null || e.Handled || DataContext is not MainWindowViewModel { IsViewer: true, IsEditMode: false })
+        if (_scroll is null || e.Handled || DataContext is not ShellViewModel { IsViewer: true, IsEditMode: false })
         {
             return;
         }
@@ -219,7 +219,7 @@ public partial class ViewerView : UserControl, IFindHost
 
     private void OnDocumentRendered(object? sender, EventArgs e)
     {
-        if (DataContext is MainWindowViewModel vm)
+        if (DataContext is ShellViewModel vm)
         {
             vm.MarkReadableDocumentRendered();
             RestorePendingScrollOffset(vm);
@@ -240,7 +240,7 @@ public partial class ViewerView : UserControl, IFindHost
     /// Возврат на вкладку восстанавливает её позицию прокрутки. Делается после отрисовки:
     /// до неё ScrollBarMaximum ещё нулевой и любое смещение схлопнется в ноль.
     /// </summary>
-    private void RestorePendingScrollOffset(MainWindowViewModel viewModel)
+    private void RestorePendingScrollOffset(ShellViewModel viewModel)
     {
         if (viewModel.TakePendingScrollOffset() is not { } offset || _scroll is null)
         {
@@ -273,7 +273,7 @@ public partial class ViewerView : UserControl, IFindHost
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (_documentView is not null && DataContext is MainWindowViewModel { IsViewer: true, IsEditMode: false })
+            if (_documentView is not null && DataContext is ShellViewModel { IsViewer: true, IsEditMode: false })
             {
                 _documentView.Focus(NavigationMethod.Unspecified);
             }
@@ -291,7 +291,7 @@ public partial class ViewerView : UserControl, IFindHost
 
     private async void OnMarkdownFileLinkRequested(object? sender, MarkdownFileLinkRequestedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm)
+        if (DataContext is not ShellViewModel vm)
         {
             return;
         }
@@ -308,7 +308,7 @@ public partial class ViewerView : UserControl, IFindHost
 
         var max = _scroll.ScrollBarMaximum.Y;
         var current = _scroll.Offset.Y;
-        if (DataContext is MainWindowViewModel vm)
+        if (DataContext is ShellViewModel vm)
         {
             vm.ReadingProgress = max > 0 ? Math.Clamp(current / max * 100.0, 0, 100) : 0;
 
@@ -356,7 +356,7 @@ public partial class ViewerView : UserControl, IFindHost
         QueueMinimapBuild();
     }
 
-    private void AttachViewModel(MainWindowViewModel? viewModel)
+    private void AttachViewModel(ShellViewModel? viewModel)
     {
         if (ReferenceEquals(_viewModel, viewModel))
         {
@@ -378,7 +378,7 @@ public partial class ViewerView : UserControl, IFindHost
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(MainWindowViewModel.ReadingPreferences))
+        if (e.PropertyName != nameof(ShellViewModel.ReadingPreferences))
         {
             return;
         }
@@ -536,7 +536,7 @@ public partial class ViewerView : UserControl, IFindHost
             return false;
         }
 
-        var mode = DataContext is MainWindowViewModel vm
+        var mode = DataContext is ShellViewModel vm
             ? vm.ReadingPreferences.DocumentMinimapMode
             : DocumentMinimapMode.Auto;
 

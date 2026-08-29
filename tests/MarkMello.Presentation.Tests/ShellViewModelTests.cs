@@ -8,7 +8,7 @@ using System.Globalization;
 
 namespace MarkMello.Presentation.Tests;
 
-public sealed class MainWindowViewModelTests
+public sealed class ShellViewModelTests
 {
     [Fact]
     public async Task ToggleEditModeCommandLazilyCreatesEditorSession()
@@ -260,7 +260,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("second", harness.ViewModel.Document!.Content);
     }
 
-    private static Task WaitForDocumentChangeAsync(MainWindowViewModel viewModel, string expectedFileName)
+    private static Task WaitForDocumentChangeAsync(ShellViewModel viewModel, string expectedFileName)
     {
         if (viewModel.FileName == expectedFileName)
         {
@@ -270,7 +270,7 @@ public sealed class MainWindowViewModelTests
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void Handler(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(MainWindowViewModel.FileName) && viewModel.FileName == expectedFileName)
+            if (e.PropertyName == nameof(ShellViewModel.FileName) && viewModel.FileName == expectedFileName)
             {
                 viewModel.PropertyChanged -= Handler;
                 tcs.TrySetResult();
@@ -613,10 +613,10 @@ public sealed class MainWindowViewModelTests
 
         harness.ViewModel.SelectedLanguageOption = russianOption;
 
-        Assert.Contains(nameof(MainWindowViewModel.WelcomeTagline), names);
-        Assert.Contains(nameof(MainWindowViewModel.AppMenuHeader), names);
-        Assert.Contains(nameof(MainWindowViewModel.LanguageOptions), names);
-        Assert.Contains(nameof(MainWindowViewModel.SelectedLanguageOption), names);
+        Assert.Contains(nameof(ShellViewModel.WelcomeTagline), names);
+        Assert.Contains(nameof(ShellViewModel.AppMenuHeader), names);
+        Assert.Contains(nameof(ShellViewModel.LanguageOptions), names);
+        Assert.Contains(nameof(ShellViewModel.SelectedLanguageOption), names);
         Assert.DoesNotContain("Item", names);
         Assert.DoesNotContain("Item[]", names);
         Assert.Equal("Тихое место для чтения Markdown.", harness.ViewModel.WelcomeTagline);
@@ -665,7 +665,7 @@ public sealed class MainWindowViewModelTests
         var updateService = new StubUpdateService();
         var commandLine = new StubCommandLineActivation();
         var fileSystem = workspaceFileSystem ?? new FakeWorkspaceFileSystem();
-        var viewModel = new MainWindowViewModel(
+        var viewModel = new ShellViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(saver),
             picker,
@@ -700,5 +700,5 @@ public sealed class MainWindowViewModelTests
         StubUpdateService UpdateService,
         StubCommandLineActivation CommandLine,
         FakeWorkspaceFileSystem WorkspaceFileSystem,
-        MainWindowViewModel ViewModel);
+        ShellViewModel ViewModel);
 }

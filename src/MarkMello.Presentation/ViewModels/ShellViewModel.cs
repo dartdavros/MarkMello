@@ -16,7 +16,7 @@ namespace MarkMello.Presentation.ViewModels;
 /// View model главного окна. Отвечает за state machine (NoDocument/Viewing/LoadError),
 /// тему, reading preferences, команды open/reload, lazy edit mode и dirty/save flow.
 /// </summary>
-public partial class MainWindowViewModel : ObservableObject
+public partial class ShellViewModel : ObservableObject
 {
     private readonly OpenDocumentUseCase _openDocument;
     private readonly SaveDocumentUseCase _saveDocument;
@@ -49,7 +49,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public event EventHandler? CloseRequested;
 
-    public MainWindowViewModel(
+    public ShellViewModel(
         OpenDocumentUseCase openDocument,
         SaveDocumentUseCase saveDocument,
         IFilePicker filePicker,
@@ -1678,7 +1678,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static string GetProductVersion()
     {
-        var assembly = Assembly.GetEntryAssembly() ?? typeof(MainWindowViewModel).Assembly;
+        var assembly = Assembly.GetEntryAssembly() ?? typeof(ShellViewModel).Assembly;
 
         var informationalVersion = assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()

@@ -17,7 +17,7 @@ public partial class TabStripView : UserControl
 
     private void OnStripSizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        if (DataContext is MainWindowViewModel viewModel)
+        if (DataContext is ShellViewModel viewModel)
         {
             // Ширина полосы — единственное, что решает, сколько вкладок помещается.
             viewModel.OpenDocuments.AvailableWidth = e.NewSize.Width;
@@ -27,7 +27,7 @@ public partial class TabStripView : UserControl
     private void OnTabPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Control { DataContext: DocumentTabViewModel tab }
-            || DataContext is not MainWindowViewModel viewModel)
+            || DataContext is not ShellViewModel viewModel)
         {
             return;
         }

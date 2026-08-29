@@ -5,7 +5,7 @@
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.EmptyDocumentSurfaceView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
 
   <!-- Папка открыта, вкладок нет: без иллюстрации, одна строка объяснения (макет 07) -->
   <StackPanel HorizontalAlignment="Center"

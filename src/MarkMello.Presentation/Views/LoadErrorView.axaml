@@ -5,7 +5,7 @@
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.LoadErrorView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
 
   <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14"

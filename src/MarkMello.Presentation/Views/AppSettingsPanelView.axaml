@@ -5,7 +5,7 @@
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.AppSettingsPanelView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
       <Border
               Classes="mm-settings-panel mm-popover-left mm-app-settings-panel"
               Width="320">

@@ -5,7 +5,7 @@
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.TabStripView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
 
   <Border Classes="mm-tab-strip"
           SizeChanged="OnStripSizeChanged">
@@ -50,7 +50,7 @@
                            Height="6"
                            Fill="{DynamicResource MmAccentBrush}" />
                   <Button Classes="mm-tab-close"
-                          Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenDocuments.CloseCommand}"
+                          Command="{Binding $parent[ItemsControl].((vm:ShellViewModel)DataContext).OpenDocuments.CloseCommand}"
                           CommandParameter="{Binding}">
                     <Path Data="M0,0 L9,9 M9,0 L0,9"
                           Stroke="{DynamicResource MmTextFaintBrush}"
@@ -79,7 +79,7 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:DocumentTabViewModel">
                       <Button Classes="mm-tab-overflow-item"
-                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenDocuments.ActivateCommand}"
+                              Command="{Binding $parent[ItemsControl].((vm:ShellViewModel)DataContext).OpenDocuments.ActivateCommand}"
                               CommandParameter="{Binding}">
                         <Grid ColumnDefinitions="*,Auto"
                               ColumnSpacing="10">

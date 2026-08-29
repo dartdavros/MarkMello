@@ -53,7 +53,7 @@ public sealed class WorkspaceSidebarViewTests
         }, CancellationToken.None);
     }
 
-    private static MainWindowViewModel CreateViewModel()
+    private static ShellViewModel CreateViewModel()
     {
         var fileSystem = new FakeWorkspaceFileSystem();
         fileSystem.AddDirectory(
@@ -66,7 +66,7 @@ public sealed class WorkspaceSidebarViewTests
         loader.Sources[@"C:\docs\README.md"] =
             new MarkdownSource(@"C:\docs\README.md", "README.md", "# readme");
 
-        return new MainWindowViewModel(
+        return new ShellViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(new RecordingDocumentSaver()),
             new StubFilePicker(),

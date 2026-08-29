@@ -34,7 +34,7 @@ public static class DependencyInjection
         services.AddSingleton<Func<IEditorPreviewScheduler>>(
             _ => static () => new DebouncedEditorPreviewScheduler());
 
-        services.AddSingleton<MainWindowViewModel>();
+        services.AddSingleton<ShellViewModel>();
         services.AddSingleton<MainWindow>();
 
         return services;

@@ -242,7 +242,7 @@ public sealed class WorkspaceSidebarTests
             new MarkdownSource(@"C:\docs\README.md", "README.md", "# readme");
         var settings = new InMemorySettingsStore();
         var commandLine = new StubCommandLineActivation();
-        var viewModel = new MainWindowViewModel(
+        var viewModel = new ShellViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(new RecordingDocumentSaver()),
             new StubFilePicker(),
@@ -263,5 +263,5 @@ public sealed class WorkspaceSidebarTests
         StubDocumentLoader Loader,
         InMemorySettingsStore Settings,
         StubCommandLineActivation CommandLine,
-        MainWindowViewModel ViewModel);
+        ShellViewModel ViewModel);
 }

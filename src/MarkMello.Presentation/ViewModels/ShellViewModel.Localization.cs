@@ -8,7 +8,7 @@ using System.ComponentModel;
 
 namespace MarkMello.Presentation.ViewModels;
 
-public partial class MainWindowViewModel
+public partial class ShellViewModel
 {
     private PendingDirtyActionKind? _dirtyPromptKind;
     private SaveDocumentResult? _dirtyPromptErrorResult;

@@ -175,7 +175,7 @@ public sealed class DocumentTabsShellTests
         loader.Sources[@"C:\docs\second.md"] = new MarkdownSource(@"C:\docs\second.md", "second.md", "# second");
         loader.Sources[@"C:\outside\notes.md"] = new MarkdownSource(@"C:\outside\notes.md", "notes.md", "# notes");
 
-        var viewModel = new MainWindowViewModel(
+        var viewModel = new ShellViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(new RecordingDocumentSaver()),
             new StubFilePicker(),
@@ -192,5 +192,5 @@ public sealed class DocumentTabsShellTests
         return new TabsTestHarness(loader, viewModel);
     }
 
-    private sealed record TabsTestHarness(CountingDocumentLoader Loader, MainWindowViewModel ViewModel);
+    private sealed record TabsTestHarness(CountingDocumentLoader Loader, ShellViewModel ViewModel);
 }

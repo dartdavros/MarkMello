@@ -9,7 +9,7 @@ namespace MarkMello.Presentation.ViewModels;
 /// её содержимое живёт в полях shell, а остальные вкладки держат снимок своего документа
 /// и позицию прокрутки, чтобы возврат не перечитывал файл (ADR-0007 Rule 4).
 /// </summary>
-public partial class MainWindowViewModel
+public partial class ShellViewModel
 {
     private bool _isRestoringTab;
     private double? _pendingScrollOffset;

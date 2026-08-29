@@ -24,7 +24,7 @@ public partial class MainWindow : Window
     private const double MacOsTitleBarLeadingInset = 82;
     private const int WindowPlacementMarginPixels = 8;
 
-    private readonly MainWindowViewModel _viewModel = default!;
+    private readonly ShellViewModel _viewModel = default!;
     private readonly StartupSmokeTestOptions _startupSmokeTestOptions = StartupSmokeTestOptions.Disabled;
     private readonly IStartupMetrics? _startupMetrics;
     private readonly ISettingsStore? _settings;
@@ -47,7 +47,7 @@ public partial class MainWindow : Window
     }
 
     public MainWindow(
-        MainWindowViewModel viewModel,
+        ShellViewModel viewModel,
         StartupSmokeTestOptions startupSmokeTestOptions,
         ISettingsStore settings,
         IStartupMetrics startupMetrics)
@@ -557,38 +557,38 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainWindowViewModel.ShellOverlay)
-            or nameof(MainWindowViewModel.IsSettingsOpen)
-            or nameof(MainWindowViewModel.IsAppMenuOpen)
-            or nameof(MainWindowViewModel.IsAppSettingsOpen)
-            or nameof(MainWindowViewModel.IsAppAboutOpen)
-            or nameof(MainWindowViewModel.HasOpenOverlay))
+        if (e.PropertyName is nameof(ShellViewModel.ShellOverlay)
+            or nameof(ShellViewModel.IsSettingsOpen)
+            or nameof(ShellViewModel.IsAppMenuOpen)
+            or nameof(ShellViewModel.IsAppSettingsOpen)
+            or nameof(ShellViewModel.IsAppAboutOpen)
+            or nameof(ShellViewModel.HasOpenOverlay))
         {
             SyncOverlayWindowClasses();
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.ReadingProgress)
-            || e.PropertyName == nameof(MainWindowViewModel.IsViewer))
+        if (e.PropertyName == nameof(ShellViewModel.ReadingProgress)
+            || e.PropertyName == nameof(ShellViewModel.IsViewer))
         {
             UpdateReadingProgressBarWidth();
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.IsEditMode))
+        if (e.PropertyName == nameof(ShellViewModel.IsEditMode))
         {
             InvalidateFindHost();
             UpdateReadingProgressBarWidth();
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.State))
+        if (e.PropertyName == nameof(ShellViewModel.State))
         {
             InvalidateFindHost();
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.IsFindBarOpen))
+        if (e.PropertyName == nameof(ShellViewModel.IsFindBarOpen))
         {
             if (_viewModel.IsFindBarOpen)
             {
@@ -603,7 +603,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.FindQuery))
+        if (e.PropertyName == nameof(ShellViewModel.FindQuery))
         {
             if (_viewModel.IsFindBarOpen)
             {
@@ -614,13 +614,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.PropertyName is nameof(MainWindowViewModel.TitleBarMaximize)
-            or nameof(MainWindowViewModel.TitleBarRestore))
+        if (e.PropertyName is nameof(ShellViewModel.TitleBarMaximize)
+            or nameof(ShellViewModel.TitleBarRestore))
         {
             UpdateTitleBarMaximizeVisuals();
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.WindowBorderMode))
+        if (e.PropertyName == nameof(ShellViewModel.WindowBorderMode))
         {
             UpdateWindowBorder();
         }

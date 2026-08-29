@@ -6,7 +6,7 @@
              xmlns:views="using:MarkMello.Presentation.Views"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.ViewerView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
 
   <Grid UseLayoutRounding="True">
     <ScrollViewer Name="DocScroll"

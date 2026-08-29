@@ -6,7 +6,7 @@
         xmlns:views="using:MarkMello.Presentation.Views"
         mc:Ignorable="d"
         x:Class="MarkMello.Presentation.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
+        x:DataType="vm:ShellViewModel"
         Width="1280" Height="840"
         WindowStartupLocation="CenterScreen"
         MinWidth="640" MinHeight="480"
@@ -16,8 +16,8 @@
         DragDrop.AllowDrop="True"
         UseLayoutRounding="True">
   <Window.DataTemplates>
-    <DataTemplate DataType="vm:MainWindowViewModel"
-                  x:DataType="vm:MainWindowViewModel">
+    <DataTemplate DataType="vm:ShellViewModel"
+                  x:DataType="vm:ShellViewModel">
       <views:ViewerView />
     </DataTemplate>
     <DataTemplate DataType="vm:EditorSessionViewModel"
@@ -396,7 +396,7 @@
                         Margin="16,54,0,0"
                         Content="{Binding AppMenuOverlayContent}">
           <ContentControl.ContentTemplate>
-            <DataTemplate x:DataType="vm:MainWindowViewModel">
+            <DataTemplate x:DataType="vm:ShellViewModel">
               <views:AppMenuPanelView />
             </DataTemplate>
           </ContentControl.ContentTemplate>
@@ -408,7 +408,7 @@
                         Margin="16,54,0,0"
                         Content="{Binding AppSettingsOverlayContent}">
           <ContentControl.ContentTemplate>
-            <DataTemplate x:DataType="vm:MainWindowViewModel">
+            <DataTemplate x:DataType="vm:ShellViewModel">
               <views:AppSettingsPanelView />
             </DataTemplate>
           </ContentControl.ContentTemplate>
@@ -420,7 +420,7 @@
                         Margin="16,54,0,0"
                         Content="{Binding AppAboutOverlayContent}">
           <ContentControl.ContentTemplate>
-            <DataTemplate x:DataType="vm:MainWindowViewModel">
+            <DataTemplate x:DataType="vm:ShellViewModel">
               <views:AppAboutPanelView />
             </DataTemplate>
           </ContentControl.ContentTemplate>
@@ -432,7 +432,7 @@
                         Margin="0,54,16,0"
                         Content="{Binding ReadingSettingsOverlayContent}">
           <ContentControl.ContentTemplate>
-            <DataTemplate x:DataType="vm:MainWindowViewModel">
+            <DataTemplate x:DataType="vm:ShellViewModel">
               <views:ReadingSettingsPanelView />
             </DataTemplate>
           </ContentControl.ContentTemplate>
