@@ -33,6 +33,10 @@
     <KeyBinding Gesture="Cmd+O" Command="{Binding OpenFileCommand}" />
     <KeyBinding Gesture="Ctrl+Shift+O" Command="{Binding OpenFolderCommand}" />
     <KeyBinding Gesture="Cmd+Shift+O" Command="{Binding OpenFolderCommand}" />
+    <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseActiveTabCommand}" />
+    <KeyBinding Gesture="Cmd+W" Command="{Binding CloseActiveTabCommand}" />
+    <KeyBinding Gesture="Ctrl+Tab" Command="{Binding ActivateNextTabCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+Tab" Command="{Binding ActivatePreviousTabCommand}" />
     <KeyBinding Gesture="Ctrl+E" Command="{Binding ToggleEditModeCommand}" />
     <KeyBinding Gesture="Cmd+E" Command="{Binding ToggleEditModeCommand}" />
     <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
@@ -183,10 +187,17 @@
                       DragCompleted="OnSidebarSplitterDragCompleted"
                       ResizeDirection="Columns" />
 
-      <Panel Grid.Column="2"
+      <Grid Grid.Column="2"
+            RowDefinitions="Auto,*">
+
+        <views:TabStripView Grid.Row="0"
+                            IsVisible="{Binding ShowsTabStrip}" />
+
+      <Panel Grid.Row="1"
              Name="BodyPanel">
 
         <views:WelcomeView IsVisible="{Binding IsWelcome}" />
+        <views:EmptyDocumentSurfaceView IsVisible="{Binding IsEmptyDocumentSurface}" />
         <ContentControl IsVisible="{Binding IsViewer}"
                         Content="{Binding ActiveDocumentContent}" />
         <views:LoadErrorView IsVisible="{Binding IsError}" />
@@ -480,6 +491,27 @@
                            Margin="2,0,0,0" />
               </StackPanel>
 
+              <!-- Подсказка про вкладки появляется только когда они есть -->
+              <StackPanel Orientation="Horizontal"
+                          Spacing="4"
+                          IsVisible="{Binding ShowsTabStrip}">
+                <Border Classes="kbd">
+                  <TextBlock Text="Ctrl"
+                             FontFamily="{DynamicResource MmDocumentMonoFontFamily}"
+                             FontSize="10" />
+                </Border>
+                <Border Classes="kbd">
+                  <TextBlock Text="W"
+                             FontFamily="{DynamicResource MmDocumentMonoFontFamily}"
+                             FontSize="10" />
+                </Border>
+                <TextBlock Text="{Binding StatusCloseTab}"
+                           FontSize="11"
+                           Foreground="{DynamicResource MmTextFaintBrush}"
+                           VerticalAlignment="Center"
+                           Margin="2,0,0,0" />
+              </StackPanel>
+
               <StackPanel Orientation="Horizontal"
                           Spacing="4">
                 <Border Classes="kbd">
@@ -570,6 +602,8 @@
           </Border>
         </Grid>
       </Panel>
+
+      </Grid>
 
       </Grid>
 

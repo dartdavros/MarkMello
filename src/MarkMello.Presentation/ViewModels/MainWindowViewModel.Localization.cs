@@ -126,7 +126,15 @@ public partial class MainWindowViewModel
         nameof(UpdatesHint),
         nameof(UpdatesLabel),
         nameof(WelcomeCreateMd),
+        nameof(EmptySurfaceHint),
+        nameof(EmptySurfaceTitle),
         nameof(SidebarTooltip),
+        nameof(StatusCloseTab),
+        nameof(StatusSwitchTabs),
+        nameof(TabClose),
+        nameof(TabsCloseOthers),
+        nameof(TabsOverflowHeader),
+        nameof(TabsOverflowLabel),
         nameof(WelcomeDropHint),
         nameof(WelcomeOpenFile),
         nameof(WelcomeOpenFolder),
@@ -152,6 +160,16 @@ public partial class MainWindowViewModel
     public string AppMenuOpenFolderHint => _localization["AppMenuOpenFolderHint"];
     public string AppMenuOpenFolderLabel => _localization["AppMenuOpenFolderLabel"];
     public string SidebarTooltip => _localization["SidebarTooltip"];
+    public string StatusCloseTab => _localization["StatusCloseTab"];
+    public string StatusSwitchTabs => _localization["StatusSwitchTabs"];
+    public string TabClose => _localization["TabClose"];
+    public string TabsCloseOthers => _localization["TabsCloseOthers"];
+    public string TabsOverflowHeader => _localization["TabsOverflowHeader"];
+    public string EmptySurfaceHint => _localization["EmptySurfaceHint"];
+    public string EmptySurfaceTitle => _localization["EmptySurfaceTitle"];
+
+    /// <summary>«ещё N» — счётчик приходит из состава вкладок, поэтому свойство пересчитывается.</summary>
+    public string TabsOverflowLabel => _localization.Format("TabsOverflow", OpenDocuments.OverflowTabs.Count);
     public string AppMenuOpenFileLabel => _localization["AppMenuOpenFileLabel"];
     public string AppMenuSettingsHint => _localization["AppMenuSettingsHint"];
     public string AppMenuSettingsLabel => _localization["AppMenuSettingsLabel"];

@@ -1,0 +1,117 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             mc:Ignorable="d"
+             x:Class="MarkMello.Presentation.Views.TabStripView"
+             x:DataType="vm:MainWindowViewModel">
+
+  <Border Classes="mm-tab-strip"
+          SizeChanged="OnStripSizeChanged">
+    <Grid ColumnDefinitions="*,Auto">
+
+      <ItemsControl Grid.Column="0"
+                    Name="VisibleTabsHost"
+                    ItemsSource="{Binding OpenDocuments.VisibleTabs}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" Spacing="2" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:DocumentTabViewModel">
+            <Border Classes="mm-tab"
+                    Classes.active="{Binding IsActive}"
+                    ToolTip.Tip="{Binding Tooltip}"
+                    PointerPressed="OnTabPointerPressed">
+              <Grid ColumnDefinitions="*,Auto"
+                    ColumnSpacing="8">
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            VerticalAlignment="Center">
+                  <TextBlock Classes="mm-tab-title"
+                             Text="{Binding DisplayTitle}" />
+                  <!-- Имя родительской папки появляется только у одноимённых вкладок -->
+                  <TextBlock Classes="mm-tab-disambiguator"
+                             IsVisible="{Binding HasDisambiguator}"
+                             Text="{Binding Disambiguator}" />
+                </StackPanel>
+
+                <Panel Grid.Column="1"
+                       Width="14"
+                       Height="14"
+                       VerticalAlignment="Center">
+                  <!-- Несохранённая вкладка показывает точку; крестик подменяет её под курсором -->
+                  <Ellipse Classes="mm-tab-dirty"
+                           IsVisible="{Binding IsDirty}"
+                           Width="6"
+                           Height="6"
+                           Fill="{DynamicResource MmAccentBrush}" />
+                  <Button Classes="mm-tab-close"
+                          Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenDocuments.CloseCommand}"
+                          CommandParameter="{Binding}">
+                    <Path Data="M0,0 L9,9 M9,0 L0,9"
+                          Stroke="{DynamicResource MmTextFaintBrush}"
+                          StrokeThickness="1.4"
+                          StrokeLineCap="Round" />
+                  </Button>
+                </Panel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <Button Grid.Column="1"
+              Classes="mm-tab-overflow"
+              IsVisible="{Binding OpenDocuments.HasOverflow}"
+              Content="{Binding TabsOverflowLabel}">
+        <Button.Flyout>
+          <Flyout Placement="BottomEdgeAlignedRight">
+            <Border Classes="mm-tab-overflow-card">
+              <StackPanel Spacing="0">
+                <TextBlock Classes="mm-tab-overflow-header"
+                           Text="{Binding TabsOverflowHeader}" />
+
+                <ItemsControl ItemsSource="{Binding OpenDocuments.OverflowTabs}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DocumentTabViewModel">
+                      <Button Classes="mm-tab-overflow-item"
+                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenDocuments.ActivateCommand}"
+                              CommandParameter="{Binding}">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="10">
+                          <TextBlock Grid.Column="0"
+                                     Classes="mm-tab-title"
+                                     Text="{Binding DisplayTitle}" />
+                          <Ellipse Grid.Column="1"
+                                   IsVisible="{Binding IsDirty}"
+                                   Width="6"
+                                   Height="6"
+                                   VerticalAlignment="Center"
+                                   Fill="{DynamicResource MmAccentBrush}" />
+                        </Grid>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Line Classes="mm-setting-divider"
+                      StartPoint="0,0.5"
+                      EndPoint="1,0.5" />
+
+                <Button Classes="mm-tab-overflow-item"
+                        Content="{Binding TabsCloseOthers}"
+                        Command="{Binding OpenDocuments.CloseOthersCommand}"
+                        CommandParameter="{Binding OpenDocuments.ActiveTab}" />
+              </StackPanel>
+            </Border>
+          </Flyout>
+        </Button.Flyout>
+      </Button>
+    </Grid>
+  </Border>
+
+</UserControl>

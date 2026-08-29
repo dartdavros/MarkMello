@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             mc:Ignorable="d"
+             x:Class="MarkMello.Presentation.Views.EmptyDocumentSurfaceView"
+             x:DataType="vm:MainWindowViewModel">
+
+  <!-- Папка открыта, вкладок нет: без иллюстрации, одна строка объяснения (макет 07) -->
+  <StackPanel HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              MaxWidth="320"
+              Spacing="10">
+    <TextBlock Text="{Binding EmptySurfaceTitle}"
+               FontFamily="{DynamicResource MmDocumentSerifFontFamily}"
+               FontSize="20"
+               HorizontalAlignment="Center"
+               Foreground="{DynamicResource MmTextFaintBrush}" />
+    <TextBlock Text="{Binding EmptySurfaceHint}"
+               FontFamily="{DynamicResource MmDocumentSansFontFamily}"
+               FontSize="13"
+               LineHeight="21"
+               TextAlignment="Center"
+               TextWrapping="Wrap"
+               Foreground="{DynamicResource MmTextFaintBrush}" />
+  </StackPanel>
+
+</UserControl>

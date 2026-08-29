@@ -222,6 +222,7 @@ public partial class ViewerView : UserControl, IFindHost
         if (DataContext is MainWindowViewModel vm)
         {
             vm.MarkReadableDocumentRendered();
+            RestorePendingScrollOffset(vm);
         }
 
         _hasRenderedDocument = true;
@@ -233,6 +234,36 @@ public partial class ViewerView : UserControl, IFindHost
         {
             _documentView.ScrollToActiveMatch();
         }
+    }
+
+    /// <summary>
+    /// Возврат на вкладку восстанавливает её позицию прокрутки. Делается после отрисовки:
+    /// до неё ScrollBarMaximum ещё нулевой и любое смещение схлопнется в ноль.
+    /// </summary>
+    private void RestorePendingScrollOffset(MainWindowViewModel viewModel)
+    {
+        if (viewModel.TakePendingScrollOffset() is not { } offset || _scroll is null)
+        {
+            return;
+        }
+
+        if (offset <= 0)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                if (_scroll is null)
+                {
+                    return;
+                }
+
+                var target = Math.Clamp(offset, 0, _scroll.ScrollBarMaximum.Y);
+                _scroll.Offset = new Vector(_scroll.Offset.X, target);
+            },
+            DispatcherPriority.Background);
     }
 
     private void OnDocumentSearchStateChanged(object? sender, EventArgs e)
@@ -280,6 +311,10 @@ public partial class ViewerView : UserControl, IFindHost
         if (DataContext is MainWindowViewModel vm)
         {
             vm.ReadingProgress = max > 0 ? Math.Clamp(current / max * 100.0, 0, 100) : 0;
+
+            // Позиция уезжает во вкладку на каждое изменение: при переключении
+            // вьюер уже показывает другой документ и спрашивать его поздно.
+            vm.ReportScrollOffset(current);
         }
 
         if (_hasRenderedDocument && HasMinimapLayoutMetricsChanged())

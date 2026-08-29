@@ -44,3 +44,24 @@ internal sealed class FakeWorkspaceFileSystem : IWorkspaceFileSystem
                 : []);
     }
 }
+
+/// <summary>
+/// Загрузчик, считающий обращения: переключение вкладок не должно читать файл заново.
+/// </summary>
+internal sealed class CountingDocumentLoader : MarkMello.Application.Abstractions.IDocumentLoader
+{
+    public Dictionary<string, MarkMello.Domain.MarkdownSource> Sources { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public int LoadCount { get; private set; }
+
+    public Task<MarkMello.Domain.MarkdownSource> LoadAsync(string path, CancellationToken cancellationToken = default)
+    {
+        LoadCount++;
+
+        return Sources.TryGetValue(path, out var source)
+            ? Task.FromResult(source)
+            : Task.FromException<MarkMello.Domain.MarkdownSource>(
+                new FileNotFoundException("Document was not found.", path));
+    }
+}

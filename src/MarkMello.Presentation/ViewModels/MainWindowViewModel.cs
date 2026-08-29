@@ -80,6 +80,7 @@ public partial class MainWindowViewModel : ObservableObject
         _imageSourceResolver = imageSourceResolver;
         _previewSchedulerFactory = previewSchedulerFactory;
         _aboutVersion = GetProductVersion();
+        InitializeOpenDocuments();
         _localization.PropertyChanged += OnLocalizationChanged;
         _commandLine.FileActivated += OnFileActivated;
         RefreshUpdateStatusTexts();
@@ -237,7 +238,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool HasDocumentTitle => State == ViewState.Viewing && !string.IsNullOrWhiteSpace(FileName);
 
-    public bool IsWelcome => State == ViewState.NoDocument;
+    public bool IsWelcome => State == ViewState.NoDocument && !ShowsSidebar;
 
     public bool IsViewer => State == ViewState.Viewing;
 
@@ -1256,19 +1257,33 @@ public partial class MainWindowViewModel : ObservableObject
         EditorSession.UpdateReadingPreferences(ReadingPreferences);
         EditorSession.SetStatusMessage(string.Empty);
         IsEditMode = true;
+        TrackNewDocumentTab();
         RefreshWindowTitle();
         UpdateCommandStates();
     }
 
-    private Task CloseFileCoreAsync()
+    private async Task CloseFileCoreAsync()
     {
+        CloseOverlayCore();
+
+        if (OpenDocuments.ActiveTab is { } tab)
+        {
+            await RemoveTabAsync(tab).ConfigureAwait(true);
+            return;
+        }
+
         CloseFileCore();
-        return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Полная очистка document surface вместе со всеми вкладками.
+    /// Используется там, где уходит весь контекст: закрытие папки, фатальная ошибка.
+    /// </summary>
     private void CloseFileCore()
     {
         CloseOverlayCore();
+        OpenDocuments.Activate(null);
+        OpenDocuments.Tabs.Clear();
         IsEditMode = false;
         EditorSession = null;
         Document = null;
@@ -1280,6 +1295,7 @@ public partial class MainWindowViewModel : ObservableObject
         SyncWorkspaceActiveDocument();
         RefreshWindowTitle();
         UpdateCommandStates();
+        RefreshTabState();
     }
 
     private void EnterEditModeCore()
@@ -1377,6 +1393,8 @@ public partial class MainWindowViewModel : ObservableObject
             EditorSession = null;
         }
 
+        TrackLoadedDocumentTab(source);
+
         if (!_documentModelReadyMarked)
         {
             _documentModelReadyMarked = true;
@@ -1433,6 +1451,7 @@ public partial class MainWindowViewModel : ObservableObject
             EditorSession.ApplySavedDocument(source);
         }
 
+        RetargetActiveTab(source);
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -1619,6 +1638,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(WordCountStatusLabel));
         OnPropertyChanged(nameof(ReadTimeStatusLabel));
         OnPropertyChanged(nameof(IsDirty));
+        SyncActiveTabDirtyState();
     }
 
     private void RefreshWindowTitle()

@@ -89,25 +89,31 @@ public partial class MainWindowViewModel
             return;
         }
 
-        // Документ, открытый из папки, уходит вместе с ней; файл, открытый поверх папки,
-        // остаётся — окно просто возвращается в обычный single-file режим (ADR-0007 Rule 3).
-        var documentBelongsToFolder = IsInsideWorkspace(CurrentDocumentPath, workspace.Folder);
-
-        if (documentBelongsToFolder)
+        // Вкладки этой папки уходят вместе с ней; файлы, открытые поверх папки,
+        // остаются — окно просто возвращается в обычный single-file режим (ADR-0007 Rule 3).
+        if (OpenDocuments.ActiveTab is { BelongsToWorkspace: true } && RequiresDirtyResolution)
         {
             await RunWithDirtyCheckAsync(PendingDirtyActionKind.CloseFile, CloseWorkspaceCoreAsync)
                 .ConfigureAwait(true);
             return;
         }
 
-        CloseWorkspaceCore();
+        await CloseWorkspaceCoreAsync().ConfigureAwait(true);
     }
 
-    private Task CloseWorkspaceCoreAsync()
+    private async Task CloseWorkspaceCoreAsync()
     {
-        CloseFileCore();
+        foreach (var tab in OpenDocuments.Tabs.Where(static tab => tab.BelongsToWorkspace).ToList())
+        {
+            await RemoveTabAsync(tab).ConfigureAwait(true);
+        }
+
         CloseWorkspaceCore();
-        return Task.CompletedTask;
+
+        if (OpenDocuments.Tabs.Count == 0)
+        {
+            ClearDocumentSurface();
+        }
     }
 
     private void CloseWorkspaceCore()
@@ -115,6 +121,7 @@ public partial class MainWindowViewModel
         Workspace = null;
         RefreshWindowTitle();
         UpdateWorkspaceCommandStates();
+        RefreshTabState();
     }
 
     private async Task ApplyOpenedFolderAsync(OpenFolderResult.Success success)
