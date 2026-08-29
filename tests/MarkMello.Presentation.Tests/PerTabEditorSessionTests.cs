@@ -129,7 +129,8 @@ public sealed class PerTabEditorSessionTests
             new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
             new StubUpdateService(),
             new OpenFolderUseCase(fileSystem),
-            new ExpandFolderNodeUseCase(fileSystem));
+            new ExpandFolderNodeUseCase(fileSystem),
+            new SearchWorkspaceFilesUseCase(fileSystem));
 
         return new EditorTestHarness(loader, viewModel);
     }

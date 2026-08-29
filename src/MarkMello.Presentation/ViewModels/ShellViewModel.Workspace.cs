@@ -129,6 +129,7 @@ public partial class ShellViewModel
         var workspace = WorkspaceViewModel.FromOpenedFolder(
             success,
             _expandFolderNode,
+            _searchWorkspaceFiles,
             _localization,
             OpenDocumentFromTreeAsync);
 

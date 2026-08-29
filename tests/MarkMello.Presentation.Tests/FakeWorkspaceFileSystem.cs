@@ -25,7 +25,23 @@ internal sealed class FakeWorkspaceFileSystem : IWorkspaceFileSystem
         _failures[path] = exception;
     }
 
+    /// <summary>Заранее подготовленный ответ поиска: обход диска в тестах не нужен.</summary>
+    public WorkspaceSearchResult SearchResult { get; set; } = WorkspaceSearchResult.Empty;
+
+    public List<string> SearchQueries { get; } = [];
+
     public bool DirectoryExists(string directoryPath) => _directories.ContainsKey(directoryPath);
+
+    public ValueTask<WorkspaceSearchResult> SearchByNameAsync(
+        string rootPath,
+        string query,
+        WorkspaceSearchLimits limits,
+        CancellationToken cancellationToken = default)
+    {
+        SearchQueries.Add(query);
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(SearchResult);
+    }
 
     public ValueTask<IReadOnlyList<WorkspaceEntry>> EnumerateChildrenAsync(
         string directoryPath,

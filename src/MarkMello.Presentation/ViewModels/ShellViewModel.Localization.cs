@@ -128,6 +128,10 @@ public partial class ShellViewModel
         nameof(WelcomeCreateMd),
         nameof(EmptySurfaceHint),
         nameof(EmptySurfaceTitle),
+        nameof(SidebarSearchEmpty),
+        nameof(SidebarSearchPlaceholder),
+        nameof(SidebarSearchReset),
+        nameof(SidebarSearchTruncated),
         nameof(SidebarTooltip),
         nameof(StatusCloseTab),
         nameof(StatusSwitchTabs),
@@ -159,6 +163,10 @@ public partial class ShellViewModel
     public string AppMenuOpenFileHint => _localization["AppMenuOpenFileHint"];
     public string AppMenuOpenFolderHint => _localization["AppMenuOpenFolderHint"];
     public string AppMenuOpenFolderLabel => _localization["AppMenuOpenFolderLabel"];
+    public string SidebarSearchEmpty => _localization["SidebarSearchEmpty"];
+    public string SidebarSearchPlaceholder => _localization["SidebarSearchPlaceholder"];
+    public string SidebarSearchReset => _localization["SidebarSearchReset"];
+    public string SidebarSearchTruncated => _localization["SidebarSearchTruncated"];
     public string SidebarTooltip => _localization["SidebarTooltip"];
     public string StatusCloseTab => _localization["StatusCloseTab"];
     public string StatusSwitchTabs => _localization["StatusSwitchTabs"];

@@ -18,4 +18,14 @@ public interface IWorkspaceFileSystem
 
     /// <summary>Существует ли каталог. Нужен, чтобы отличить «папку удалили» от ошибки чтения.</summary>
     bool DirectoryExists(string directoryPath);
+
+    /// <summary>
+    /// Поиск по подстроке имени внутри открытой папки. Обход ограничен лимитами и
+    /// прерывается токеном: каждое нажатие клавиши отменяет предыдущий запрос.
+    /// </summary>
+    ValueTask<WorkspaceSearchResult> SearchByNameAsync(
+        string rootPath,
+        string query,
+        WorkspaceSearchLimits limits,
+        CancellationToken cancellationToken = default);
 }

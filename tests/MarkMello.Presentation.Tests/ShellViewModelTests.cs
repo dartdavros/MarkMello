@@ -677,7 +677,8 @@ public sealed class ShellViewModelTests
             new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
             updateService,
             new OpenFolderUseCase(fileSystem),
-            new ExpandFolderNodeUseCase(fileSystem));
+            new ExpandFolderNodeUseCase(fileSystem),
+            new SearchWorkspaceFilesUseCase(fileSystem));
 
         return new TestHarness(
             loader,

@@ -29,6 +29,7 @@ public partial class ShellViewModel : ObservableObject
     private readonly RenderMarkdownDocumentUseCase _renderMarkdown;
     private readonly OpenFolderUseCase _openFolder;
     private readonly ExpandFolderNodeUseCase _expandFolderNode;
+    private readonly SearchWorkspaceFilesUseCase _searchWorkspaceFiles;
     private readonly IUpdateService _updateService;
     private readonly IImageSourceResolver? _imageSourceResolver;
     private readonly Func<IEditorPreviewScheduler>? _previewSchedulerFactory;
@@ -62,6 +63,7 @@ public partial class ShellViewModel : ObservableObject
         IUpdateService updateService,
         OpenFolderUseCase openFolder,
         ExpandFolderNodeUseCase expandFolderNode,
+        SearchWorkspaceFilesUseCase searchWorkspaceFiles,
         IImageSourceResolver? imageSourceResolver = null,
         Func<IEditorPreviewScheduler>? previewSchedulerFactory = null)
     {
@@ -77,6 +79,7 @@ public partial class ShellViewModel : ObservableObject
         _updateService = updateService;
         _openFolder = openFolder;
         _expandFolderNode = expandFolderNode;
+        _searchWorkspaceFiles = searchWorkspaceFiles;
         _imageSourceResolver = imageSourceResolver;
         _previewSchedulerFactory = previewSchedulerFactory;
         _aboutVersion = GetProductVersion();

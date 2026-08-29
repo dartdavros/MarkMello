@@ -78,6 +78,7 @@ public sealed class WorkspaceSidebarViewTests
             new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
             new StubUpdateService(),
             new OpenFolderUseCase(fileSystem),
-            new ExpandFolderNodeUseCase(fileSystem));
+            new ExpandFolderNodeUseCase(fileSystem),
+            new SearchWorkspaceFilesUseCase(fileSystem));
     }
 }

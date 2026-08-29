@@ -1142,4 +1142,97 @@
     <Setter Property="CornerRadius" Value="6" />
   </Style>
 
+  <!-- ======================= Поиск в сайдбаре ======================= -->
+
+  <Style Selector="Border.mm-search-shell">
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Margin" Value="10,0,10,8" />
+    <Setter Property="Padding" Value="9,0" />
+    <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+  <!-- Активный поиск обводится акцентом: дерево в этот момент скрыто, и это единственный признак -->
+  <Style Selector="Border.mm-search-shell.active">
+    <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+  </Style>
+
+  <Style Selector="TextBox.mm-search-input">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-search-count">
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+    <Setter Property="FontSize" Value="10.5" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.mm-search-hit">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Padding" Value="6,4" />
+    <Setter Property="Margin" Value="0,1" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+  <Style Selector="Button.mm-search-hit:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-search-hit-path">
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.mm-search-empty">
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="Margin" Value="18,0" />
+  </Style>
+
+  <!-- Обрезанная выдача обязана быть видна: иначе 200 совпадений выглядят полным ответом -->
+  <Style Selector="Border.mm-search-truncated">
+    <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="Padding" Value="12,8" />
+  </Style>
+  <Style Selector="Border.mm-search-truncated TextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+  </Style>
+
+  <Style Selector="Border.mm-sidebar-footer">
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Padding" Value="14,0" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+  </Style>
+  <Style Selector="Border.mm-sidebar-footer TextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+    <Setter Property="FontSize" Value="10.5" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
 </Styles>

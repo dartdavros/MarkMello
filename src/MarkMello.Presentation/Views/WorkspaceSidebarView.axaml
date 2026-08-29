@@ -3,12 +3,13 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             xmlns:ws="using:MarkMello.Domain.Workspace"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.WorkspaceSidebarView"
              x:DataType="vm:ShellViewModel">
 
   <Border Classes="mm-sidebar">
-    <Grid RowDefinitions="44,*">
+    <Grid RowDefinitions="44,Auto,*,Auto">
 
       <!-- Шапка: гамбургер переезжает сюда с плавающей позиции, рядом — имя корня -->
       <Grid Grid.Row="0"
@@ -37,8 +38,48 @@
                    ToolTip.Tip="{Binding Workspace.Folder.RootPath}" />
       </Grid>
 
-      <TreeView Grid.Row="1"
+      <!-- Поиск по именам: поле и лупа получают акцент, пока запрос активен -->
+      <Border Grid.Row="1"
+              Classes="mm-search-shell"
+              Classes.active="{Binding Workspace.HasSearchQuery}">
+        <Grid ColumnDefinitions="Auto,*,Auto"
+              ColumnSpacing="7">
+          <Panel Grid.Column="0"
+                 Width="12"
+                 Height="12"
+                 VerticalAlignment="Center">
+            <Path Data="M9.25 9.25L12 12 M2.5 6.25A3.75 3.75 0 1 1 10 6.25A3.75 3.75 0 1 1 2.5 6.25Z"
+                  Stretch="Uniform"
+                  IsVisible="{Binding Workspace.ShowsTree}"
+                  Stroke="{DynamicResource MmTextFaintBrush}"
+                  StrokeThickness="1.4"
+                  StrokeLineCap="Round"
+                  Fill="Transparent" />
+            <Path Data="M9.25 9.25L12 12 M2.5 6.25A3.75 3.75 0 1 1 10 6.25A3.75 3.75 0 1 1 2.5 6.25Z"
+                  Stretch="Uniform"
+                  IsVisible="{Binding Workspace.HasSearchQuery}"
+                  Stroke="{DynamicResource MmAccentBrush}"
+                  StrokeThickness="1.4"
+                  StrokeLineCap="Round"
+                  Fill="Transparent" />
+          </Panel>
+
+          <TextBox Grid.Column="1"
+                   Classes="mm-search-input"
+                   Text="{Binding Workspace.SearchQuery, Mode=TwoWay}"
+                   PlaceholderText="{Binding SidebarSearchPlaceholder}"
+                   KeyDown="OnSearchKeyDown" />
+
+          <TextBlock Grid.Column="2"
+                     Classes="mm-search-count"
+                     IsVisible="{Binding Workspace.HasSearchQuery}"
+                     Text="{Binding Workspace.SearchCountLabel}" />
+        </Grid>
+      </Border>
+
+      <TreeView Grid.Row="2"
                 Classes="mm-tree"
+                IsVisible="{Binding Workspace.ShowsTree}"
                 ItemsSource="{Binding Workspace.Roots}"
                 SelectedItem="{Binding Workspace.SelectedNode, Mode=TwoWay}">
         <TreeView.ItemTemplate>
@@ -58,6 +99,56 @@
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
       </TreeView>
+
+      <Grid Grid.Row="2"
+            IsVisible="{Binding Workspace.HasSearchQuery}">
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding Workspace.SearchHits}"
+                        Margin="8,2,8,12">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <VirtualizingStackPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ws:WorkspaceSearchHit">
+                <Button Classes="mm-search-hit"
+                        Command="{Binding $parent[ItemsControl].((vm:ShellViewModel)DataContext).Workspace.ActivateSearchHitCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Spacing="1">
+                    <!-- Подсвечена только совпавшая часть имени -->
+                    <TextBlock Classes="mm-tree-label">
+                      <Run Text="{Binding NameBeforeMatch}" />
+                      <Run Text="{Binding MatchedName}"
+                           Foreground="{DynamicResource MmAccentBrush}" />
+                      <Run Text="{Binding NameAfterMatch}" />
+                    </TextBlock>
+                    <TextBlock Classes="mm-search-hit-path"
+                               Text="{Binding RelativeDirectory}" />
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <TextBlock Classes="mm-search-empty"
+                   IsVisible="{Binding Workspace.ShowsSearchEmptyState}"
+                   Text="{Binding SidebarSearchEmpty}" />
+      </Grid>
+
+      <!-- Подвал: неполная выдача и подсказка про Esc -->
+      <StackPanel Grid.Row="3"
+                  IsVisible="{Binding Workspace.HasSearchQuery}">
+        <Border Classes="mm-search-truncated"
+                IsVisible="{Binding Workspace.IsSearchTruncated}">
+          <TextBlock Text="{Binding SidebarSearchTruncated}"
+                     TextWrapping="Wrap" />
+        </Border>
+        <Border Classes="mm-sidebar-footer">
+          <TextBlock Text="{Binding SidebarSearchReset}" />
+        </Border>
+      </StackPanel>
     </Grid>
   </Border>
 

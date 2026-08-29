@@ -254,7 +254,8 @@ public sealed class WorkspaceSidebarTests
             new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
             new StubUpdateService(),
             new OpenFolderUseCase(fileSystem),
-            new ExpandFolderNodeUseCase(fileSystem));
+            new ExpandFolderNodeUseCase(fileSystem),
+            new SearchWorkspaceFilesUseCase(fileSystem));
 
         return new WorkspaceTestHarness(loader, settings, commandLine, viewModel);
     }
