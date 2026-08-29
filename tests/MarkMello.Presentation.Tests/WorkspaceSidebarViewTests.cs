@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
@@ -25,7 +27,7 @@ public sealed class WorkspaceSidebarViewTests
     [Fact]
     public Task SidebarRendersRootLevelOfTheTree()
     {
-        return _fixture.Session.Dispatch(async () =>
+        return _fixture.RunAsync(async () =>
         {
             var viewModel = CreateViewModel();
             await viewModel.OpenFolderPathAsync(@"C:\docs");
@@ -43,7 +45,7 @@ public sealed class WorkspaceSidebarViewTests
             var tree = window.GetVisualDescendants().OfType<TreeView>().Single();
             var nodes = Assert.IsAssignableFrom<IEnumerable<FileTreeNodeViewModel>>(tree.ItemsSource);
 
-            Assert.Equal(["adr", "README.md", "pack.bat"], nodes.Select(node => node.Name));
+            Assert.Equal(["adr", "README.md", "notes.md", "pack.bat"], nodes.Select(node => node.Name));
 
             var rootLabel = window.GetVisualDescendants()
                 .OfType<TextBlock>()
@@ -52,55 +54,68 @@ public sealed class WorkspaceSidebarViewTests
             Assert.Equal("docs", rootLabel.Text);
 
             window.Close();
-        }, CancellationToken.None);
+        });
     }
 
     /// <summary>
-    /// Левый клик открывает документ, правый только показывает меню.
-    /// Проверка на самой разметке: выделение строки документ не открывает,
-    /// а обработчик клика висит на дереве, а не на view-model.
+    /// Левый клик открывает документ, правый только показывает меню: до фикса открытие
+    /// висело на смене выделения, и файл открывался даже правым кликом.
     /// </summary>
     [Theory]
-    [InlineData(MouseButton.Left, @"C:\docs\README.md")]
-    [InlineData(MouseButton.Right, null)]
+    [InlineData(MouseButton.Left, @"C:\docs\notes.md")]
+    [InlineData(MouseButton.Right, @"C:\docs\README.md")]
     public Task OnlyTheLeftClickOpensTheDocument(MouseButton button, string? expectedPath)
     {
-        return _fixture.Session.Dispatch(async () =>
+        return _fixture.RunAsync(async () =>
         {
             var viewModel = CreateViewModel();
             await viewModel.OpenFolderPathAsync(@"C:\docs");
 
+            var sidebar = new WorkspaceSidebarView();
             var window = new Window
             {
                 DataContext = viewModel,
                 Width = 400,
                 Height = 600,
-                Content = new WorkspaceSidebarView()
+                Content = sidebar
             };
 
             window.Show();
             window.UpdateLayout();
 
-            var row = window.GetVisualDescendants()
-                .OfType<TreeViewItem>()
-                .Single(item => item.DataContext is FileTreeNodeViewModel { Name: "README.md" });
-
-            row.RaiseEvent(new PointerReleasedEventArgs(
-                row,
-                new Pointer(0, PointerType.Mouse, isPrimary: true),
-                window,
-                default,
-                0,
-                new PointerPointProperties(RawInputModifiers.None, PointerUpdateKind.Other),
-                KeyModifiers.None,
-                button));
-
+            // Папка сама открывает README.md, поэтому кликаем по другому документу:
+            // при правом клике активным должен остаться README.md.
+            var node = viewModel.Workspace!.Roots.Single(row => row.Name == "notes.md");
+            sidebar.ActivateFromPointer(button, node);
             await Task.Yield();
 
             Assert.Equal(expectedPath, viewModel.CurrentDocumentPath);
 
             window.Close();
-        }, CancellationToken.None);
+        });
+    }
+
+    /// <summary>
+    /// Раскрытие строки должно доходить до view-model: без этой связки шеврон раскрывает
+    /// только контейнер, каталог не читается и под папкой висит пустая строка.
+    /// </summary>
+    [Fact]
+    public Task TreeItemExpansionIsBoundToTheNode()
+    {
+        return _fixture.RunAsync(() =>
+        {
+            var binds = new WorkspaceSidebarView().Styles
+                .OfType<Style>()
+                .SelectMany(style => style.Setters)
+                .OfType<Setter>()
+                // Значение сеттера — привязка, а не константа: константа означала бы,
+                // что связь с моделью снова потеряна.
+                .Any(setter => setter.Property == TreeViewItem.IsExpandedProperty
+                    && setter.Value is not null and not bool);
+
+            Assert.True(binds);
+            return Task.CompletedTask;
+        });
     }
 
     private static ShellViewModel CreateViewModel()
@@ -110,11 +125,14 @@ public sealed class WorkspaceSidebarViewTests
             @"C:\docs",
             WorkspaceEntry.ForDirectory(@"C:\docs\adr", "adr"),
             WorkspaceEntry.ForFile(@"C:\docs\README.md", "README.md"),
+            WorkspaceEntry.ForFile(@"C:\docs\notes.md", "notes.md"),
             WorkspaceEntry.ForFile(@"C:\docs\pack.bat", "pack.bat"));
 
         var loader = new StubDocumentLoader();
         loader.Sources[@"C:\docs\README.md"] =
             new MarkdownSource(@"C:\docs\README.md", "README.md", "# readme");
+        loader.Sources[@"C:\docs\notes.md"] =
+            new MarkdownSource(@"C:\docs\notes.md", "notes.md", "# notes");
 
         return new ShellViewModel(
             new OpenDocumentUseCase(loader),

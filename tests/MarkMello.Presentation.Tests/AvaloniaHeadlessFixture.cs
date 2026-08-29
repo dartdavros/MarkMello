@@ -19,6 +19,26 @@ public sealed class AvaloniaHeadlessFixture : IDisposable
 
     public HeadlessUnitTestSession Session { get; }
 
+    /// <summary>
+    /// Единственный правильный способ выполнить асинхронный UI-тест.
+    /// У сессии нет перегрузки <c>Dispatch(Func&lt;Task&gt;)</c>: async-лямбда связывается
+    /// с <c>Dispatch&lt;T&gt;(Func&lt;T&gt;)</c>, где <c>T = Task</c>, — внешняя задача завершается,
+    /// как только лямбда стартовала, и упавший тест проходит. Возврат значения
+    /// уводит вызов в перегрузку <c>Func&lt;Task&lt;T&gt;&gt;</c>, которая тело действительно ждёт.
+    /// </summary>
+    public Task RunAsync(Func<Task> body, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        return Session.Dispatch(
+            async () =>
+            {
+                await body().ConfigureAwait(true);
+                return true;
+            },
+            cancellationToken);
+    }
+
     public void Dispose()
     {
         Session.Dispose();

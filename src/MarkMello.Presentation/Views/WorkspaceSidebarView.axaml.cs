@@ -25,14 +25,18 @@ public partial class WorkspaceSidebarView : UserControl
             OnTreePointerReleased,
             RoutingStrategies.Bubble,
             handledEventsToo: true);
+
+        // Esc внутри TextBox помечается обработанным самим полем.
+        SearchInput.AddHandler(
+            KeyDownEvent,
+            OnSearchKeyDown,
+            RoutingStrategies.Bubble,
+            handledEventsToo: true);
     }
 
-    /// <summary>Левый клик по строке открывает документ; правый только выделяет её.</summary>
     private void OnTreePointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (e.InitialPressMouseButton != MouseButton.Left
-            || e.Source is not Visual source
-            || DataContext is not ShellViewModel { Workspace: { } workspace })
+        if (e.Source is not Visual source)
         {
             return;
         }
@@ -45,6 +49,19 @@ public partial class WorkspaceSidebarView : UserControl
 
         if (source.FindAncestorOfType<TreeViewItem>(includeSelf: true)?.DataContext
             is FileTreeNodeViewModel node)
+        {
+            ActivateFromPointer(e.InitialPressMouseButton, node);
+        }
+    }
+
+    /// <summary>
+    /// Левый клик по строке открывает документ; правый только выделяет её и показывает меню.
+    /// Отдельный метод, потому что в headless строки дерева не материализуются
+    /// и до события мыши тест дотянуться не может.
+    /// </summary>
+    internal void ActivateFromPointer(MouseButton button, FileTreeNodeViewModel node)
+    {
+        if (button == MouseButton.Left && DataContext is ShellViewModel { Workspace: { } workspace })
         {
             workspace.OpenNodeCommand.Execute(node);
         }
@@ -99,6 +116,12 @@ public partial class WorkspaceSidebarView : UserControl
         {
             return;
         }
+
+        editor.AddHandler(
+            KeyDownEvent,
+            OnEditNameKeyDown,
+            RoutingStrategies.Bubble,
+            handledEventsToo: true);
 
         Dispatcher.UIThread.Post(
             () =>

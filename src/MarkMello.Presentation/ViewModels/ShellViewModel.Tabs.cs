@@ -29,7 +29,19 @@ public partial class ShellViewModel
     public bool IsEmptyDocumentSurface => State == ViewState.NoDocument && ShowsSidebar;
 
     private void InitializeOpenDocuments()
-        => OpenDocuments = new OpenDocumentsViewModel(ActivateTabAsync, CloseTabAsync);
+    {
+        OpenDocuments = new OpenDocumentsViewModel(ActivateTabAsync, CloseTabAsync);
+
+        // Подпись «ещё N» собирается здесь, а число вкладок в переполнении считает
+        // OpenDocuments: без подписки кнопка появлялась с текстом «0 more».
+        OpenDocuments.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(OpenDocumentsViewModel.OverflowCountLabel))
+            {
+                OnPropertyChanged(nameof(TabsOverflowLabel));
+            }
+        };
+    }
 
     /// <summary>
     /// Позиция прокрутки приходит из вьюера на каждое изменение: держать её в вкладке

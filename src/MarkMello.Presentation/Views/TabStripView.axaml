@@ -82,7 +82,22 @@
     <Style Selector="Border.mm-tab.active Button.mm-tab-close">
       <Setter Property="Opacity" Value="1" />
     </Style>
+    <!-- У несохранённой вкладки место занимает точка: крестик и точка стоят в одной
+         ячейке, и без этого правила активная вкладка рисовала бы их друг на друге. -->
+    <Style Selector="Border.mm-tab.dirty Button.mm-tab-close">
+      <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="Border.mm-tab.dirty:pointerover Button.mm-tab-close">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
     <Style Selector="Border.mm-tab:pointerover Ellipse.mm-tab-dirty">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <!-- В меню переполнения крестик и точка живут по тем же правилам, что и во вкладке -->
+    <Style Selector="Button.mm-tab-overflow-item:pointerover Button.mm-tab-close">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.mm-tab-overflow-item:pointerover Ellipse.mm-tab-dirty">
       <Setter Property="IsVisible" Value="False" />
     </Style>
 
@@ -116,6 +131,7 @@
       <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="LetterSpacing" Value="1" />
       <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
       <Setter Property="Margin" Value="8,4,8,8" />
     </Style>
@@ -153,6 +169,7 @@
           <DataTemplate x:DataType="vm:DocumentTabViewModel">
             <Border Classes="mm-tab"
                     Classes.active="{Binding IsActive}"
+                    Classes.dirty="{Binding IsDirty}"
                     ToolTip.Tip="{Binding Tooltip}"
                     PointerPressed="OnTabPointerPressed">
               <Grid ColumnDefinitions="*,Auto"
@@ -222,12 +239,25 @@
                           <TextBlock Grid.Column="0"
                                      Classes="mm-tab-title"
                                      Text="{Binding DisplayTitle}" />
-                          <Ellipse Grid.Column="1"
-                                   IsVisible="{Binding IsDirty}"
-                                   Width="6"
-                                   Height="6"
-                                   VerticalAlignment="Center"
-                                   Fill="{DynamicResource MmAccentBrush}" />
+                          <!-- Скрытую вкладку можно закрыть, не делая её активной (макет 03) -->
+                          <Panel Grid.Column="1"
+                                 Width="14"
+                                 Height="14"
+                                 VerticalAlignment="Center">
+                            <Ellipse Classes="mm-tab-dirty"
+                                     IsVisible="{Binding IsDirty}"
+                                     Width="6"
+                                     Height="6"
+                                     Fill="{DynamicResource MmAccentBrush}" />
+                            <Button Classes="mm-tab-close"
+                                    Command="{Binding $parent[ItemsControl].((vm:ShellViewModel)DataContext).OpenDocuments.CloseCommand}"
+                                    CommandParameter="{Binding}">
+                              <Path Data="M0,0 L9,9 M9,0 L0,9"
+                                    Stroke="{DynamicResource MmTextFaintBrush}"
+                                    StrokeThickness="1.4"
+                                    StrokeLineCap="Round" />
+                            </Button>
+                          </Panel>
                         </Grid>
                       </Button>
                     </DataTemplate>

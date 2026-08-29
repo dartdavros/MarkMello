@@ -27,6 +27,37 @@ public sealed class DocumentTabsShellTests
         Assert.True(harness.ViewModel.ShowsTabStrip);
     }
 
+    /// <summary>
+    /// Подпись «ещё N» собирает shell, а число вкладок в переполнении считает
+    /// OpenDocuments: без уведомления кнопка появлялась с текстом «0 more».
+    /// </summary>
+    [Fact]
+    public async Task OverflowLabelIsNotifiedWhenTabsStopFitting()
+    {
+        var harness = CreateHarness();
+        harness.ViewModel.OpenDocuments.AvailableWidth = 1000;
+
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\second.md");
+
+        var notified = 0;
+        harness.ViewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ShellViewModel.TabsOverflowLabel))
+            {
+                notified++;
+            }
+        };
+
+        harness.ViewModel.OpenDocuments.AvailableWidth = 120;
+
+        Assert.True(harness.ViewModel.OpenDocuments.HasOverflow);
+        Assert.True(notified > 0);
+        Assert.Equal(
+            $"{harness.ViewModel.OpenDocuments.OverflowTabs.Count} more",
+            harness.ViewModel.TabsOverflowLabel);
+    }
+
     [Fact]
     public async Task ReopeningTheSameFileReusesItsTab()
     {

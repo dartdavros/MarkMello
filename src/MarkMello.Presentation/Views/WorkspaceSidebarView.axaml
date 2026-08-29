@@ -61,6 +61,10 @@
     </Style>
 
     <Style Selector="TreeView.mm-tree TreeViewItem">
+      <!-- Без этой связки шеврон раскрывает только контейнер: view-model не узнаёт
+           о раскрытии, каталог не читается, и под папкой остаётся пустая строка-заглушка. -->
+      <Setter Property="IsExpanded"
+              Value="{CompiledBinding IsExpanded, Mode=TwoWay, DataType=vm:FileTreeNodeViewModel}" />
       <Setter Property="MinHeight" Value="26" />
       <Setter Property="Padding" Value="2,0" />
       <Setter Property="CornerRadius" Value="4" />
@@ -405,11 +409,13 @@
                   Fill="Transparent" />
           </Panel>
 
+          <!-- Esc вешается в code-behind: TextBox помечает клавишу обработанной,
+               и обработчик из разметки до неё не доходит. -->
           <TextBox Grid.Column="1"
+                   Name="SearchInput"
                    Classes="mm-search-input"
                    Text="{Binding Workspace.SearchQuery, Mode=TwoWay}"
-                   PlaceholderText="{Binding SidebarSearchPlaceholder}"
-                   KeyDown="OnSearchKeyDown" />
+                   PlaceholderText="{Binding SidebarSearchPlaceholder}" />
 
           <TextBlock Grid.Column="2"
                      Classes="mm-search-count"
@@ -489,7 +495,6 @@
                                Classes.invalid="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.HasEditError}"
                                Text="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.EditName, Mode=TwoWay}"
                                AttachedToVisualTree="OnEditNameAttached"
-                               KeyDown="OnEditNameKeyDown"
                                LostFocus="OnEditNameLostFocus" />
                       <TextBlock Classes="mm-tree-edit-error"
                                  IsVisible="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.HasEditError}"
