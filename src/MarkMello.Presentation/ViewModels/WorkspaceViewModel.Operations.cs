@@ -182,12 +182,22 @@ public sealed partial class WorkspaceViewModel
         OperationError = DescribeFailure(result);
     }
 
-    /// <summary>«Открыть в новой вкладке» из контекстного меню: то же, что клик по строке.</summary>
+    /// <summary>
+    /// Открытие строки: левый клик, Enter и пункт «Открыть в новой вкладке».
+    /// Каталоги и не-документы инертны: строка выделяется, но ничего не открывается
+    /// и сообщения нет (ADR-0007 Rule 6). Повторный клик по уже открытому документу
+    /// не перечитывает его с диска.
+    /// </summary>
     [RelayCommand]
     private async Task OpenNodeAsync(FileTreeNodeViewModel? node)
     {
         var target = node ?? SelectedNode;
         if (target is null || target.IsDirectory || !target.IsSupportedDocument)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(ActiveDocumentPath) && PathsEqual(target.Path, ActiveDocumentPath))
         {
             return;
         }

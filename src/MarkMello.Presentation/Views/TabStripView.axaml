@@ -37,6 +37,13 @@
       <Setter Property="BorderThickness" Value="1,0,1,0" />
     </Style>
 
+    <Style Selector="Border.mm-tab-active-bar">
+      <Setter Property="Height" Value="2" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="-10,0" />
+      <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+    </Style>
+
     <Style Selector="TextBlock.mm-tab-title">
       <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
       <Setter Property="FontSize" Value="12" />
@@ -150,6 +157,12 @@
                     PointerPressed="OnTabPointerPressed">
               <Grid ColumnDefinitions="*,Auto"
                     ColumnSpacing="8">
+                <!-- Акцентная полоса 2px во всю ширину активной вкладки (макет 03) -->
+                <Border Grid.Column="0"
+                        Grid.ColumnSpan="2"
+                        Classes="mm-tab-active-bar"
+                        IsVisible="{Binding IsActive}" />
+
                 <StackPanel Grid.Column="0"
                             Orientation="Horizontal"
                             Spacing="6"

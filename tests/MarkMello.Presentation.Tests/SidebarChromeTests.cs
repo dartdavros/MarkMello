@@ -105,6 +105,25 @@ public sealed class SidebarChromeTests
         Assert.True(harness.ViewModel.IsViewer);
     }
 
+    [Fact]
+    public async Task TreeRowShowsTheSameDirtyMarkAsTheTab()
+    {
+        var harness = await CreateAsync();
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
+        var node = harness.ViewModel.Workspace!.Roots.Single(candidate => candidate.Name == "first.md");
+
+        Assert.False(node.IsDirty);
+
+        harness.ViewModel.ToggleEditModeCommand.Execute(null);
+        harness.ViewModel.EditorSession!.SourceText = "# edited";
+
+        Assert.True(node.IsDirty);
+
+        harness.ViewModel.EditorSession.DiscardChanges();
+
+        Assert.False(node.IsDirty);
+    }
+
     private static async Task<ChromeHarness> CreateAsync()
     {
         var shell = CreateShell();

@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.VisualTree;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
@@ -48,6 +50,54 @@ public sealed class WorkspaceSidebarViewTests
                 .Single(block => block.Classes.Contains("mm-sidebar-root"));
 
             Assert.Equal("docs", rootLabel.Text);
+
+            window.Close();
+        }, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Левый клик открывает документ, правый только показывает меню.
+    /// Проверка на самой разметке: выделение строки документ не открывает,
+    /// а обработчик клика висит на дереве, а не на view-model.
+    /// </summary>
+    [Theory]
+    [InlineData(MouseButton.Left, @"C:\docs\README.md")]
+    [InlineData(MouseButton.Right, null)]
+    public Task OnlyTheLeftClickOpensTheDocument(MouseButton button, string? expectedPath)
+    {
+        return _fixture.Session.Dispatch(async () =>
+        {
+            var viewModel = CreateViewModel();
+            await viewModel.OpenFolderPathAsync(@"C:\docs");
+
+            var window = new Window
+            {
+                DataContext = viewModel,
+                Width = 400,
+                Height = 600,
+                Content = new WorkspaceSidebarView()
+            };
+
+            window.Show();
+            window.UpdateLayout();
+
+            var row = window.GetVisualDescendants()
+                .OfType<TreeViewItem>()
+                .Single(item => item.DataContext is FileTreeNodeViewModel { Name: "README.md" });
+
+            row.RaiseEvent(new PointerReleasedEventArgs(
+                row,
+                new Pointer(0, PointerType.Mouse, isPrimary: true),
+                window,
+                default,
+                0,
+                new PointerPointProperties(RawInputModifiers.None, PointerUpdateKind.Other),
+                KeyModifiers.None,
+                button));
+
+            await Task.Yield();
+
+            Assert.Equal(expectedPath, viewModel.CurrentDocumentPath);
 
             window.Close();
         }, CancellationToken.None);

@@ -75,6 +75,13 @@ public sealed partial class FileTreeNodeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isActiveDocument;
 
+    /// <summary>
+    /// В открытой вкладке этого файла есть несохранённые правки — строка дерева
+    /// показывает такую же точку, как и вкладка (макет 05).
+    /// </summary>
+    [ObservableProperty]
+    private bool _isDirty;
+
     /// <summary>Локальная ошибка узла: нет прав, каталог исчез. Дерево при этом продолжает работать.</summary>
     [ObservableProperty]
     private string? _loadError;

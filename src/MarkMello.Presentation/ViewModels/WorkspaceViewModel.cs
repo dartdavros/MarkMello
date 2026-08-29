@@ -81,38 +81,6 @@ public sealed partial class WorkspaceViewModel : ObservableObject
     [ObservableProperty]
     private string? _activeDocumentPath;
 
-    /// <summary>
-    /// Выбор строки открывает документ. Каталоги и не-документы инертны: строка выделяется,
-    /// но документ не открывается и сообщение не показывается (ADR-0007 Rule 6).
-    /// Раскрытие каталога делает сам <c>TreeView</c> по шеврону.
-    /// </summary>
-    partial void OnSelectedNodeChanged(FileTreeNodeViewModel? value)
-    {
-        if (value is null || value.IsDirectory || !value.IsSupportedDocument)
-        {
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(ActiveDocumentPath) && PathsEqual(value.Path, ActiveDocumentPath))
-        {
-            return;
-        }
-
-        _ = OpenSelectedDocumentAsync(value.Path);
-    }
-
-    private async Task OpenSelectedDocumentAsync(string path)
-    {
-        try
-        {
-            await _openDocumentAsync(path).ConfigureAwait(true);
-        }
-        catch
-        {
-            // Ошибки открытия документа уже показываются через состояние окна;
-            // fire-and-forget из сеттера не должен уносить приложение.
-        }
-    }
 
     /// <summary>Первый `README.md` в корне: с него открывается папка, если он есть.</summary>
     public string? TryGetRootReadmePath()
@@ -208,6 +176,21 @@ public sealed partial class WorkspaceViewModel : ObservableObject
 
     /// <summary>Пересчёт после раскрытия узла или файловой операции.</summary>
     public void RefreshFooterCounters() => OnPropertyChanged(nameof(LoadedDocumentCount));
+
+    /// <summary>
+    /// Отмечает строки, у которых есть несохранённые правки. Пути приходят из shell:
+    /// про вкладки знает он, про строки дерева — эта view-model.
+    /// </summary>
+    public void ApplyDirtyPaths(IReadOnlyCollection<string> dirtyPaths)
+    {
+        ArgumentNullException.ThrowIfNull(dirtyPaths);
+
+        foreach (var node in EnumerateLoadedNodes())
+        {
+            node.IsDirty = !node.IsDirectory
+                && dirtyPaths.Any(path => PathsEqual(node.Path, path));
+        }
+    }
 
     /// <summary>Раскрытые каталоги — часть состояния сессии окна.</summary>
     public IReadOnlyList<string> GetExpandedDirectories()

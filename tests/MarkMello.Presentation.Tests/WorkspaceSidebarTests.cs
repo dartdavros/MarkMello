@@ -116,20 +116,37 @@ public sealed class WorkspaceSidebarTests
     }
 
     [Fact]
-    public async Task SelectingSupportedDocumentOpensIt()
+    public async Task ActivatingSupportedDocumentOpensIt()
     {
-        var harness = CreateHarness(CreateFileSystem());
+        var harness = CreateHarness(CreateFileSystemWithTwoDocuments());
+        harness.Loader.Sources[@"C:\docs\notes.md"] = new MarkdownSource(@"C:\docs\notes.md", "notes.md", "# notes");
         await harness.ViewModel.OpenFolderPathAsync(Root);
 
         var workspace = harness.ViewModel.Workspace!;
-        workspace.SelectedNode = workspace.Roots.Single(node => node.Name == "adr");
-        workspace.SelectedNode = workspace.Roots.Single(node => node.Name == "README.md");
+        await workspace.OpenNodeCommand.ExecuteAsync(
+            workspace.Roots.Single(node => node.Name == "notes.md"));
+
+        Assert.Equal(@"C:\docs\notes.md", harness.ViewModel.CurrentDocumentPath);
+    }
+
+    /// <summary>
+    /// Выделение само по себе ничего не открывает: иначе документ открывал бы и правый клик,
+    /// и каждое нажатие стрелки при навигации по дереву.
+    /// </summary>
+    [Fact]
+    public async Task SelectionAloneDoesNotOpenTheDocument()
+    {
+        var harness = CreateHarness(CreateFileSystemWithTwoDocuments());
+        await harness.ViewModel.OpenFolderPathAsync(Root);
+
+        var workspace = harness.ViewModel.Workspace!;
+        workspace.SelectedNode = workspace.Roots.Single(node => node.Name == "notes.md");
 
         Assert.Equal(@"C:\docs\README.md", harness.ViewModel.CurrentDocumentPath);
     }
 
     [Fact]
-    public async Task SelectingNonDocumentIsInert()
+    public async Task ActivatingNonDocumentIsInert()
     {
         var harness = CreateHarness(CreateFileSystem());
         await harness.ViewModel.OpenFolderPathAsync(Root);
@@ -139,7 +156,7 @@ public sealed class WorkspaceSidebarTests
 
         Assert.True(packBat.IsInert);
 
-        workspace.SelectedNode = packBat;
+        await workspace.OpenNodeCommand.ExecuteAsync(packBat);
 
         Assert.Equal(@"C:\docs\README.md", harness.ViewModel.CurrentDocumentPath);
         Assert.Equal(ViewState.Viewing, harness.ViewModel.State);
@@ -216,6 +233,16 @@ public sealed class WorkspaceSidebarTests
         fileSystem.AddDirectory(
             @"C:\docs\adr",
             WorkspaceEntry.ForFile(@"C:\docs\adr\adr_0001.md", "adr_0001.md"));
+        return fileSystem;
+    }
+
+    private static FakeWorkspaceFileSystem CreateFileSystemWithTwoDocuments()
+    {
+        var fileSystem = new FakeWorkspaceFileSystem();
+        fileSystem.AddDirectory(
+            Root,
+            WorkspaceEntry.ForFile(@"C:\docs\README.md", "README.md"),
+            WorkspaceEntry.ForFile(@"C:\docs\notes.md", "notes.md"));
         return fileSystem;
     }
 

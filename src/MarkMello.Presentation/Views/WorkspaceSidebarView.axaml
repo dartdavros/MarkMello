@@ -74,6 +74,25 @@
       </Setter>
     </Style>
 
+    <!-- Выделение и наведение: без этого TreeViewItem красится системным акцентом,
+         который в тёплой палитре выглядит инородным фиолетовым пятном. -->
+    <Style Selector="TreeView.mm-tree TreeViewItem /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
     <Style Selector="TextBlock.mm-tree-label">
       <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
       <Setter Property="FontSize" Value="12.5" />
@@ -86,6 +105,13 @@
       <Setter Property="Foreground" Value="{DynamicResource MmTreeInertTextBrush}" />
     </Style>
     <!-- Активный документ: акцент даёт планку слева бесплатно через вес и цвет -->
+    <Style Selector="Border.mm-tree-active-bar">
+      <Setter Property="Width" Value="2" />
+      <Setter Property="Margin" Value="0,4" />
+      <Setter Property="CornerRadius" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+    </Style>
+
     <Style Selector="TextBlock.mm-tree-label.active">
       <Setter Property="FontWeight" Value="Medium" />
       <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
@@ -355,17 +381,19 @@
       </Border>
 
       <TreeView Grid.Row="2"
+                Name="FileTree"
                 Classes="mm-tree"
+                KeyDown="OnTreeKeyDown"
                 IsVisible="{Binding Workspace.ShowsTree}"
                 ItemsSource="{Binding Workspace.Roots}"
                 SelectedItem="{Binding Workspace.SelectedNode, Mode=TwoWay}">
         <TreeView.ItemTemplate>
           <TreeDataTemplate x:DataType="vm:FileTreeNodeViewModel"
                             ItemsSource="{Binding Children}">
-            <StackPanel Orientation="Horizontal"
-                        Spacing="6"
-                        Background="Transparent">
-              <StackPanel.ContextMenu>
+            <Grid ColumnDefinitions="Auto,*,Auto"
+                  ColumnSpacing="6"
+                  Background="Transparent">
+              <Grid.ContextMenu>
                 <ContextMenu>
                   <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeOpenInNewTab}"
                             IsEnabled="{Binding IsSupportedDocument}"
@@ -388,16 +416,34 @@
                             Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.RequestDeleteCommand}"
                             CommandParameter="{Binding}" />
                 </ContextMenu>
-              </StackPanel.ContextMenu>
+              </Grid.ContextMenu>
 
-              <TextBlock Classes="mm-tree-label"
-                         Classes.inert="{Binding IsInert}"
-                         Classes.active="{Binding IsActiveDocument}"
-                         Text="{Binding Name}" />
-              <TextBlock Classes="mm-tree-error"
-                         IsVisible="{Binding HasLoadError}"
-                         Text="{Binding LoadError}" />
-            </StackPanel>
+              <!-- Акцентная планка активного документа: 2px у левого края строки -->
+              <Border Grid.Column="0"
+                      Classes="mm-tree-active-bar"
+                      IsVisible="{Binding IsActiveDocument}" />
+
+              <StackPanel Grid.Column="1"
+                          Orientation="Horizontal"
+                          Spacing="6">
+                <TextBlock Classes="mm-tree-label"
+                           Classes.inert="{Binding IsInert}"
+                           Classes.active="{Binding IsActiveDocument}"
+                           Text="{Binding Name}" />
+                <TextBlock Classes="mm-tree-error"
+                           IsVisible="{Binding HasLoadError}"
+                           Text="{Binding LoadError}" />
+              </StackPanel>
+
+              <!-- Несохранённый документ: та же точка, что и во вкладке -->
+              <Ellipse Grid.Column="2"
+                       IsVisible="{Binding IsDirty}"
+                       Width="5"
+                       Height="5"
+                       Margin="6,0,2,0"
+                       VerticalAlignment="Center"
+                       Fill="{DynamicResource MmAccentBrush}" />
+            </Grid>
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
       </TreeView>

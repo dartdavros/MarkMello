@@ -1,6 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Views;
@@ -14,6 +16,52 @@ public partial class WorkspaceSidebarView : UserControl
     public WorkspaceSidebarView()
     {
         InitializeComponent();
+
+        // TreeViewItem помечает нажатие обработанным ради выделения, поэтому Tapped
+        // до строки не доходит: слушаем отпускание кнопки вместе с обработанными событиями.
+        FileTree.AddHandler(
+            PointerReleasedEvent,
+            OnTreePointerReleased,
+            RoutingStrategies.Bubble,
+            handledEventsToo: true);
+    }
+
+    /// <summary>Левый клик по строке открывает документ; правый только выделяет её.</summary>
+    private void OnTreePointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (e.InitialPressMouseButton != MouseButton.Left
+            || e.Source is not Visual source
+            || DataContext is not ShellViewModel { Workspace: { } workspace })
+        {
+            return;
+        }
+
+        // Клик внутри поля инлайн-переименования правит имя, а не открывает документ.
+        if (source.FindAncestorOfType<TextBox>(includeSelf: true) is not null)
+        {
+            return;
+        }
+
+        if (source.FindAncestorOfType<TreeViewItem>(includeSelf: true)?.DataContext
+            is FileTreeNodeViewModel node)
+        {
+            workspace.OpenNodeCommand.Execute(node);
+        }
+    }
+
+    /// <summary>Enter открывает выделенную строку — клавиатурный эквивалент клика.</summary>
+    private void OnTreeKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || DataContext is not ShellViewModel { Workspace: { } workspace })
+        {
+            return;
+        }
+
+        if (workspace.SelectedNode is { } node)
+        {
+            workspace.OpenNodeCommand.Execute(node);
+            e.Handled = true;
+        }
     }
 
     /// <summary>Esc сбрасывает поиск, не выходя из поля: это самый частый способ вернуться к дереву.</summary>

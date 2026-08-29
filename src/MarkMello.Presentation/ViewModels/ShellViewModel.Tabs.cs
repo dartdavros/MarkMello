@@ -258,6 +258,25 @@ public partial class ShellViewModel
         {
             tab.IsDirty = IsDirty;
         }
+
+        SyncWorkspaceDirtyMarks();
+    }
+
+    /// <summary>Точки несохранённого в дереве повторяют точки на вкладках.</summary>
+    private void SyncWorkspaceDirtyMarks()
+    {
+        if (Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        var dirtyPaths = OpenDocuments.Tabs
+            .Where(static tab => tab.IsDirty)
+            .Select(static tab => tab.Path)
+            .OfType<string>()
+            .ToList();
+
+        workspace.ApplyDirtyPaths(dirtyPaths);
     }
 
     /// <summary>
