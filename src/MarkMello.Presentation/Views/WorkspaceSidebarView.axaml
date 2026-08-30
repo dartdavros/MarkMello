@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              xmlns:ws="using:MarkMello.Domain.Workspace"
+             xmlns:views="using:MarkMello.Presentation.Views"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.WorkspaceSidebarView"
              x:DataType="vm:ShellViewModel">
@@ -66,7 +67,7 @@
       <Setter Property="IsExpanded"
               Value="{CompiledBinding IsExpanded, Mode=TwoWay, DataType=vm:FileTreeNodeViewModel}" />
       <Setter Property="MinHeight" Value="26" />
-      <Setter Property="Padding" Value="2,0" />
+      <Setter Property="Padding" Value="0" />
       <Setter Property="CornerRadius" Value="4" />
       <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
       <!-- Тот же панельный шаблон для вложенных уровней: раскрытый большой каталог
@@ -76,6 +77,24 @@
           <VirtualizingStackPanel />
         </ItemsPanelTemplate>
       </Setter>
+    </Style>
+
+    <!-- Отступы уровней из макета: 6px у корня, +20px на уровень, шеврон 12px
+         с щелью 6px. Штатный шаблон отводит место под шеврон в каждой строке и
+         добавляет свой отступ вложенности — вместе это давало дыру перед именем,
+         особенно у файлов, у которых шеврона нет вовсе. -->
+    <Style Selector="TreeView.mm-tree TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
+      <Setter Property="Width"
+              Value="{CompiledBinding IsDirectory, DataType=vm:FileTreeNodeViewModel, Converter={x:Static views:TreeChevronWidthConverter.Instance}}" />
+      <Setter Property="Margin"
+              Value="{Binding $parent[TreeViewItem].Level, Converter={x:Static views:TreeLevelIndentConverter.Instance}}" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Height" Value="12" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
     </Style>
 
     <!-- Выделение и наведение: без этого TreeViewItem красится системным акцентом,
@@ -111,7 +130,7 @@
     <!-- Активный документ: акцент даёт планку слева бесплатно через вес и цвет -->
     <Style Selector="Border.mm-tree-active-bar">
       <Setter Property="Width" Value="2" />
-      <Setter Property="Margin" Value="0,4" />
+      <Setter Property="Margin" Value="-6,4,0,4" />
       <Setter Property="CornerRadius" Value="1" />
       <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
     </Style>
@@ -437,7 +456,7 @@
         <TreeView.ItemTemplate>
           <TreeDataTemplate x:DataType="vm:FileTreeNodeViewModel"
                             ItemsSource="{Binding Children}">
-            <Grid ColumnDefinitions="Auto,*,Auto"
+            <Grid ColumnDefinitions="*,Auto"
                   ColumnSpacing="6"
                   Background="Transparent">
               <Grid.ContextMenu>
@@ -465,12 +484,15 @@
                 </ContextMenu>
               </Grid.ContextMenu>
 
-              <!-- Акцентная планка активного документа: 2px у левого края строки -->
+              <!-- Акцентная планка активного документа: 2px у левого края строки.
+                   Лежит поверх строки, как в макете: отдельной колонкой она сдвигала
+                   бы имя вправо в каждой строке дерева, а не только в активной. -->
               <Border Grid.Column="0"
                       Classes="mm-tree-active-bar"
+                      HorizontalAlignment="Left"
                       IsVisible="{Binding IsActiveDocument}" />
 
-              <StackPanel Grid.Column="1"
+              <StackPanel Grid.Column="0"
                           Orientation="Horizontal"
                           Spacing="6"
                           IsVisible="{Binding !IsEditing}">
@@ -486,7 +508,7 @@
               <!-- Ввод имени стоит в самой строке, а не отдельной панелью над деревом
                    (макет 09). Content = null, пока строка не редактируется, поэтому
                    поле существует только в одной строке из всех. -->
-              <ContentControl Grid.Column="1"
+              <ContentControl Grid.Column="0"
                               Content="{Binding Editor}">
                 <ContentControl.ContentTemplate>
                   <DataTemplate x:DataType="vm:FileTreeNodeViewModel">
@@ -506,7 +528,7 @@
               </ContentControl>
 
               <!-- Несохранённый документ: та же точка, что и во вкладке -->
-              <Ellipse Grid.Column="2"
+              <Ellipse Grid.Column="1"
                        IsVisible="{Binding IsDirty}"
                        Width="5"
                        Height="5"

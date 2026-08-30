@@ -23,6 +23,8 @@
       <Setter Property="MinWidth" Value="120" />
       <Setter Property="MaxWidth" Value="240" />
       <Setter Property="Padding" Value="10,0" />
+      <!-- Ничто не выходит за границы вкладки, даже если имя длиннее её ширины -->
+      <Setter Property="ClipToBounds" Value="True" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="VerticalAlignment" Value="Stretch" />
@@ -180,17 +182,34 @@
                         Classes="mm-tab-active-bar"
                         IsVisible="{Binding IsActive}" />
 
-                <StackPanel Grid.Column="0"
-                            Orientation="Horizontal"
-                            Spacing="6"
-                            VerticalAlignment="Center">
-                  <TextBlock Classes="mm-tab-title"
-                             Text="{Binding DisplayTitle}" />
+                <!-- Сетка, а не StackPanel: горизонтальный StackPanel даёт детям
+                     бесконечную ширину, и длинное имя вылезало за вкладку под крестик. -->
+                <Grid Grid.Column="0"
+                      ColumnDefinitions="*,Auto"
+                      ColumnSpacing="6"
+                      VerticalAlignment="Center">
+                  <!-- Длинное имя не обрывается и не подлезает под крестик:
+                       у правого края колонки текст плавно гаснет. -->
+                  <Panel Grid.Column="0" ClipToBounds="True">
+                    <Panel.OpacityMask>
+                      <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Offset="0" Color="White" />
+                        <GradientStop Offset="0.82" Color="White" />
+                        <GradientStop Offset="1" Color="Transparent" />
+                      </LinearGradientBrush>
+                    </Panel.OpacityMask>
+                    <TextBlock Classes="mm-tab-title"
+                               HorizontalAlignment="Left"
+                               TextTrimming="None"
+                               TextWrapping="NoWrap"
+                               Text="{Binding DisplayTitle}" />
+                  </Panel>
                   <!-- Имя родительской папки появляется только у одноимённых вкладок -->
-                  <TextBlock Classes="mm-tab-disambiguator"
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-tab-disambiguator"
                              IsVisible="{Binding HasDisambiguator}"
                              Text="{Binding Disambiguator}" />
-                </StackPanel>
+                </Grid>
 
                 <Panel Grid.Column="1"
                        Width="14"
