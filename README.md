@@ -2,7 +2,7 @@
 
 # MarkMello
 
-[Website](https://markmello.ru) · [Discord](https://discord.gg/atxsJ2TSM)
+[Website](https://markmello.ru) · [Telegram](https://t.me/mark_mello)
 
 **MarkMello is an application for quickly opening and reading Markdown files, with an additional editing mode.**
 
