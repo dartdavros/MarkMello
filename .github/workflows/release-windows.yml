@@ -20,6 +20,16 @@ on:
         required: true
         default: false
         type: boolean
+      platforms:
+        description: "Which installers to build"
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
 
 concurrency:
   group: release-desktop-${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
@@ -170,6 +180,8 @@ jobs:
     name: Build ${{ matrix.runtime_id }} Installer
     runs-on: windows-latest
     needs: prepare_release
+    # Дозаливка одной платформы в существующий релиз не должна пересобирать остальные.
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.platforms == 'all' || inputs.platforms == 'windows' }}
 
     strategy:
       fail-fast: false
@@ -297,6 +309,8 @@ jobs:
   build_macos:
     name: Build ${{ matrix.runtime_id }} DMG
     needs: prepare_release
+    # Дозаливка одной платформы в существующий релиз не должна пересобирать остальные.
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.platforms == 'all' || inputs.platforms == 'macos' }}
     runs-on: ${{ matrix.runner }}
 
     strategy:
@@ -520,6 +534,8 @@ jobs:
   build_linux:
     name: Build ${{ matrix.runtime_id }} AppImage
     needs: prepare_release
+    # Дозаливка одной платформы в существующий релиз не должна пересобирать остальные.
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.platforms == 'all' || inputs.platforms == 'linux' }}
     # 22.04 намеренно: Native AOT линкуется с glibc сборочной машины,
     # и на более новой Ubuntu собранный бинарь не запустился бы на Debian 12.
     runs-on: ubuntu-22.04
@@ -645,7 +661,11 @@ jobs:
       - build_windows
       - build_macos
       - build_linux
-    if: ${{ needs.prepare_release.outputs.publish_after_upload == 'true' }}
+    # Пропущенная платформа не должна отменять публикацию, а упавшая — должна.
+    if: ${{ !cancelled()
+      && needs.prepare_release.result == 'success'
+      && needs.prepare_release.outputs.publish_after_upload == 'true'
+      && !contains(needs.*.result, 'failure') }}
 
     steps:
       - name: Publish prepared release
