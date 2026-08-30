@@ -335,4 +335,30 @@ public sealed class MainWindowPlacementTests
         PixelRect monitorBounds,
         PixelRect workingArea)
         => new(monitorBounds, workingArea, Scaling: 1);
+
+    /// <summary>
+    /// Ширина сайдбара принадлежит колонке: сплиттер двигает именно её, а фиксированная
+    /// ширина у самого сайдбара оставляла рядом пустую полосу.
+    /// </summary>
+    [Theory]
+    [InlineData(260d, 260d)]
+    [InlineData(120d, 220d)]
+    [InlineData(900d, 340d)]
+    public void VisibleSidebarColumnKeepsTheWidthWithinTheDesignRange(double stored, double expected)
+    {
+        var (minWidth, width) = MainWindow.CalculateSidebarColumn(showsSidebar: true, stored);
+
+        Assert.Equal(220d, minWidth);
+        Assert.Equal(expected, width.Value);
+    }
+
+    [Fact]
+    public void HiddenSidebarCollapsesTheColumnCompletely()
+    {
+        var (minWidth, width) = MainWindow.CalculateSidebarColumn(showsSidebar: false, sidebarWidth: 300);
+
+        // Минимум тоже снимается: иначе от скрытого сайдбара осталась бы полоса в 220.
+        Assert.Equal(0d, minWidth);
+        Assert.Equal(0d, width.Value);
+    }
 }

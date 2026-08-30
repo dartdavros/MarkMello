@@ -12,6 +12,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
+using MarkMello.Domain.Workspace;
 using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Views;
@@ -67,6 +68,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         ApplyPlatformTitleBarLayout();
         ApplyStartupWindowPlacement();
+        SyncSidebarColumn();
         SyncOverlayWindowClasses();
         UpdateTitleBarMaximizeVisuals();
         UpdateWindowBorder();
@@ -516,6 +518,11 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (SidebarLayout is { ColumnDefinitions: { Count: > 0 } columns })
+            {
+                _viewModel.SidebarWidth = WorkspaceSidebarWidth.Normalize(columns[0].Width.Value);
+            }
+
             await _viewModel.PersistSidebarWidthAsync();
         }
         catch
@@ -555,8 +562,42 @@ public partial class MainWindow : Window
         return null;
     }
 
+    /// <summary>
+    /// Ширина сайдбара живёт на колонке: GridSplitter двигает колонку, а не контент,
+    /// поэтому фиксированная ширина у самого сайдбара оставляла рядом пустую полосу,
+    /// а перетаскивание не доходило до view-model. Скрытый сайдбар схлопывает колонку
+    /// в ноль — минимум из макета в этот момент не действует.
+    /// </summary>
+    private void SyncSidebarColumn()
+    {
+        if (SidebarLayout is not { ColumnDefinitions: { Count: > 0 } columns })
+        {
+            return;
+        }
+
+        var (minWidth, width) = CalculateSidebarColumn(_viewModel.ShowsSidebar, _viewModel.SidebarWidth);
+        columns[0].MinWidth = minWidth;
+        columns[0].Width = width;
+    }
+
+    /// <summary>
+    /// Скрытый сайдбар схлопывает колонку в ноль вместе с минимумом: иначе от него
+    /// осталась бы пустая полоса шириной 220.
+    /// </summary>
+    internal static (double MinWidth, GridLength Width) CalculateSidebarColumn(bool showsSidebar, double sidebarWidth)
+        => showsSidebar
+            ? (WorkspaceSidebarWidth.Minimum, new GridLength(WorkspaceSidebarWidth.Normalize(sidebarWidth)))
+            : (0d, new GridLength(0));
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(ShellViewModel.ShowsSidebar)
+            or nameof(ShellViewModel.SidebarWidth))
+        {
+            SyncSidebarColumn();
+            return;
+        }
+
         if (e.PropertyName is nameof(ShellViewModel.ShellOverlay)
             or nameof(ShellViewModel.IsSettingsOpen)
             or nameof(ShellViewModel.IsAppMenuOpen)

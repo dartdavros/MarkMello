@@ -218,16 +218,20 @@
         </Grid>
       </Border>
 
-      <Grid Grid.Row="1"
-            ColumnDefinitions="Auto,Auto,*">
+      <Grid Grid.Row="1" Name="SidebarLayout">
 
-        <!-- Диапазон 220-340 из макета; та же пара нормализуется в WorkspaceSidebarWidth.
-             ContentControl, а не сам контрол: в single-file режиме сайдбара не должно
+        <!-- Ширину держит колонка, а не контент: GridSplitter двигает именно колонку,
+             и фиксированная ширина сайдбара оставляла бы рядом с ним пустую полосу.
+             Диапазон 220-340 из макета, он же в WorkspaceSidebarWidth. -->
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" MinWidth="0" MaxWidth="340" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ContentControl, а не сам контрол: в single-file режиме сайдбара не должно
              быть в визуальном дереве вообще (ADR-0007 Rule 3). -->
         <ContentControl Grid.Column="0"
-                        Width="{Binding SidebarWidth, Mode=TwoWay}"
-                        MinWidth="220"
-                        MaxWidth="340"
                         IsVisible="{Binding ShowsSidebar}"
                         Content="{Binding SidebarContent}">
           <ContentControl.ContentTemplate>
@@ -544,10 +548,12 @@
                 Padding="20,0,20,14"
                 IsHitTestVisible="False">
           <Grid ColumnDefinitions="*,Auto">
+            <!-- В узком окне счётчики обрезаются, а не наезжают на подсказки справа. -->
             <StackPanel Grid.Column="0"
                         Orientation="Horizontal"
                         Spacing="18"
                         VerticalAlignment="Bottom"
+                        ClipToBounds="True"
                         IsVisible="{Binding ShowsReadingStatus}">
               <TextBlock Text="{Binding WordCountStatusLabel}"
                           FontSize="11"
