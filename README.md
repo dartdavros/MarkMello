@@ -39,14 +39,16 @@ Download the latest build from [Releases](../../releases/latest).
 
 ### Linux
 
-If a Linux AppImage is attached to a release, run it like this:
+1. Download `MarkMello-linux-x86_64.AppImage`.
+2. Make it executable and run it:
 
 ```bash
 chmod +x MarkMello-linux-x86_64.AppImage
 ./MarkMello-linux-x86_64.AppImage
 ```
 
-If no Linux asset is published for the release you want, build the application from source.
+The AppImage needs FUSE to mount itself. Distributions that ship only FUSE 3 need
+`libfuse2` installed, or you can run the file with `--appimage-extract-and-run`.
 
 ## Temporary unsigned builds
 
