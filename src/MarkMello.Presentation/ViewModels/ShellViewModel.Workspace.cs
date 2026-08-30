@@ -21,6 +21,7 @@ public partial class ShellViewModel
     [NotifyPropertyChangedFor(nameof(ShowsSidebar))]
     [NotifyPropertyChangedFor(nameof(SidebarContent))]
     [NotifyPropertyChangedFor(nameof(ShowsFloatingAppMenuButton))]
+    [NotifyPropertyChangedFor(nameof(ShowsFloatingSidebarButton))]
     // Пустой экран зависит от того, открыта ли папка: без папки это welcome,
     // с папкой — «выберите файл в дереве» (макет 07).
     [NotifyPropertyChangedFor(nameof(IsWelcome))]
@@ -41,6 +42,7 @@ public partial class ShellViewModel
     [NotifyPropertyChangedFor(nameof(ShowsSidebar))]
     [NotifyPropertyChangedFor(nameof(SidebarContent))]
     [NotifyPropertyChangedFor(nameof(ShowsFloatingAppMenuButton))]
+    [NotifyPropertyChangedFor(nameof(ShowsFloatingSidebarButton))]
     [NotifyPropertyChangedFor(nameof(CanToggleSidebar))]
     [NotifyPropertyChangedFor(nameof(IsWelcome))]
     [NotifyPropertyChangedFor(nameof(IsEmptyDocumentSurface))]
@@ -80,6 +82,12 @@ public partial class ShellViewModel
     /// исполняет кнопка в шапке сайдбара (макет 03).
     /// </summary>
     public bool ShowsFloatingAppMenuButton => ShowsAppMenuControl && !ShowsSidebar;
+
+    /// <summary>
+    /// Кнопка возврата свёрнутого дерева. В макете возврат был только через меню
+    /// плавающего гамбургера, но без видимой кнопки дерево кажется потерянным.
+    /// </summary>
+    public bool ShowsFloatingSidebarButton => Workspace is not null && IsSidebarCollapsed;
 
     public bool CanCloseFolder => Workspace is not null;
 

@@ -30,6 +30,26 @@ public sealed class SidebarChromeTests
         Assert.True(harness.ViewModel.CanCloseFolder);
     }
 
+    /// <summary>
+    /// Свёрнутое дерево возвращает отдельная кнопка рядом с гамбургером: в макете
+    /// возврат был только пунктом меню, и найти его не получалось.
+    /// </summary>
+    [Fact]
+    public async Task CollapsedSidebarGetsItsOwnButtonBack()
+    {
+        var harness = await CreateAsync();
+
+        Assert.False(harness.ViewModel.ShowsFloatingSidebarButton);
+
+        harness.ViewModel.ToggleSidebarCommand.Execute(null);
+
+        Assert.True(harness.ViewModel.ShowsFloatingSidebarButton);
+
+        harness.ViewModel.ToggleSidebarCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.ShowsFloatingSidebarButton);
+    }
+
     [Fact]
     public async Task TheSameCommandBringsTheSidebarBack()
     {
@@ -53,6 +73,15 @@ public sealed class SidebarChromeTests
         await harness.ViewModel.OpenFolderPathAsync(Root);
 
         Assert.True(harness.ViewModel.ShowsSidebar);
+    }
+
+    /// <summary>Без папки возвращать нечего: кнопка не появляется и в single-file режиме.</summary>
+    [Fact]
+    public void WithoutAFolderThereIsNoSidebarButton()
+    {
+        var shell = CreateShell();
+
+        Assert.False(shell.ShowsFloatingSidebarButton);
     }
 
     [Fact]

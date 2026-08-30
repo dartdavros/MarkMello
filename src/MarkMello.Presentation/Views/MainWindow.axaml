@@ -283,21 +283,40 @@
                 VerticalAlignment="Top"
                 Margin="16,12,0,0"
                 IsVisible="{Binding ShowsFloatingAppMenuButton}">
-          <ToggleButton Name="AppMenuTriggerButton"
-                        Classes="topbar-ghost"
-                        IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
-                        Command="{Binding ToggleAppMenuCommand}"
-                        ToolTip.Tip="{Binding AppMenuTooltip}">
-            <Grid Width="14"
-                  Height="14">
-              <Path Data="M2.5 4H11.5 M2.5 7H11.5 M2.5 10H11.5"
-                    Stroke="{DynamicResource MmTextSoftBrush}"
-                    StrokeThickness="1.5"
-                    StrokeLineCap="Round"
-                    StrokeJoin="Round"
-                    Fill="Transparent" />
-            </Grid>
-          </ToggleButton>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <ToggleButton Name="AppMenuTriggerButton"
+                          Classes="topbar-ghost"
+                          IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
+                          Command="{Binding ToggleAppMenuCommand}"
+                          ToolTip.Tip="{Binding AppMenuTooltip}">
+              <Grid Width="14"
+                    Height="14">
+                <Path Data="M2.5 4H11.5 M2.5 7H11.5 M2.5 10H11.5"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent" />
+              </Grid>
+            </ToggleButton>
+
+            <!-- Зеркало шеврона из шапки сайдбара: свернуть дерево есть чем,
+                 развернуть обратно — тоже. -->
+            <Button Classes="topbar-ghost"
+                    IsVisible="{Binding ShowsFloatingSidebarButton}"
+                    Command="{Binding ToggleSidebarCommand}"
+                    ToolTip.Tip="{Binding AppMenuToggleSidebarHint}">
+              <Grid Width="14"
+                    Height="14">
+                <Path Data="M5.5 3.5L9.5 7L5.5 10.5"
+                      Stroke="{DynamicResource MmTextSoftBrush}"
+                      StrokeThickness="1.5"
+                      StrokeLineCap="Round"
+                      StrokeJoin="Round"
+                      Fill="Transparent" />
+              </Grid>
+            </Button>
+          </StackPanel>
         </Border>
 
         <Border Classes="mm-top-chrome"
