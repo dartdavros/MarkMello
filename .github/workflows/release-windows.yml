@@ -517,6 +517,126 @@ jobs:
             "${{ steps.dmg.outputs.path }}.sha256" \
             --clobber
 
+  build_linux:
+    name: Build ${{ matrix.runtime_id }} AppImage
+    needs: prepare_release
+    # 22.04 намеренно: Native AOT линкуется с glibc сборочной машины,
+    # и на более новой Ubuntu собранный бинарь не запустился бы на Debian 12.
+    runs-on: ubuntu-22.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime_id: linux-x64
+            asset_name: MarkMello-linux-x86_64.AppImage
+
+    env:
+      RELEASE_TAG: ${{ needs.prepare_release.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.prepare_release.outputs.version }}
+      RELEASE_VERSION_CORE: ${{ needs.prepare_release.outputs.version_core }}
+      RELEASE_VERSION_WINDOWS: ${{ needs.prepare_release.outputs.version_windows }}
+      RELEASE_OWNER: ${{ github.repository_owner }}
+      RELEASE_REPO: ${{ needs.prepare_release.outputs.repo_name }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install build and packaging dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update
+          # clang и zlib нужны линкеру Native AOT, xvfb и fontconfig — дымовому запуску.
+          sudo apt-get install -y --no-install-recommends             clang             zlib1g-dev             libfontconfig1             libice6             libsm6             xvfb
+
+          curl -fsSL -o "$RUNNER_TEMP/appimagetool"             https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x "$RUNNER_TEMP/appimagetool"
+
+      - name: Restore solution
+        shell: bash
+        run: dotnet restore ./MarkMello.sln -m:1
+
+      - name: Publish desktop app
+        shell: bash
+        run: |
+          publish_dir="$GITHUB_WORKSPACE/publish/${{ matrix.runtime_id }}"
+
+          dotnet publish ./src/MarkMello.Desktop/MarkMello.Desktop.csproj             -m:1             -c Release             -r "${{ matrix.runtime_id }}"             --self-contained true             -p:PublishAot=true             -p:PublishSingleFile=false             -p:Version="$RELEASE_VERSION"             -p:FileVersion="$RELEASE_VERSION_WINDOWS"             -p:AssemblyVersion="$RELEASE_VERSION_WINDOWS"             -p:InformationalVersion="$RELEASE_TAG"             -p:MarkMelloReleaseOwner="$RELEASE_OWNER"             -p:MarkMelloReleaseRepo="$RELEASE_REPO"             -o "$publish_dir"
+
+      - name: Build AppImage
+        id: appimage
+        shell: bash
+        run: |
+          publish_dir="$GITHUB_WORKSPACE/publish/${{ matrix.runtime_id }}"
+          output_dir="$GITHUB_WORKSPACE/artifacts/${{ matrix.runtime_id }}"
+
+          appimage_path="$(bash ./packaging/linux/build-appimage.sh             --publish-dir "$publish_dir"             --runtime-id "${{ matrix.runtime_id }}"             --version "$RELEASE_VERSION_CORE"             --output-dir "$output_dir"             --appimagetool "$RUNNER_TEMP/appimagetool")"
+
+          echo "path=$appimage_path" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test AppImage
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          appimage="${{ steps.appimage.outputs.path }}"
+          diagnostics_dir="$GITHUB_WORKSPACE/artifacts/${{ matrix.runtime_id }}/smoke-diagnostics"
+          mkdir -p "$diagnostics_dir"
+
+          file "$appimage" > "$diagnostics_dir/appimage-file.txt" 2>&1
+
+          # extract-and-run: на раннере нет FUSE, смонтировать образ нечем.
+          # xvfb — первый настоящий запуск приложения под Linux, без него окно не создастся.
+          set +e
+          timeout 90 xvfb-run -a env             APPIMAGE_EXTRACT_AND_RUN=1             MARKMELLO_SMOKE_EXIT_AFTER_OPEN_MS=1500             "$appimage" "$GITHUB_WORKSPACE/sample.md"             > "$diagnostics_dir/launch.stdout.log"             2> "$diagnostics_dir/launch.stderr.log"
+          status=$?
+          set -e
+
+          if [[ "$status" -ne 0 ]]; then
+            echo "AppImage smoke launch failed with status $status" >&2
+            tail -n 50 "$diagnostics_dir/launch.stderr.log" >&2 || true
+            exit "$status"
+          fi
+
+      - name: Upload Linux smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-smoke-diagnostics-${{ matrix.runtime_id }}
+          path: artifacts/${{ matrix.runtime_id }}/smoke-diagnostics/
+          if-no-files-found: ignore
+
+      - name: Generate SHA256 checksum
+        shell: bash
+        run: |
+          checksum_path="${{ steps.appimage.outputs.path }}.sha256"
+          sha256sum "${{ steps.appimage.outputs.path }}" > "$checksum_path"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-${{ matrix.runtime_id }}
+          path: |
+            artifacts/${{ matrix.runtime_id }}/${{ matrix.asset_name }}
+            artifacts/${{ matrix.runtime_id }}/${{ matrix.asset_name }}.sha256
+          if-no-files-found: error
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$RELEASE_TAG"             "${{ steps.appimage.outputs.path }}"             "${{ steps.appimage.outputs.path }}.sha256"             --clobber
+
   finalize_release:
     name: Finalize GitHub Release
     runs-on: ubuntu-latest
@@ -524,6 +644,7 @@ jobs:
       - prepare_release
       - build_windows
       - build_macos
+      - build_linux
     if: ${{ needs.prepare_release.outputs.publish_after_upload == 'true' }}
 
     steps:
