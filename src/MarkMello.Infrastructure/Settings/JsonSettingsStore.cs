@@ -19,6 +19,7 @@ public sealed class JsonSettingsStore : ISettingsStore
     private ReadingPreferences _preferences = ReadingPreferences.Default;
     private ThemeMode _theme = ThemeMode.System;
     private AppLanguage _language = AppLanguage.System;
+    private bool _alwaysOpenDocumentsInEditMode;
     private WindowPlacement? _windowPlacement;
 
     public JsonSettingsStore(string? settingsRootDirectory = null)
@@ -102,6 +103,33 @@ public sealed class JsonSettingsStore : ISettingsStore
         return ValueTask.CompletedTask;
     }
 
+    public ValueTask<bool> LoadAlwaysOpenDocumentsInEditModeAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            return ValueTask.FromResult(_alwaysOpenDocumentsInEditMode);
+        }
+    }
+
+    public ValueTask SaveAlwaysOpenDocumentsInEditModeAsync(
+        bool value,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            _alwaysOpenDocumentsInEditMode = value;
+            PersistCore();
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask<WindowPlacement?> LoadWindowPlacementAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -151,6 +179,7 @@ public sealed class JsonSettingsStore : ISettingsStore
                         _theme = NormalizeTheme(fileModel.Theme);
                         _preferences = ReadingPreferences.Normalize(fileModel.Preferences);
                         _language = NormalizeLanguage(fileModel.Language);
+                        _alwaysOpenDocumentsInEditMode = fileModel.AlwaysOpenDocumentsInEditMode;
                         _windowPlacement = WindowPlacement.Normalize(fileModel.WindowPlacement);
                     }
                 }
@@ -161,6 +190,7 @@ public sealed class JsonSettingsStore : ISettingsStore
             _theme = ThemeMode.System;
             _preferences = ReadingPreferences.Default;
             _language = AppLanguage.System;
+            _alwaysOpenDocumentsInEditMode = false;
             _windowPlacement = null;
         }
         finally
@@ -182,7 +212,12 @@ public sealed class JsonSettingsStore : ISettingsStore
             Directory.CreateDirectory(directory);
 
             var tempFilePath = _settingsFilePath + ".tmp";
-            var fileModel = new SettingsFileModel(_theme, _preferences, _language, _windowPlacement);
+            var fileModel = new SettingsFileModel(
+                _theme,
+                _preferences,
+                _language,
+                _alwaysOpenDocumentsInEditMode,
+                _windowPlacement);
             var json = JsonSerializer.Serialize(
                 fileModel,
                 MarkMelloJsonSerializerContext.Default.SettingsFileModel);

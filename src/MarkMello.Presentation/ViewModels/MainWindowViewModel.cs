@@ -134,6 +134,8 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private ReadingPreferences _readingPreferences = ReadingPreferences.Default;
 
+    private bool _alwaysOpenDocumentsInEditMode;
+
     [ObservableProperty]
     private RenderedMarkdownDocument _renderedDocument = RenderedMarkdownDocument.Empty;
 
@@ -255,6 +257,20 @@ public partial class MainWindowViewModel : ObservableObject
     public bool ShowsReadEyeIcon => IsEditMode;
 
     public bool ShowsEditToggle => State == ViewState.Viewing && Document is not null;
+
+    public bool AlwaysOpenDocumentsInEditMode
+    {
+        get => _alwaysOpenDocumentsInEditMode;
+        set
+        {
+            if (!SetProperty(ref _alwaysOpenDocumentsInEditMode, value))
+            {
+                return;
+            }
+
+            PersistAlwaysOpenDocumentsInEditMode(value);
+        }
+    }
 
     public string EditToggleLabel => IsEditMode ? _localization["ModeReading"] : _localization["ModeEdit"];
 
@@ -536,6 +552,11 @@ public partial class MainWindowViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         ReadingPreferences = await _settings.LoadPreferencesAsync().ConfigureAwait(true);
+
+        _alwaysOpenDocumentsInEditMode = await _settings
+            .LoadAlwaysOpenDocumentsInEditModeAsync()
+            .ConfigureAwait(true);
+        OnPropertyChanged(nameof(AlwaysOpenDocumentsInEditMode));
 
         var savedLanguage = await _settings.LoadLanguageAsync().ConfigureAwait(true);
         ApplyLanguageSelection(savedLanguage, persist: false);
@@ -1202,7 +1223,7 @@ public partial class MainWindowViewModel : ObservableObject
         ReadingProgress = 0;
         ClearLoadError();
 
-        if (preserveEditModeAfterLoad)
+        if (preserveEditModeAfterLoad || AlwaysOpenDocumentsInEditMode)
         {
             if (EditorSession is null)
             {
@@ -1219,6 +1240,12 @@ public partial class MainWindowViewModel : ObservableObject
             }
 
             IsEditMode = true;
+
+            if (!_editorActivationMarked)
+            {
+                _editorActivationMarked = true;
+                _startupMetrics.Mark(StartupStage.EditorActivation);
+            }
         }
         else
         {
@@ -1234,6 +1261,18 @@ public partial class MainWindowViewModel : ObservableObject
 
         RefreshWindowTitle();
         UpdateCommandStates();
+    }
+
+    private void PersistAlwaysOpenDocumentsInEditMode(bool value)
+    {
+        try
+        {
+            _settings.SaveAlwaysOpenDocumentsInEditModeAsync(value).AsTask().GetAwaiter().GetResult();
+        }
+        catch
+        {
+            // Settings persistence is best-effort and must not interrupt editing.
+        }
     }
 
     private void MarkSecondaryFeaturesReady()

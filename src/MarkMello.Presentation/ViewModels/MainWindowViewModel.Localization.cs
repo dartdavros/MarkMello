@@ -65,6 +65,8 @@ public partial class MainWindowViewModel
         nameof(AppMenuSettingsLabel),
         nameof(AppMenuTooltip),
         nameof(AppSettingsHeader),
+        nameof(AlwaysOpenDocumentsInEditModeHint),
+        nameof(AlwaysOpenDocumentsInEditModeLabel),
         nameof(DirtyPromptCancel),
         nameof(DirtyPromptDiscard),
         nameof(DirtyPromptSave),
@@ -137,6 +139,8 @@ public partial class MainWindowViewModel
     public string AppMenuSettingsLabel => _localization["AppMenuSettingsLabel"];
     public string AppMenuTooltip => _localization["AppMenuTooltip"];
     public string AppSettingsHeader => _localization["AppSettingsHeader"];
+    public string AlwaysOpenDocumentsInEditModeHint => _localization["AlwaysOpenDocumentsInEditModeHint"];
+    public string AlwaysOpenDocumentsInEditModeLabel => _localization["AlwaysOpenDocumentsInEditModeLabel"];
     public string DirtyPromptCancel => _localization["DirtyPromptCancel"];
     public string DirtyPromptDiscard => _localization["DirtyPromptDiscard"];
     public string DirtyPromptSave => _localization["DirtyPromptSave"];
@@ -539,4 +543,3 @@ public sealed record LanguageSelectionItem(AppLanguage Language, string Label)
 {
     public override string ToString() => Label;
 }
-

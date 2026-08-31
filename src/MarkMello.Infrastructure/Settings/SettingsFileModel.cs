@@ -6,4 +6,5 @@ internal sealed record SettingsFileModel(
     ThemeMode Theme,
     ReadingPreferences Preferences,
     AppLanguage Language,
+    bool AlwaysOpenDocumentsInEditMode,
     WindowPlacement? WindowPlacement);

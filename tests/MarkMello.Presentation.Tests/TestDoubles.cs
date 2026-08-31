@@ -89,6 +89,8 @@ internal sealed class InMemorySettingsStore : ISettingsStore
 
     public AppLanguage Language { get; set; } = AppLanguage.English;
 
+    public bool AlwaysOpenDocumentsInEditMode { get; set; }
+
     public WindowPlacement? WindowPlacement { get; set; }
 
     public ValueTask<ReadingPreferences> LoadPreferencesAsync(CancellationToken cancellationToken = default)
@@ -115,6 +117,17 @@ internal sealed class InMemorySettingsStore : ISettingsStore
     public ValueTask SaveLanguageAsync(AppLanguage language, CancellationToken cancellationToken = default)
     {
         Language = language;
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<bool> LoadAlwaysOpenDocumentsInEditModeAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(AlwaysOpenDocumentsInEditMode);
+
+    public ValueTask SaveAlwaysOpenDocumentsInEditModeAsync(
+        bool value,
+        CancellationToken cancellationToken = default)
+    {
+        AlwaysOpenDocumentsInEditMode = value;
         return ValueTask.CompletedTask;
     }
 

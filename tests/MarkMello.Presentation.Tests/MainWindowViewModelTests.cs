@@ -35,6 +35,33 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task InitializeAsyncOpensActivationDocumentInEditModeWhenEnabled()
+    {
+        var harness = CreateHarness();
+        var path = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        harness.Loader.Sources[path] = CreateSource(path, "alpha beta");
+        harness.Settings.AlwaysOpenDocumentsInEditMode = true;
+        harness.CommandLine.ActivationPath = path;
+
+        await harness.ViewModel.InitializeAsync();
+
+        Assert.True(harness.ViewModel.AlwaysOpenDocumentsInEditMode);
+        Assert.True(harness.ViewModel.IsEditMode);
+        Assert.NotNull(harness.ViewModel.EditorSession);
+        Assert.Equal(1, harness.StartupMetrics.Marks.Count(stage => stage == StartupStage.EditorActivation));
+    }
+
+    [Fact]
+    public void AlwaysOpenDocumentsInEditModePersistsWhenChanged()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.AlwaysOpenDocumentsInEditMode = true;
+
+        Assert.True(harness.Settings.AlwaysOpenDocumentsInEditMode);
+    }
+
+    [Fact]
     public async Task ToggleEditModeCommandWhenDirtyShowsPromptAndDiscardLeavesEditMode()
     {
         var harness = CreateHarness();
