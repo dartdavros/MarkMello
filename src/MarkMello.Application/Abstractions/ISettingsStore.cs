@@ -21,6 +21,9 @@ public interface ISettingsStore
     ValueTask<AppLanguage> LoadLanguageAsync(CancellationToken cancellationToken = default);
     ValueTask SaveLanguageAsync(AppLanguage language, CancellationToken cancellationToken = default);
 
+    ValueTask<bool> LoadAlwaysOpenDocumentsInEditModeAsync(CancellationToken cancellationToken = default);
+    ValueTask SaveAlwaysOpenDocumentsInEditModeAsync(bool value, CancellationToken cancellationToken = default);
+
     ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default);
     ValueTask SaveSidebarWidthAsync(double width, CancellationToken cancellationToken = default);
 

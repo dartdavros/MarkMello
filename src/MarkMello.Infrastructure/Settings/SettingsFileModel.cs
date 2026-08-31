@@ -10,4 +10,5 @@ internal sealed record SettingsFileModel(
     WindowPlacement? WindowPlacement,
     WindowBorderMode WindowBorder = WindowBorderMode.Auto,
     double? SidebarWidth = null,
-    WorkspaceSessionState? Session = null);
+    WorkspaceSessionState? Session = null,
+    bool AlwaysOpenDocumentsInEditMode = false);

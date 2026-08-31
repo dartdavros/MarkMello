@@ -35,6 +35,55 @@ public sealed class ShellViewModelTests
     }
 
     [Fact]
+    public async Task InitializeAsyncOpensActivationDocumentInEditModeWhenEnabled()
+    {
+        var harness = CreateHarness();
+        var path = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        harness.Loader.Sources[path] = CreateSource(path, "alpha beta");
+        harness.Settings.AlwaysOpenDocumentsInEditMode = true;
+        harness.CommandLine.ActivationPath = path;
+
+        await harness.ViewModel.InitializeAsync();
+
+        Assert.True(harness.ViewModel.AlwaysOpenDocumentsInEditMode);
+        Assert.True(harness.ViewModel.IsEditMode);
+        Assert.NotNull(harness.ViewModel.EditorSession);
+        Assert.Equal(1, harness.StartupMetrics.Marks.Count(stage => stage == StartupStage.EditorActivation));
+    }
+
+    [Fact]
+    public void AlwaysOpenDocumentsInEditModePersistsWhenChanged()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.AlwaysOpenDocumentsInEditMode = true;
+
+        Assert.True(harness.Settings.AlwaysOpenDocumentsInEditMode);
+    }
+
+    [Fact]
+    public async Task AlwaysOpenDocumentsInEditModeCreatesSeparateEditorSessionsPerTab()
+    {
+        var harness = CreateHarness();
+        var firstPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        var secondPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "two.md");
+        harness.Loader.Sources[firstPath] = CreateSource(firstPath, "first");
+        harness.Loader.Sources[secondPath] = CreateSource(secondPath, "second");
+        harness.ViewModel.AlwaysOpenDocumentsInEditMode = true;
+
+        await harness.ViewModel.OpenPathAsync(firstPath);
+        var firstSession = harness.ViewModel.EditorSession;
+        await harness.ViewModel.OpenPathAsync(secondPath);
+
+        Assert.True(harness.ViewModel.IsEditMode);
+        Assert.NotNull(firstSession);
+        Assert.NotNull(harness.ViewModel.EditorSession);
+        Assert.NotSame(firstSession, harness.ViewModel.EditorSession);
+        Assert.Same(firstSession, harness.ViewModel.OpenDocuments.Tabs[0].EditorSession);
+        Assert.Same(harness.ViewModel.EditorSession, harness.ViewModel.OpenDocuments.Tabs[1].EditorSession);
+    }
+
+    [Fact]
     public async Task ToggleEditModeCommandWhenDirtyShowsPromptAndDiscardLeavesEditMode()
     {
         var harness = CreateHarness();
