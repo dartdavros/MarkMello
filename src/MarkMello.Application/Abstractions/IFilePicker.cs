@@ -9,6 +9,9 @@ public interface IFilePicker
     /// <summary>Открыть picker для выбора одного markdown-файла. Возвращает null, если отменено.</summary>
     Task<string?> PickMarkdownFileAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Открыть picker для выбора папки. Возвращает null, если отменено.</summary>
+    Task<string?> PickFolderAsync(CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Открыть системный Save As picker для markdown-файла.
     /// Возвращает null, если пользователь отменил сохранение.

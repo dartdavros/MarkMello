@@ -39,4 +39,31 @@ public sealed class MarkdownStyledTextTests
         Assert.Single(styled.Links);
         Assert.Equal(new DocumentTextRange(0, styled.Text.Length), styled.Links[0].Range);
     }
+
+    [Fact]
+    public void FromInlinesCreatesAtomicImageSpanForDataUriImage()
+    {
+        const string dataUri = "data:image/png;base64,AQIDBA==";
+        var styled = MarkdownStyledText.FromInlines(
+        [
+            new MarkdownTextInline("Before "),
+            new MarkdownImageInline(dataUri, null, null),
+            new MarkdownTextInline(" after")
+        ]);
+
+        Assert.Equal("Before image after", styled.Text);
+        var image = Assert.Single(styled.Images);
+        Assert.Equal(new DocumentTextRange(7, 12), image.Range);
+        Assert.Equal(dataUri, image.Url);
+        Assert.Equal("image", image.PlaceholderText);
+
+        var model = MarkdownDisplayLayoutModel.Create(styled);
+        var imageSegment = Assert.Single(model.Segments, segment => segment.Kind == MarkdownDisplaySegmentKind.Image);
+        Assert.Equal(1, imageSegment.DisplayLength);
+        Assert.Equal(image.Range, imageSegment.CanonicalRange);
+        Assert.Equal(image.Range.Start, model.GetCanonicalCaretForDisplayCaret(imageSegment.DisplayStart));
+        Assert.Equal(image.Range.End, model.GetCanonicalCaretForDisplayCaret(imageSegment.DisplayEnd));
+        Assert.Equal(imageSegment.DisplayStart, model.GetDisplayStartForCanonicalCaret(image.Range.Start + 2));
+        Assert.Equal(imageSegment.DisplayEnd, model.GetDisplayEndForCanonicalCaret(image.Range.Start + 2));
+    }
 }

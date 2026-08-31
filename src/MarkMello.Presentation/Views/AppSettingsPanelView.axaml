@@ -5,7 +5,7 @@
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.AppSettingsPanelView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
       <Border
               Classes="mm-settings-panel mm-popover-left mm-app-settings-panel"
               Width="320">
@@ -86,6 +86,43 @@
                   <CheckBox Grid.Column="1"
                             VerticalAlignment="Center"
                             IsChecked="{Binding AlwaysOpenDocumentsInEditMode, Mode=TwoWay}" />
+                </Grid>
+              </Border>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Border Classes="mm-setting-row">
+                <Grid ColumnDefinitions="Auto,*"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              VerticalAlignment="Center">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="{Binding WindowBorderLabel}" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="{Binding WindowBorderHint}" />
+                  </StackPanel>
+                  <Border Grid.Column="1"
+                          Classes="mm-segmented"
+                          HorizontalAlignment="Right">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="1">
+                      <ToggleButton Classes="mm-segmented-item"
+                                    IsChecked="{Binding IsWindowBorderAutoSelected}">
+                        <TextBlock Text="{Binding WindowBorderAuto}" />
+                      </ToggleButton>
+                      <ToggleButton Classes="mm-segmented-item"
+                                    IsChecked="{Binding IsWindowBorderOnSelected}">
+                        <TextBlock Text="{Binding WindowBorderOn}" />
+                      </ToggleButton>
+                      <ToggleButton Classes="mm-segmented-item"
+                                    IsChecked="{Binding IsWindowBorderOffSelected}">
+                        <TextBlock Text="{Binding WindowBorderOff}" />
+                      </ToggleButton>
+                    </StackPanel>
+                  </Border>
                 </Grid>
               </Border>
 

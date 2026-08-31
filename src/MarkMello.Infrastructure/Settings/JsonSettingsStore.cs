@@ -1,6 +1,7 @@
 using System.Text.Json;
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
+using MarkMello.Domain.Workspace;
 using MarkMello.Infrastructure.Serialization;
 
 namespace MarkMello.Infrastructure.Settings;
@@ -20,7 +21,10 @@ public sealed class JsonSettingsStore : ISettingsStore
     private ThemeMode _theme = ThemeMode.System;
     private AppLanguage _language = AppLanguage.System;
     private bool _alwaysOpenDocumentsInEditMode;
+    private WindowBorderMode _windowBorder = WindowBorderMode.Auto;
     private WindowPlacement? _windowPlacement;
+    private double _sidebarWidth = WorkspaceSidebarWidth.Default;
+    private WorkspaceSessionState _session = WorkspaceSessionState.Empty;
 
     public JsonSettingsStore(string? settingsRootDirectory = null)
     {
@@ -72,6 +76,31 @@ public sealed class JsonSettingsStore : ISettingsStore
         {
             EnsureLoadedCore();
             _theme = NormalizeTheme(theme);
+            PersistCore();
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<WindowBorderMode> LoadWindowBorderModeAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            return ValueTask.FromResult(_windowBorder);
+        }
+    }
+
+    public ValueTask SaveWindowBorderModeAsync(WindowBorderMode mode, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            _windowBorder = NormalizeWindowBorderMode(mode);
             PersistCore();
         }
 
@@ -130,6 +159,57 @@ public sealed class JsonSettingsStore : ISettingsStore
         return ValueTask.CompletedTask;
     }
 
+    public ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            return ValueTask.FromResult(_sidebarWidth);
+        }
+    }
+
+    public ValueTask SaveSidebarWidthAsync(double width, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            _sidebarWidth = WorkspaceSidebarWidth.Normalize(width);
+            PersistCore();
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<WorkspaceSessionState> LoadSessionAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            return ValueTask.FromResult(_session);
+        }
+    }
+
+    public ValueTask SaveSessionAsync(WorkspaceSessionState session, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(session);
+
+        lock (_gate)
+        {
+            EnsureLoadedCore();
+            _session = session;
+            PersistCore();
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask<WindowPlacement?> LoadWindowPlacementAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -180,7 +260,10 @@ public sealed class JsonSettingsStore : ISettingsStore
                         _preferences = ReadingPreferences.Normalize(fileModel.Preferences);
                         _language = NormalizeLanguage(fileModel.Language);
                         _alwaysOpenDocumentsInEditMode = fileModel.AlwaysOpenDocumentsInEditMode;
+                        _windowBorder = NormalizeWindowBorderMode(fileModel.WindowBorder);
                         _windowPlacement = WindowPlacement.Normalize(fileModel.WindowPlacement);
+                        _sidebarWidth = WorkspaceSidebarWidth.Normalize(fileModel.SidebarWidth);
+                        _session = fileModel.Session ?? WorkspaceSessionState.Empty;
                     }
                 }
             }
@@ -191,7 +274,10 @@ public sealed class JsonSettingsStore : ISettingsStore
             _preferences = ReadingPreferences.Default;
             _language = AppLanguage.System;
             _alwaysOpenDocumentsInEditMode = false;
+            _windowBorder = WindowBorderMode.Auto;
             _windowPlacement = null;
+            _sidebarWidth = WorkspaceSidebarWidth.Default;
+            _session = WorkspaceSessionState.Empty;
         }
         finally
         {
@@ -216,8 +302,11 @@ public sealed class JsonSettingsStore : ISettingsStore
                 _theme,
                 _preferences,
                 _language,
-                _alwaysOpenDocumentsInEditMode,
-                _windowPlacement);
+                _windowPlacement,
+                _windowBorder,
+                _sidebarWidth,
+                _session,
+                _alwaysOpenDocumentsInEditMode);
             var json = JsonSerializer.Serialize(
                 fileModel,
                 MarkMelloJsonSerializerContext.Default.SettingsFileModel);
@@ -238,6 +327,14 @@ public sealed class JsonSettingsStore : ISettingsStore
             ThemeMode.Light => ThemeMode.Light,
             ThemeMode.Dark => ThemeMode.Dark,
             _ => ThemeMode.System
+        };
+
+    private static WindowBorderMode NormalizeWindowBorderMode(WindowBorderMode mode)
+        => mode switch
+        {
+            WindowBorderMode.On => WindowBorderMode.On,
+            WindowBorderMode.Off => WindowBorderMode.Off,
+            _ => WindowBorderMode.Auto
         };
 
     private static AppLanguage NormalizeLanguage(AppLanguage language)

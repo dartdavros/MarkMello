@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using MarkMello.Application.Abstractions;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
+using MarkMello.Presentation.Editing;
 using MarkMello.Presentation.Localization;
 
 namespace MarkMello.Presentation.ViewModels;
@@ -10,10 +11,11 @@ namespace MarkMello.Presentation.ViewModels;
 /// Ленивая editor-сессия для текущего документа. Не участвует в startup path
 /// и создаётся только при явном входе в edit mode.
 /// </summary>
-public sealed class EditorSessionViewModel : ObservableObject
+public sealed class EditorSessionViewModel : ObservableObject, IDisposable
 {
     private readonly RenderMarkdownDocumentUseCase _renderMarkdown;
     private readonly ILocalizationService _localization;
+    private readonly IEditorPreviewScheduler _previewScheduler;
     private string _sourceText;
     private string _lastPersistedSource;
     private string? _currentPath;
@@ -28,7 +30,8 @@ public sealed class EditorSessionViewModel : ObservableObject
         ReadingPreferences readingPreferences,
         RenderMarkdownDocumentUseCase renderMarkdown,
         IImageSourceResolver? imageSourceResolver,
-        ILocalizationService? localization = null)
+        ILocalizationService? localization = null,
+        IEditorPreviewScheduler? previewScheduler = null)
         : this(
             source.Path,
             source.FileName,
@@ -36,7 +39,8 @@ public sealed class EditorSessionViewModel : ObservableObject
             readingPreferences,
             renderMarkdown,
             imageSourceResolver,
-            localization)
+            localization,
+            previewScheduler)
     {
         ArgumentNullException.ThrowIfNull(source);
     }
@@ -47,7 +51,8 @@ public sealed class EditorSessionViewModel : ObservableObject
         ReadingPreferences readingPreferences,
         RenderMarkdownDocumentUseCase renderMarkdown,
         IImageSourceResolver? imageSourceResolver,
-        ILocalizationService? localization = null)
+        ILocalizationService? localization = null,
+        IEditorPreviewScheduler? previewScheduler = null)
         : this(
             currentPath: null,
             fileName,
@@ -55,7 +60,8 @@ public sealed class EditorSessionViewModel : ObservableObject
             readingPreferences,
             renderMarkdown,
             imageSourceResolver,
-            localization)
+            localization,
+            previewScheduler)
     {
     }
 
@@ -66,13 +72,15 @@ public sealed class EditorSessionViewModel : ObservableObject
         ReadingPreferences readingPreferences,
         RenderMarkdownDocumentUseCase renderMarkdown,
         IImageSourceResolver? imageSourceResolver,
-        ILocalizationService? localization)
+        ILocalizationService? localization,
+        IEditorPreviewScheduler? previewScheduler)
     {
         ArgumentNullException.ThrowIfNull(renderMarkdown);
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
 
         _renderMarkdown = renderMarkdown;
         _localization = localization ?? new LocalizationService();
+        _previewScheduler = previewScheduler ?? ImmediateEditorPreviewScheduler.Instance;
         ImageSourceResolver = imageSourceResolver;
         _currentPath = currentPath;
         _fileName = fileName;
@@ -94,6 +102,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         nameof(EditorLinkTooltip),
         nameof(EditorListTooltip),
         nameof(EditorQuoteTooltip),
+        nameof(EditorProtectedImageDataMessage),
         nameof(EditorSourceLabel),
     ];
 
@@ -103,6 +112,7 @@ public sealed class EditorSessionViewModel : ObservableObject
     public string EditorLinkTooltip => _localization["EditorLinkTooltip"];
     public string EditorListTooltip => _localization["EditorListTooltip"];
     public string EditorQuoteTooltip => _localization["EditorQuoteTooltip"];
+    public string EditorProtectedImageDataMessage => _localization["EditorProtectedImageDataMessage"];
     public string EditorSourceLabel => _localization["EditorSourceLabel"];
 
     public void RefreshLocalizedProperties()
@@ -120,7 +130,9 @@ public sealed class EditorSessionViewModel : ObservableObject
         {
             if (SetProperty(ref _sourceText, value ?? string.Empty))
             {
-                RenderedPreview = RenderPreview(_sourceText, _currentPath);
+                // Ввод текста — горячий путь: preview пересобирается отложенно и
+                // вне UI-потока, иначе каждый символ стоит полного parse документа.
+                SchedulePreviewRefresh();
                 StatusMessage = string.Empty;
                 RaiseDocumentMetricsChanged();
                 OnPropertyChanged(nameof(IsDirty));
@@ -136,20 +148,24 @@ public sealed class EditorSessionViewModel : ObservableObject
             if (SetProperty(ref _lastPersistedSource, value ?? string.Empty))
             {
                 OnPropertyChanged(nameof(IsDirty));
+                OnPropertyChanged(nameof(DocumentNewLine));
             }
         }
     }
 
+    /// <summary>
+    /// Перевод строки, которым редактор продолжает документ. Берётся из
+    /// загруженного содержимого, чтобы Enter не подменял LF на CRLF и не оставлял
+    /// документ «изменённым» после отката правки.
+    /// </summary>
+    public string DocumentNewLine => MarkdownLineEndings.Detect(LastPersistedSource);
+
     public string? CurrentPath
     {
         get => _currentPath;
-        private set
-        {
-            if (SetProperty(ref _currentPath, value))
-            {
-                RenderedPreview = RenderPreview(SourceText, _currentPath);
-            }
-        }
+        // Меняется только вместе с содержимым документа (load/save), поэтому
+        // сам по себе preview не перерисовывает — это делает RefreshPreviewNow.
+        private set => SetProperty(ref _currentPath, value);
     }
 
     public string FileName
@@ -218,6 +234,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         LastPersistedSource = source.Content;
         SourceText = source.Content;
         StatusMessage = string.Empty;
+        RefreshPreviewNow();
         RaiseDocumentMetricsChanged();
     }
 
@@ -230,6 +247,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         LastPersistedSource = source.Content;
         SourceText = source.Content;
         StatusMessage = string.Empty;
+        RefreshPreviewNow();
         RaiseDocumentMetricsChanged();
     }
 
@@ -237,6 +255,17 @@ public sealed class EditorSessionViewModel : ObservableObject
     {
         SourceText = LastPersistedSource;
         StatusMessage = string.Empty;
+        RefreshPreviewNow();
+    }
+
+    /// <summary>Файл переименован в дереве: сессия продолжает править тот же документ.</summary>
+    public void Rename(string path, string fileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        CurrentPath = path;
+        FileName = fileName;
     }
 
     public void UpdateDraftFileName(string fileName)
@@ -253,6 +282,39 @@ public sealed class EditorSessionViewModel : ObservableObject
     public void SetStatusMessage(string? message)
     {
         StatusMessage = message ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Гасит отложенный рендер, чтобы результат закрытой сессии не долетал до
+    /// UI и не удерживал её через таймер.
+    /// </summary>
+    public void Dispose()
+    {
+        _previewScheduler.Cancel();
+        (_previewScheduler as IDisposable)?.Dispose();
+    }
+
+    /// <summary>
+    /// Ставит отложенную пересборку preview. Снимок текста и пути берётся сразу,
+    /// чтобы фоновый рендер не читал состояние, которое к тому моменту уехало.
+    /// </summary>
+    private void SchedulePreviewRefresh()
+    {
+        var markdown = _sourceText;
+        var path = _currentPath;
+        _previewScheduler.Schedule(
+            () => RenderPreview(markdown, path),
+            preview => RenderedPreview = preview);
+    }
+
+    /// <summary>
+    /// Немедленная пересборка preview для смены документа целиком (load/save/discard),
+    /// где задержка выглядела бы как подвисший экран.
+    /// </summary>
+    private void RefreshPreviewNow()
+    {
+        _previewScheduler.Cancel();
+        RenderedPreview = RenderPreview(_sourceText, _currentPath);
     }
 
     private RenderedMarkdownDocument RenderPreview(string markdown, string? path)

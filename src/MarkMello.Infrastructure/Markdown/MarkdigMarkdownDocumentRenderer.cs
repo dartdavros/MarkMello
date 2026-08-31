@@ -32,23 +32,23 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         }
 
         var document = MarkdigMarkdown.Parse(markdown, Pipeline);
-        var blocks = ConvertBlocks(document);
+        var blocks = ConvertBlocks(document, markdown);
         return new RenderedMarkdownDocument(blocks);
     }
 
-    private static List<MarkdownBlock> ConvertBlocks(ContainerBlock container)
+    private static List<MarkdownBlock> ConvertBlocks(ContainerBlock container, string source)
     {
         var result = new List<MarkdownBlock>(container.Count);
 
         foreach (var block in container)
         {
-            AddConvertedBlock(block, result);
+            AddConvertedBlock(block, result, source);
         }
 
         return result;
     }
 
-    private static void AddConvertedBlock(Block block, List<MarkdownBlock> target)
+    private static void AddConvertedBlock(Block block, List<MarkdownBlock> target, string source)
     {
         switch (block)
         {
@@ -57,7 +57,8 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                     new MarkdownHeadingBlock(
                         Math.Clamp(heading.Level, 1, 6),
                         ConvertInlines(heading.Inline)),
-                    heading));
+                    heading,
+                    source));
                 return;
 
             case ParagraphBlock paragraph:
@@ -66,42 +67,46 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 // "figure" style images as a standalone paragraph.
                 if (TryExtractStandaloneImage(paragraph.Inline, out var standaloneImage))
                 {
-                    target.Add(WithSourceSpan(standaloneImage, paragraph));
+                    target.Add(WithSourceSpan(standaloneImage, paragraph, source));
                     return;
                 }
                 target.Add(WithSourceSpan(
                     new MarkdownParagraphBlock(ConvertInlines(paragraph.Inline)),
-                    paragraph));
+                    paragraph,
+                    source));
                 return;
 
             case QuoteBlock quote:
                 target.Add(WithSourceSpan(
-                    new MarkdownQuoteBlock(ConvertBlocks(quote)),
-                    quote));
+                    new MarkdownQuoteBlock(ConvertBlocks(quote, source)),
+                    quote,
+                    source));
                 return;
 
             case ListBlock list:
-                target.Add(WithSourceSpan(ConvertList(list), list));
+                target.Add(WithSourceSpan(ConvertList(list, source), list, source));
                 return;
 
             case ThematicBreakBlock thematicBreak:
-                target.Add(WithSourceSpan(new MarkdownHorizontalRuleBlock(), thematicBreak));
+                target.Add(WithSourceSpan(new MarkdownHorizontalRuleBlock(), thematicBreak, source));
                 return;
 
             case FencedCodeBlock fencedCode:
                 target.Add(WithSourceSpan(
                     ConvertFencedCodeBlock(fencedCode),
-                    fencedCode));
+                    fencedCode,
+                    source));
                 return;
 
             case CodeBlock codeBlock:
                 target.Add(WithSourceSpan(
                     new MarkdownCodeBlock(null, ExtractCode(codeBlock)),
-                    codeBlock));
+                    codeBlock,
+                    source));
                 return;
 
             case Table table:
-                target.Add(WithSourceSpan(ConvertTable(table), table));
+                target.Add(WithSourceSpan(ConvertTable(table, source), table, source));
                 return;
 
             case HtmlBlock htmlBlock:
@@ -110,11 +115,11 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 // versions (ScriptBlock, ScriptTag, ScriptPreOrStyle...).
                 // Instead we strip scripts/styles/comments/CDATA by content,
                 // which is stable regardless of Markdig's internal classification.
-                AppendHtmlBlock(htmlBlock.Lines.ToString(), target, CreateSourceSpan(htmlBlock));
+                AppendHtmlBlock(htmlBlock.Lines.ToString(), target, CreateSourceSpan(htmlBlock, source));
                 return;
 
             case ContainerBlock nested:
-                foreach (var nestedBlock in ConvertBlocks(nested))
+                foreach (var nestedBlock in ConvertBlocks(nested, source))
                 {
                     target.Add(nestedBlock);
                 }
@@ -128,13 +133,14 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                         new MarkdownParagraphBlock([
                             new MarkdownTextInline(leafText)
                         ]),
-                        leaf));
+                        leaf,
+                        source));
                 }
                 return;
         }
     }
 
-    private static MarkdownListBlock ConvertList(ListBlock list)
+    private static MarkdownListBlock ConvertList(ListBlock list, string source)
     {
         var items = new List<MarkdownListItem>(list.Count);
 
@@ -145,13 +151,13 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                 continue;
             }
 
-            items.Add(new MarkdownListItem(ConvertBlocks(item)));
+            items.Add(new MarkdownListItem(ConvertBlocks(item, source)));
         }
 
         return new MarkdownListBlock(list.IsOrdered, items);
     }
 
-    private static MarkdownTableBlock ConvertTable(Table table)
+    private static MarkdownTableBlock ConvertTable(Table table, string source)
     {
         var header = new List<MarkdownTableCell>();
         var rows = new List<IReadOnlyList<MarkdownTableCell>>();
@@ -171,7 +177,7 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
                     continue;
                 }
 
-                cells.Add(new MarkdownTableCell(ConvertBlocksToInlines(cell)));
+                cells.Add(new MarkdownTableCell(ConvertBlocksToInlines(cell, source)));
             }
 
             if (row.IsHeader)
@@ -187,9 +193,9 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
         return new MarkdownTableBlock(header, rows);
     }
 
-    private static IReadOnlyList<MarkdownInline> ConvertBlocksToInlines(ContainerBlock container)
+    private static IReadOnlyList<MarkdownInline> ConvertBlocksToInlines(ContainerBlock container, string source)
     {
-        var blocks = ConvertBlocks(container);
+        var blocks = ConvertBlocks(container, source);
         if (blocks.Count == 0)
         {
             return Array.Empty<MarkdownInline>();
@@ -275,6 +281,22 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
 
             case CodeInline code:
                 target.Add(new MarkdownCodeInline(code.Content.ToString()));
+                return;
+
+            case AutolinkInline autolink:
+                var autolinkText = NormalizeNullable(autolink.Url) ?? string.Empty;
+                if (autolinkText.Length == 0)
+                {
+                    return;
+                }
+
+                var autolinkUrl = autolink.IsEmail && !autolinkText.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
+                    ? $"mailto:{autolinkText}"
+                    : autolinkText;
+                target.Add(new MarkdownLinkInline(
+                    [new MarkdownTextInline(autolinkText)],
+                    autolinkUrl,
+                    null));
                 return;
 
             case LinkInline link when link.IsImage:
@@ -455,30 +477,32 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
             return image.Title;
         }
 
-        return string.IsNullOrWhiteSpace(image.Url) ? "image" : image.Url;
+        return string.IsNullOrWhiteSpace(image.Url) || image.Url.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+            ? "image"
+            : image.Url;
     }
 
     private static string? NormalizeNullable(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static MarkdownBlock WithSourceSpan(MarkdownBlock block, Block sourceBlock)
-        => WithSourceSpan(block, CreateSourceSpan(sourceBlock));
+    private static MarkdownBlock WithSourceSpan(MarkdownBlock block, Block sourceBlock, string source)
+        => WithSourceSpan(block, CreateSourceSpan(sourceBlock, source));
 
     private static MarkdownBlock WithSourceSpan(MarkdownBlock block, MarkdownSourceSpan? sourceSpan)
         => sourceSpan is null ? block : block with { SourceSpan = sourceSpan };
 
-    private static MarkdownSourceSpan? CreateSourceSpan(Block block)
+    private static MarkdownSourceSpan? CreateSourceSpan(Block block, string source)
     {
         int? startLine = block.Line >= 0 ? block.Line : null;
         int? endLine = startLine is null
             ? null
-            : startLine.Value + Math.Max(0, CountSourceLines(block) - 1);
+            : startLine.Value + CountSourceLineBreaks(block, source);
 
         if (block is ContainerBlock container)
         {
             foreach (var child in container)
             {
-                var childSpan = CreateSourceSpan(child);
+                var childSpan = CreateSourceSpan(child, source);
                 if (childSpan is null)
                 {
                     continue;
@@ -498,30 +522,55 @@ public sealed class MarkdigMarkdownDocumentRenderer : IMarkdownDocumentRenderer
             : new MarkdownSourceSpan(startLine.Value, endLine ?? startLine.Value);
     }
 
-    private static int CountSourceLines(Block block)
-        => block is LeafBlock leaf
-            ? CountSourceLines(leaf.Lines.ToString())
-            : 1;
+    /// <summary>
+    /// Сколько переводов строки блок занимает в исходнике.
+    ///
+    /// Считается по <see cref="MarkdownObject.Span"/> исходного текста, а не по
+    /// <see cref="LeafBlock.Lines"/>: у абзацев и заголовков Markdig очищает
+    /// Lines после разбора inline-содержимого, а у фенсед-блоков туда не входят
+    /// строки ограждения. И то и другое давало span короче реального, из-за чего
+    /// синхронизация скролла промахивалась мимо конца блока.
+    /// </summary>
+    private static int CountSourceLineBreaks(Block block, string source)
+        => Math.Max(CountSpanLineBreaks(block, source), CountFenceLineBreaks(block));
 
-    private static int CountSourceLines(string text)
+    private static int CountSpanLineBreaks(Block block, string source)
     {
-        if (string.IsNullOrEmpty(text))
+        var span = block.Span;
+        if (span.Start < 0 || span.End < span.Start || span.End >= source.Length)
         {
-            return 1;
+            return 0;
         }
 
         var lineBreaks = 0;
-        foreach (var c in text)
+        for (var index = span.Start; index <= span.End; index++)
         {
-            if (c == '\n')
+            if (source[index] == '\n')
             {
                 lineBreaks++;
             }
         }
 
-        return text.EndsWith('\n')
-            ? Math.Max(1, lineBreaks)
-            : lineBreaks + 1;
+        // Завершающий перевод строки принадлежит последней строке блока,
+        // а не следующей за ним.
+        return source[span.End] == '\n' ? Math.Max(0, lineBreaks - 1) : lineBreaks;
+    }
+
+    /// <summary>
+    /// Запасной подсчёт для фенсед-блока: у незакрытого ограждения Markdig не
+    /// растягивает Span за строку открытия, а такой блок нормален во время
+    /// набора текста.
+    /// </summary>
+    private static int CountFenceLineBreaks(Block block)
+    {
+        if (block is not FencedCodeBlock fenced)
+        {
+            return 0;
+        }
+
+        var contentLines = Math.Max(0, fenced.Lines.Count - 1);
+        var closingFence = fenced.ClosingFencedCharCount > 0 ? 1 : 0;
+        return 1 + contentLines + closingFence;
     }
 
     // --- HTML handling ----------------------------------------------------

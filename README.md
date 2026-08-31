@@ -2,7 +2,7 @@
 
 # MarkMello
 
-[Website](https://markmello.ru) · [Discord](https://discord.gg/atxsJ2TSM)
+[Website](https://markmello.ru) · [Telegram](https://t.me/mark_mello)
 
 **MarkMello is an application for quickly opening and reading Markdown files, with an additional editing mode.**
 
@@ -39,14 +39,16 @@ Download the latest build from [Releases](../../releases/latest).
 
 ### Linux
 
-If a Linux AppImage is attached to a release, run it like this:
+1. Download `MarkMello-linux-x86_64.AppImage`.
+2. Make it executable and run it:
 
 ```bash
 chmod +x MarkMello-linux-x86_64.AppImage
 ./MarkMello-linux-x86_64.AppImage
 ```
 
-If no Linux asset is published for the release you want, build the application from source.
+The AppImage needs FUSE to mount itself. Distributions that ship only FUSE 3 need
+`libfuse2` installed, or you can run the file with `--appimage-extract-and-run`.
 
 ## Temporary unsigned builds
 
@@ -111,6 +113,7 @@ dotnet run --project ./src/MarkMello.Desktop/MarkMello.Desktop.csproj -- ./sampl
 | --- | --- | --- |
 | Open file | `Ctrl+O` | `Cmd+O` |
 | Toggle editing mode | `Ctrl+E` | `Cmd+E` |
+| Find in document | `Ctrl+F` | `Cmd+F` |
 | Save | `Ctrl+S` | `Cmd+S` |
 | Save as | `Ctrl+Shift+S` | `Cmd+Shift+S` |
 

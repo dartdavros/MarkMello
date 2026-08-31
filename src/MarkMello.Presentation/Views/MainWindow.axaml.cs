@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
@@ -11,6 +12,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
+using MarkMello.Domain.Workspace;
 using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Views;
@@ -23,17 +25,21 @@ public partial class MainWindow : Window
     private const double MacOsTitleBarLeadingInset = 82;
     private const int WindowPlacementMarginPixels = 8;
 
-    private readonly MainWindowViewModel _viewModel = default!;
+    private readonly ShellViewModel _viewModel = default!;
     private readonly StartupSmokeTestOptions _startupSmokeTestOptions = StartupSmokeTestOptions.Disabled;
+    private readonly IStartupMetrics? _startupMetrics;
     private readonly ISettingsStore? _settings;
     private readonly Task _startupInitializationTask = Task.CompletedTask;
     private Win32Properties.CustomWndProcHookCallback? _windowsWndProcHookCallback;
     private WindowsMonitorArea? _windowsMaximizeMonitorArea;
     private WindowPlacement? _lastNormalWindowPlacement;
+    private Border? _windowBorder;
     private bool _isWindowsManualMaximized;
     private bool _isConvertingWindowsNativeMaximize;
     private bool _pendingWindowsStartupMaximize;
     private bool _allowConfirmedClose;
+    private FindBarView? _findBar;
+    private IFindHost? _findHost;
 
     public MainWindow()
     {
@@ -42,25 +48,31 @@ public partial class MainWindow : Window
     }
 
     public MainWindow(
-        MainWindowViewModel viewModel,
+        ShellViewModel viewModel,
         StartupSmokeTestOptions startupSmokeTestOptions,
-        ISettingsStore settings)
+        ISettingsStore settings,
+        IStartupMetrics startupMetrics)
     {
         ArgumentNullException.ThrowIfNull(viewModel);
         ArgumentNullException.ThrowIfNull(startupSmokeTestOptions);
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(startupMetrics);
 
         _viewModel = viewModel;
         _startupSmokeTestOptions = startupSmokeTestOptions;
         _settings = settings;
+        _startupMetrics = startupMetrics;
         DataContext = viewModel;
 
         ConfigurePlatformChrome();
         InitializeComponent();
         ApplyPlatformTitleBarLayout();
         ApplyStartupWindowPlacement();
+        SyncSidebarColumn();
         SyncOverlayWindowClasses();
         UpdateTitleBarMaximizeVisuals();
+        UpdateWindowBorder();
+        AttachFindBar();
 
         AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
@@ -152,8 +164,60 @@ public partial class MainWindow : Window
             return;
         }
 
+        await MeasureFolderModeAsync().ConfigureAwait(true);
         await Task.Delay(_startupSmokeTestOptions.ExitAfterOpenDelay).ConfigureAwait(true);
+        WriteStartupTimings();
         ShutdownClassicDesktopLifetime(exitCode: 0);
+    }
+
+    /// <summary>
+    /// Замер folder mode: открытие папки и раскрытие первого каталога.
+    /// Открывать папку иначе, чем руками через picker, нельзя, поэтому измерение
+    /// живёт в том же smoke-режиме, что и тайминги старта, и никогда не включается
+    /// в обычном запуске.
+    /// </summary>
+    private async Task MeasureFolderModeAsync()
+    {
+        if (_startupSmokeTestOptions.OpenFolderPath is not { } folderPath)
+        {
+            return;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        await _viewModel.OpenFolderPathAsync(folderPath).ConfigureAwait(true);
+        Console.WriteLine($"[workspace] {"OpenFolder",-20} {stopwatch.Elapsed.TotalMilliseconds,8:F1} ms");
+
+        if (_viewModel.Workspace is not { } workspace)
+        {
+            return;
+        }
+
+        var firstDirectory = workspace.Roots.FirstOrDefault(static node => node.IsDirectory);
+        if (firstDirectory is null)
+        {
+            return;
+        }
+
+        stopwatch.Restart();
+        await workspace.ExpandNodeAsync(firstDirectory).ConfigureAwait(true);
+        Console.WriteLine($"[workspace] {"ExpandNode",-20} {stopwatch.Elapsed.TotalMilliseconds,8:F1} ms");
+    }
+
+    /// <summary>
+    /// Печатает снимок startup-таймингов в stdout. Вызывается только в smoke-режиме,
+    /// поэтому Release-сборку можно измерять теми же командами, что и CI-прогон.
+    /// </summary>
+    private void WriteStartupTimings()
+    {
+        if (_startupMetrics is null)
+        {
+            return;
+        }
+
+        foreach (var timing in _startupMetrics.Snapshot().StageTimings.OrderBy(static pair => pair.Key))
+        {
+            Console.WriteLine($"[startup] {timing.Key,-20} {timing.Value.TotalMilliseconds,8:F1} ms");
+        }
     }
 
     internal static bool IsOverlayPopupInteractionSource(Visual source)
@@ -174,6 +238,97 @@ public partial class MainWindow : Window
         return false;
     }
 
+    // ---------- Find bar (Ctrl+F) ----------
+
+    private void AttachFindBar()
+    {
+        _findBar = this.FindControl<ContentControl>("FindBarHost")?.Content as FindBarView;
+        if (_findBar is null)
+        {
+            return;
+        }
+
+        _findBar.FindNextRequested += OnFindBarFindNextRequested;
+        _findBar.FindPreviousRequested += OnFindBarFindPreviousRequested;
+        _findBar.CloseRequested += OnFindBarCloseRequested;
+    }
+
+    private void DetachFindBar()
+    {
+        if (_findBar is not null)
+        {
+            _findBar.FindNextRequested -= OnFindBarFindNextRequested;
+            _findBar.FindPreviousRequested -= OnFindBarFindPreviousRequested;
+            _findBar.CloseRequested -= OnFindBarCloseRequested;
+            _findBar = null;
+        }
+    }
+
+    private IFindHost? ResolveFindHost()
+    {
+        if (_findHost is { } cachedHost
+            && cachedHost is Visual cachedVisual
+            && cachedVisual.IsAttachedToVisualTree())
+        {
+            return cachedHost;
+        }
+
+        DetachFindHost();
+
+        var bodyPanel = this.FindControl<Panel>("BodyPanel");
+        if (bodyPanel is null)
+        {
+            return null;
+        }
+
+        _findHost = bodyPanel
+            .GetVisualDescendants()
+            .OfType<IFindHost>()
+            .FirstOrDefault();
+        if (_findHost is not null)
+        {
+            _findHost.FindStateChanged += OnFindHostStateChanged;
+        }
+
+        return _findHost;
+    }
+
+    private void DetachFindHost()
+    {
+        if (_findHost is not null)
+        {
+            _findHost.FindStateChanged -= OnFindHostStateChanged;
+            _findHost = null;
+        }
+    }
+
+    private void InvalidateFindHost() => DetachFindHost();
+
+    private void SyncFindCountersFromHost()
+    {
+        var host = ResolveFindHost();
+        _viewModel.FindMatchIndex = host?.MatchIndex ?? -1;
+        _viewModel.FindMatchCount = host?.MatchCount ?? 0;
+    }
+
+    private void OnFindBarFindNextRequested(object? sender, EventArgs e)
+    {
+        ResolveFindHost()?.FindNext();
+        SyncFindCountersFromHost();
+    }
+
+    private void OnFindBarFindPreviousRequested(object? sender, EventArgs e)
+    {
+        ResolveFindHost()?.FindPrevious();
+        SyncFindCountersFromHost();
+    }
+
+    private void OnFindBarCloseRequested(object? sender, EventArgs e)
+        => _viewModel.IsFindBarOpen = false;
+
+    private void OnFindHostStateChanged(object? sender, EventArgs e)
+        => SyncFindCountersFromHost();
+
     private static void ShutdownClassicDesktopLifetime(int exitCode)
     {
         if (global::Avalonia.Application.Current?.ApplicationLifetime
@@ -188,6 +343,9 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        DetachFindBar();
+        DetachFindHost();
+
         if (_windowsWndProcHookCallback is not null)
         {
             Win32Properties.RemoveWndProcHookCallback(this, _windowsWndProcHookCallback);
@@ -312,7 +470,7 @@ public partial class MainWindow : Window
 
     private void OnDragEnter(object? sender, DragEventArgs e)
     {
-        if (TryGetSupportedDroppedFilePath(e) is not null)
+        if (TryGetDroppedTarget(e) is not null)
         {
             _viewModel.IsDragHovering = true;
             e.DragEffects = DragDropEffects.Copy;
@@ -321,7 +479,7 @@ public partial class MainWindow : Window
 
     private void OnDragOver(object? sender, DragEventArgs e)
     {
-        e.DragEffects = TryGetSupportedDroppedFilePath(e) is not null
+        e.DragEffects = TryGetDroppedTarget(e) is not null
             ? DragDropEffects.Copy
             : DragDropEffects.None;
         e.Handled = true;
@@ -336,15 +494,19 @@ public partial class MainWindow : Window
     {
         _viewModel.IsDragHovering = false;
 
-        var path = TryGetSupportedDroppedFilePath(e);
-        if (string.IsNullOrEmpty(path))
+        var target = TryGetDroppedTarget(e);
+        if (target is not { } dropped)
         {
             return;
         }
 
         try
         {
-            await _viewModel.OpenDroppedFileAsync(path);
+            // Каталог открывает workspace, файл — документ. Разделение здесь,
+            // чтобы обе точки входа шли теми же путями, что picker и меню.
+            await (dropped.IsDirectory
+                ? _viewModel.OpenFolderPathAsync(dropped.Path)
+                : _viewModel.OpenDroppedFileAsync(dropped.Path));
         }
         catch
         {
@@ -352,7 +514,26 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string? TryGetSupportedDroppedFilePath(DragEventArgs e)
+    private async void OnSidebarSplitterDragCompleted(object? sender, VectorEventArgs e)
+    {
+        try
+        {
+            if (SidebarLayout is { ColumnDefinitions: { Count: > 0 } columns })
+            {
+                _viewModel.SidebarWidth = WorkspaceSidebarWidth.Normalize(columns[0].Width.Value);
+            }
+
+            await _viewModel.PersistSidebarWidthAsync();
+        }
+        catch
+        {
+            // Не сохранили ширину — не повод ронять окно.
+        }
+    }
+
+    private readonly record struct DroppedTarget(string Path, bool IsDirectory);
+
+    private static DroppedTarget? TryGetDroppedTarget(DragEventArgs e)
     {
         var files = e.DataTransfer.TryGetFiles();
         if (files is null)
@@ -362,51 +543,170 @@ public partial class MainWindow : Window
 
         foreach (var item in files)
         {
-            if (item is not IStorageFile file)
+            var path = item.TryGetLocalPath();
+            if (string.IsNullOrWhiteSpace(path))
             {
                 continue;
             }
 
-            var path = file.TryGetLocalPath();
-            if (!string.IsNullOrWhiteSpace(path) && SupportedDocumentTypes.IsSupportedPath(path))
+            switch (item)
             {
-                return path;
+                case IStorageFolder:
+                    return new DroppedTarget(path, IsDirectory: true);
+
+                case IStorageFile when SupportedDocumentTypes.IsSupportedPath(path):
+                    return new DroppedTarget(path, IsDirectory: false);
             }
         }
 
         return null;
     }
 
+    /// <summary>
+    /// Ширина сайдбара живёт на колонке: GridSplitter двигает колонку, а не контент,
+    /// поэтому фиксированная ширина у самого сайдбара оставляла рядом пустую полосу,
+    /// а перетаскивание не доходило до view-model. Скрытый сайдбар схлопывает колонку
+    /// в ноль — минимум из макета в этот момент не действует.
+    /// </summary>
+    private void SyncSidebarColumn()
+    {
+        if (SidebarLayout is not { ColumnDefinitions: { Count: > 0 } columns })
+        {
+            return;
+        }
+
+        var (minWidth, width) = CalculateSidebarColumn(_viewModel.ShowsSidebar, _viewModel.SidebarWidth);
+        columns[0].MinWidth = minWidth;
+        columns[0].Width = width;
+    }
+
+    /// <summary>
+    /// Скрытый сайдбар схлопывает колонку в ноль вместе с минимумом: иначе от него
+    /// осталась бы пустая полоса шириной 220.
+    /// </summary>
+    internal static (double MinWidth, GridLength Width) CalculateSidebarColumn(bool showsSidebar, double sidebarWidth)
+        => showsSidebar
+            ? (WorkspaceSidebarWidth.Minimum, new GridLength(WorkspaceSidebarWidth.Normalize(sidebarWidth)))
+            : (0d, new GridLength(0));
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainWindowViewModel.ShellOverlay)
-            or nameof(MainWindowViewModel.IsSettingsOpen)
-            or nameof(MainWindowViewModel.IsAppMenuOpen)
-            or nameof(MainWindowViewModel.IsAppSettingsOpen)
-            or nameof(MainWindowViewModel.IsAppAboutOpen)
-            or nameof(MainWindowViewModel.HasOpenOverlay))
+        if (e.PropertyName is nameof(ShellViewModel.ShowsSidebar)
+            or nameof(ShellViewModel.SidebarWidth))
+        {
+            SyncSidebarColumn();
+            return;
+        }
+
+        if (e.PropertyName is nameof(ShellViewModel.ShellOverlay)
+            or nameof(ShellViewModel.IsSettingsOpen)
+            or nameof(ShellViewModel.IsAppMenuOpen)
+            or nameof(ShellViewModel.IsAppSettingsOpen)
+            or nameof(ShellViewModel.IsAppAboutOpen)
+            or nameof(ShellViewModel.HasOpenOverlay))
         {
             SyncOverlayWindowClasses();
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.ReadingProgress)
-            || e.PropertyName == nameof(MainWindowViewModel.IsViewer))
+        if (e.PropertyName == nameof(ShellViewModel.ReadingProgress)
+            || e.PropertyName == nameof(ShellViewModel.IsViewer))
         {
             UpdateReadingProgressBarWidth();
             return;
         }
 
-        if (e.PropertyName == nameof(MainWindowViewModel.IsEditMode))
+        if (e.PropertyName == nameof(ShellViewModel.IsEditMode))
         {
+            InvalidateFindHost();
             UpdateReadingProgressBarWidth();
+            return;
         }
 
-        if (e.PropertyName is nameof(MainWindowViewModel.TitleBarMaximize)
-            or nameof(MainWindowViewModel.TitleBarRestore))
+        if (e.PropertyName == nameof(ShellViewModel.State))
+        {
+            InvalidateFindHost();
+            return;
+        }
+
+        if (e.PropertyName == nameof(ShellViewModel.IsFindBarOpen))
+        {
+            if (_viewModel.IsFindBarOpen)
+            {
+                ResolveFindHost()?.ApplyQuery(_viewModel.FindQuery);
+            }
+            else
+            {
+                ResolveFindHost()?.ClearFind();
+            }
+
+            SyncFindCountersFromHost();
+            return;
+        }
+
+        if (e.PropertyName == nameof(ShellViewModel.FindQuery))
+        {
+            if (_viewModel.IsFindBarOpen)
+            {
+                ResolveFindHost()?.ApplyQuery(_viewModel.FindQuery);
+                SyncFindCountersFromHost();
+            }
+
+            return;
+        }
+
+        if (e.PropertyName is nameof(ShellViewModel.TitleBarMaximize)
+            or nameof(ShellViewModel.TitleBarRestore))
         {
             UpdateTitleBarMaximizeVisuals();
         }
+
+        if (e.PropertyName == nameof(ShellViewModel.WindowBorderMode))
+        {
+            UpdateWindowBorder();
+        }
+    }
+
+    private void UpdateWindowBorder()
+    {
+        // GetControl throws when the name is missing, which is an authoring bug
+        // in our own XAML rather than a runtime condition — better loud at
+        // startup than a window that silently never gets its outline.
+        var border = _windowBorder ??= this.GetControl<Border>("WindowBorder");
+
+        border.BorderThickness = new Thickness(
+            ShouldDrawWindowBorder(
+                _viewModel.WindowBorderMode,
+                OperatingSystem.IsWindows(),
+                _isWindowsManualMaximized || WindowState == WindowState.Maximized)
+                ? 1
+                : 0);
+    }
+
+    /// <summary>
+    /// Whether the app draws its own window outline.
+    ///
+    /// Auto draws it only where MarkMello replaces the system chrome with its
+    /// own — that is Windows, where a light window on a light background is
+    /// otherwise indistinguishable from the one behind it. macOS and Linux keep
+    /// native decorations and already have an edge.
+    ///
+    /// A maximized window never gets one: its edges sit against the screen
+    /// bounds, so the outline would only eat a row of pixels.
+    /// </summary>
+    internal static bool ShouldDrawWindowBorder(WindowBorderMode mode, bool isWindows, bool isMaximized)
+    {
+        if (isMaximized)
+        {
+            return false;
+        }
+
+        return mode switch
+        {
+            WindowBorderMode.On => true,
+            WindowBorderMode.Off => false,
+            _ => isWindows
+        };
     }
 
     private static bool IsWithinVisual(Visual source, Visual target)
@@ -699,6 +999,7 @@ public partial class MainWindow : Window
         if (e.Property == WindowStateProperty)
         {
             UpdateTitleBarMaximizeVisuals();
+            UpdateWindowBorder();
         }
 
         if (e.Property != WindowStateProperty

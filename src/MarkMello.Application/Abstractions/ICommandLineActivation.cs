@@ -17,6 +17,13 @@ public interface ICommandLineActivation
     string? GetActivationFilePath();
 
     /// <summary>
+    /// Возвращает абсолютный путь к каталогу-активатору, либо null. Каталог в аргументах
+    /// открывается как папка — тот же сценарий, что «Открыть папку», только без picker'а
+    /// (ADR-0007 Rule 2).
+    /// </summary>
+    string? GetActivationFolderPath();
+
+    /// <summary>
     /// Срабатывает, когда ОС просит уже запущенное приложение открыть файл
     /// (на macOS — повторный AppleEvent после первого получения; на Windows
     /// и Linux обычно не вызывается, потому что файл приходит через argv).

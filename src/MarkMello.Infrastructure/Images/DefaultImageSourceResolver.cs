@@ -137,12 +137,14 @@ public sealed class DefaultImageSourceResolver : IImageSourceResolver
             return null;
         }
 
-        byte[] decoded;
-        try
+        var payloadText = payload.ToString();
+        var decoded = TryDecodeBase64(payloadText);
+        if (decoded is null && payloadText.Contains('%', StringComparison.Ordinal))
         {
-            decoded = Convert.FromBase64String(payload.ToString());
+            decoded = TryDecodeBase64(Uri.UnescapeDataString(payloadText));
         }
-        catch (FormatException)
+
+        if (decoded is null)
         {
             return null;
         }
@@ -153,6 +155,18 @@ public sealed class DefaultImageSourceResolver : IImageSourceResolver
         }
 
         return new MemoryStream(decoded, writable: false);
+    }
+
+    private static byte[]? TryDecodeBase64(string payload)
+    {
+        try
+        {
+            return Convert.FromBase64String(payload);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
     }
 
     private static FileStream? TryOpenLocal(string path)

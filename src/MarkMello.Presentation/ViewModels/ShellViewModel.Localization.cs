@@ -8,7 +8,7 @@ using System.ComponentModel;
 
 namespace MarkMello.Presentation.ViewModels;
 
-public partial class MainWindowViewModel
+public partial class ShellViewModel
 {
     private PendingDirtyActionKind? _dirtyPromptKind;
     private SaveDocumentResult? _dirtyPromptErrorResult;
@@ -59,8 +59,12 @@ public partial class MainWindowViewModel
         nameof(AppMenuCloseFileHint),
         nameof(AppMenuCloseFileLabel),
         nameof(AppMenuHeader),
+        nameof(AppMenuCloseFolderHint),
+        nameof(AppMenuCloseFolderLabel),
         nameof(AppMenuOpenFileHint),
         nameof(AppMenuOpenFileLabel),
+        nameof(AppMenuOpenFolderHint),
+        nameof(AppMenuOpenFolderLabel),
         nameof(AppMenuSettingsHint),
         nameof(AppMenuSettingsLabel),
         nameof(AppMenuTooltip),
@@ -72,6 +76,10 @@ public partial class MainWindowViewModel
         nameof(DirtyPromptSave),
         nameof(DragDropHint),
         nameof(EditToggleTooltip),
+        nameof(FindCloseTooltip),
+        nameof(FindNextTooltip),
+        nameof(FindPlaceholder),
+        nameof(FindPreviousTooltip),
         nameof(LanguageHint),
         nameof(LanguageLabel),
         nameof(LoadErrorOpenAnotherFile),
@@ -93,6 +101,11 @@ public partial class MainWindowViewModel
         nameof(ReadingHeader),
         nameof(ReadingLineHeightHint),
         nameof(ReadingLineHeightLabel),
+        nameof(WindowBorderAuto),
+        nameof(WindowBorderHint),
+        nameof(WindowBorderLabel),
+        nameof(WindowBorderOff),
+        nameof(WindowBorderOn),
         nameof(ReadingMinimapAuto),
         nameof(ReadingMinimapHint),
         nameof(ReadingMinimapLabel),
@@ -115,8 +128,37 @@ public partial class MainWindowViewModel
         nameof(UpdatesHint),
         nameof(UpdatesLabel),
         nameof(WelcomeCreateMd),
+        nameof(EmptySurfaceHint),
+        nameof(EmptySurfaceTitle),
+        nameof(ExternalChangeKeep),
+        nameof(ExternalChangeReload),
+        nameof(ExternalChangeTitle),
+        nameof(AppMenuToggleSidebarHint),
+        nameof(AppMenuToggleSidebarLabel),
+        nameof(SidebarCollapse),
+        nameof(SidebarFooterLabel),
+        nameof(SidebarNewFile),
+        nameof(SidebarNewFolder),
+        nameof(SidebarSearchEmpty),
+        nameof(SidebarSearchMatches),
+        nameof(SidebarSearchPlaceholder),
+        nameof(SidebarSearchReset),
+        nameof(SidebarSearchTruncated),
+        nameof(SidebarTooltip),
+        nameof(StatusCloseTab),
+        nameof(StatusSwitchTabs),
+        nameof(TabClose),
+        nameof(TreeDelete),
+        nameof(TreeDuplicate),
+        nameof(TreeOpenInNewTab),
+        nameof(TreeRename),
+        nameof(TreeRevealInExplorer),
+        nameof(TabsCloseOthers),
+        nameof(TabsOverflowHeader),
+        nameof(TabsOverflowLabel),
         nameof(WelcomeDropHint),
         nameof(WelcomeOpenFile),
+        nameof(WelcomeOpenFolder),
         nameof(WelcomeTagline),
     ];
 
@@ -133,7 +175,72 @@ public partial class MainWindowViewModel
     public string AppMenuCloseFileHint => _localization["AppMenuCloseFileHint"];
     public string AppMenuCloseFileLabel => _localization["AppMenuCloseFileLabel"];
     public string AppMenuHeader => _localization["AppMenuHeader"];
+    public string AppMenuCloseFolderHint => _localization["AppMenuCloseFolderHint"];
+    public string AppMenuCloseFolderLabel => _localization["AppMenuCloseFolderLabel"];
     public string AppMenuOpenFileHint => _localization["AppMenuOpenFileHint"];
+    public string AppMenuOpenFolderHint => _localization["AppMenuOpenFolderHint"];
+    public string AppMenuOpenFolderLabel => _localization["AppMenuOpenFolderLabel"];
+    public string SidebarCollapse => _localization["SidebarCollapse"];
+    public string AppMenuToggleSidebarLabel => _localization["AppMenuToggleSidebarLabel"];
+
+    public string AppMenuToggleSidebarHint => _localization[IsSidebarCollapsed
+        ? "AppMenuToggleSidebarHintShow"
+        : "AppMenuToggleSidebarHintHide"];
+
+    /// <summary>
+    /// Подвал сайдбара. Формулировка без согласования числительных: множественные формы
+    /// потребовали бы механизма выбора форм, которого в плоском словаре нет, а пользы
+    /// от «14 документов» против «Документов: 14» — ноль.
+    /// </summary>
+    public string SidebarFooterLabel
+    {
+        get
+        {
+            if (Workspace is not { } workspace)
+            {
+                return string.Empty;
+            }
+
+            var documents = _localization.Format("SidebarFooterDocuments", workspace.LoadedDocumentCount);
+            var dirty = OpenDocuments.Tabs.Count(static tab => tab is { BelongsToWorkspace: true, IsDirty: true });
+
+            return dirty == 0
+                ? documents
+                : documents + " · " + _localization.Format("SidebarFooterDirty", dirty);
+        }
+    }
+
+    public string SidebarNewFile => _localization["SidebarNewFile"];
+    public string SidebarNewFolder => _localization["SidebarNewFolder"];
+    public string TreeDelete => _localization["TreeDelete"];
+    public string TreeDuplicate => _localization["TreeDuplicate"];
+    public string TreeOpenInNewTab => _localization["TreeOpenInNewTab"];
+    public string TreeRename => _localization["TreeRename"];
+
+    /// <summary>Название файлового менеджера зависит от платформы, поэтому ключей три.</summary>
+    public string TreeRevealInExplorer => _localization[_platform.PlatformName switch
+    {
+        "macOS" => "TreeRevealInExplorerMacOS",
+        "Linux" => "TreeRevealInExplorerLinux",
+        _ => "TreeRevealInExplorerWindows"
+    }];
+
+    public string SidebarSearchEmpty => _localization["SidebarSearchEmpty"];
+    public string SidebarSearchMatches => _localization["SidebarSearchMatches"];
+    public string SidebarSearchPlaceholder => _localization["SidebarSearchPlaceholder"];
+    public string SidebarSearchReset => _localization["SidebarSearchReset"];
+    public string SidebarSearchTruncated => _localization["SidebarSearchTruncated"];
+    public string SidebarTooltip => _localization["SidebarTooltip"];
+    public string StatusCloseTab => _localization["StatusCloseTab"];
+    public string StatusSwitchTabs => _localization["StatusSwitchTabs"];
+    public string TabClose => _localization["TabClose"];
+    public string TabsCloseOthers => _localization["TabsCloseOthers"];
+    public string TabsOverflowHeader => _localization["TabsOverflowHeader"];
+    public string EmptySurfaceHint => _localization["EmptySurfaceHint"];
+    public string EmptySurfaceTitle => _localization["EmptySurfaceTitle"];
+
+    /// <summary>«ещё N» — счётчик приходит из состава вкладок, поэтому свойство пересчитывается.</summary>
+    public string TabsOverflowLabel => _localization.Format("TabsOverflow", OpenDocuments.OverflowTabs.Count);
     public string AppMenuOpenFileLabel => _localization["AppMenuOpenFileLabel"];
     public string AppMenuSettingsHint => _localization["AppMenuSettingsHint"];
     public string AppMenuSettingsLabel => _localization["AppMenuSettingsLabel"];
@@ -146,6 +253,10 @@ public partial class MainWindowViewModel
     public string DirtyPromptSave => _localization["DirtyPromptSave"];
     public string DragDropHint => _localization["DragDropHint"];
     public string EditToggleTooltip => _localization["EditToggleTooltip"];
+    public string FindCloseTooltip => _localization["FindCloseTooltip"];
+    public string FindNextTooltip => _localization["FindNextTooltip"];
+    public string FindPlaceholder => _localization["FindPlaceholder"];
+    public string FindPreviousTooltip => _localization["FindPreviousTooltip"];
     public string LanguageHint => _localization["LanguageHint"];
     public string LanguageLabel => _localization["LanguageLabel"];
     public string LoadErrorOpenAnotherFile => _localization["LoadErrorOpenAnotherFile"];
@@ -167,6 +278,11 @@ public partial class MainWindowViewModel
     public string ReadingHeader => _localization["ReadingHeader"];
     public string ReadingLineHeightHint => _localization["ReadingLineHeightHint"];
     public string ReadingLineHeightLabel => _localization["ReadingLineHeightLabel"];
+    public string WindowBorderAuto => _localization["WindowBorderAuto"];
+    public string WindowBorderHint => _localization["WindowBorderHint"];
+    public string WindowBorderLabel => _localization["WindowBorderLabel"];
+    public string WindowBorderOff => _localization["WindowBorderOff"];
+    public string WindowBorderOn => _localization["WindowBorderOn"];
     public string ReadingMinimapAuto => _localization["ReadingMinimapAuto"];
     public string ReadingMinimapHint => _localization["ReadingMinimapHint"];
     public string ReadingMinimapLabel => _localization["ReadingMinimapLabel"];
@@ -191,6 +307,7 @@ public partial class MainWindowViewModel
     public string WelcomeCreateMd => _localization["WelcomeCreateMd"];
     public string WelcomeDropHint => _localization["WelcomeDropHint"];
     public string WelcomeOpenFile => _localization["WelcomeOpenFile"];
+    public string WelcomeOpenFolder => _localization["WelcomeOpenFolder"];
     public string WelcomeTagline => _localization["WelcomeTagline"];
 
     public string WordCountStatusLabel => _localization.Format("StatusWordCount", WordCount);
@@ -270,6 +387,7 @@ public partial class MainWindowViewModel
         OnPropertyChanged(nameof(EditToggleLabel));
         OnPropertyChanged(nameof(EditShortcutLabel));
         OnPropertyChanged(nameof(NextThemeHint));
+        OnPropertyChanged(nameof(FindResultLabel));
         OnPropertyChanged(nameof(CheckForUpdatesLabel));
         OnPropertyChanged(nameof(DownloadUpdateLabel));
         OnPropertyChanged(nameof(DownloadedUpdateActionLabel));

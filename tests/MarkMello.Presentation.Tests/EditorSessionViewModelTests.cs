@@ -1,5 +1,6 @@
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
+using MarkMello.Presentation.Editing;
 using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Tests;
@@ -75,6 +76,88 @@ public sealed class EditorSessionViewModelTests
         Assert.False(session.HasStatusMessage);
         Assert.Equal(string.Empty, session.StatusMessage);
     }
+
+    [Fact]
+    public void KeystrokesCoalesceIntoASinglePreviewRender()
+    {
+        var renderer = new TestMarkdownRenderer();
+        var scheduler = new ManualEditorPreviewScheduler();
+        var session = CreateSession("alpha", renderer, scheduler);
+
+        // One render for the initial document; typing must not add one per character.
+        Assert.Equal(1, renderer.RenderCount);
+
+        session.SourceText = "alph";
+        session.SourceText = "alp";
+        session.SourceText = "alpha beta";
+
+        Assert.Equal(3, scheduler.ScheduleCount);
+        Assert.Equal(1, renderer.RenderCount);
+        Assert.Equal("alpha", ExtractPlainText(session.RenderedPreview));
+
+        scheduler.Flush();
+
+        Assert.Equal(2, renderer.RenderCount);
+        Assert.Equal("alpha beta", ExtractPlainText(session.RenderedPreview));
+    }
+
+    [Fact]
+    public void SourceTextChangeUpdatesDirtyStateAndMetricsBeforePreviewCatchesUp()
+    {
+        var renderer = new TestMarkdownRenderer();
+        var scheduler = new ManualEditorPreviewScheduler();
+        var session = CreateSession("alpha", renderer, scheduler);
+
+        session.SourceText = "alpha beta gamma";
+
+        // Dirty state and counters are cheap and must stay synchronous with typing.
+        Assert.True(session.IsDirty);
+        Assert.Equal(3, session.WordCount);
+        Assert.Equal(1, renderer.RenderCount);
+    }
+
+    [Fact]
+    public void ApplyLoadedDocumentRendersImmediatelyAndDropsPendingPreview()
+    {
+        var renderer = new TestMarkdownRenderer();
+        var scheduler = new ManualEditorPreviewScheduler();
+        var session = CreateSession("alpha", renderer, scheduler);
+        session.SourceText = "stale draft";
+
+        var loadedPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "two.md");
+        session.ApplyLoadedDocument(new MarkdownSource(loadedPath, "two.md", "beta gamma"));
+
+        Assert.False(scheduler.HasPendingRender);
+        Assert.Equal("beta gamma", ExtractPlainText(session.RenderedPreview));
+        Assert.Equal(2, renderer.RenderCount);
+    }
+
+    [Fact]
+    public void DiscardChangesRendersImmediatelyAndDropsPendingPreview()
+    {
+        var renderer = new TestMarkdownRenderer();
+        var scheduler = new ManualEditorPreviewScheduler();
+        var session = CreateSession("alpha", renderer, scheduler);
+        session.SourceText = "stale draft";
+
+        session.DiscardChanges();
+
+        Assert.False(scheduler.HasPendingRender);
+        Assert.Equal("alpha", ExtractPlainText(session.RenderedPreview));
+    }
+
+    private static EditorSessionViewModel CreateSession(
+        string content,
+        TestMarkdownRenderer renderer,
+        IEditorPreviewScheduler scheduler)
+        => new(
+            "one.md",
+            content,
+            ReadingPreferences.Default,
+            new RenderMarkdownDocumentUseCase(renderer, new FakeDiagramRenderService()),
+            imageSourceResolver: null,
+            localization: null,
+            previewScheduler: scheduler);
 
     private static EditorSessionViewModel CreateSession(string path, string content)
         => new(

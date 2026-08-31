@@ -18,8 +18,6 @@ namespace MarkMello.Infrastructure.Diagrams;
 /// </summary>
 public sealed class MermaidDiagramRenderer : IDiagramRenderer
 {
-    private static readonly RenderOptions DefaultOptions = new();
-
     public MarkdownDiagramKind Kind => MarkdownDiagramKind.Mermaid;
 
     public DiagramRenderResult Render(DiagramRenderRequest request)
@@ -30,7 +28,9 @@ public sealed class MermaidDiagramRenderer : IDiagramRenderer
 
         try
         {
-            var svg = Mermaid.Render(source, DefaultOptions);
+            // Options are built per call: edit-mode preview renders off the UI
+            // thread, so nothing here may be shared mutable state.
+            var svg = Mermaid.Render(source, new RenderOptions());
             return string.IsNullOrEmpty(svg)
                 ? new DiagramRenderResult.Failure("Mermaid produced empty SVG output.", source)
                 : new DiagramRenderResult.Success(svg);

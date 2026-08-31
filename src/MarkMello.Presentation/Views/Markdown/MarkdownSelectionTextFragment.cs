@@ -3,7 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
+using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
 
 namespace MarkMello.Presentation.Views.Markdown;
@@ -11,7 +13,12 @@ namespace MarkMello.Presentation.Views.Markdown;
 internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionFragmentBase
 {
     private MarkdownStyledText _styledText = MarkdownStyledText.Empty;
+    private readonly Dictionary<int, MarkdownInlineImageState> _inlineImages = [];
+    private readonly HashSet<int> _pendingInlineImages = [];
+    private CancellationTokenSource _imageLoadCts = new();
     private FontFamily _fontFamily = FontFamily.Default;
+    private IImageSourceResolver? _imageSourceResolver;
+    private string? _baseDirectory;
     private IBrush? _baseForeground;
     private double _letterSpacing;
     private double _fontSize = 16;
@@ -21,6 +28,7 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
     private MarkdownFormattedTextLayout? _textLayout;
     private double _layoutWidth = double.NaN;
     private TextWrapping _textWrapping = TextWrapping.Wrap;
+    private bool _disposed;
 
     public MarkdownSelectionTextFragment()
     {
@@ -42,9 +50,40 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
         set
         {
             _styledText = value ?? MarkdownStyledText.Empty;
+            RestartInlineImageLoading();
             InvalidateTextLayout();
             InvalidateMeasure();
             InvalidateVisual();
+        }
+    }
+
+    public IImageSourceResolver? ImageSourceResolver
+    {
+        get => _imageSourceResolver;
+        set
+        {
+            if (ReferenceEquals(_imageSourceResolver, value))
+            {
+                return;
+            }
+
+            _imageSourceResolver = value;
+            RestartInlineImageLoading();
+        }
+    }
+
+    public string? BaseDirectory
+    {
+        get => _baseDirectory;
+        set
+        {
+            if (string.Equals(_baseDirectory, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _baseDirectory = value;
+            RestartInlineImageLoading();
         }
     }
 
@@ -182,10 +221,14 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
 
         // Paint order (bottom -> top):
         //   1. Inline code "pill" backgrounds (rounded rect per span).
-        //   2. Selection highlight (on top of code backgrounds, behind glyphs).
-        //   3. Text glyphs themselves.
+        //   2. Search highlights (non-active matches, behind selection).
+        //   3. Selection highlight (on top of code backgrounds, behind glyphs).
+        //   4. Active search match (above selection so it stays visible).
+        //   5. Text glyphs themselves.
         DrawInlineCodeBackgrounds(context, layout);
+        DrawSearchHighlights(context, layout, activeOnly: false);
         DrawSelection(context, layout);
+        DrawSearchHighlights(context, layout, activeOnly: true);
         layout.Draw(context);
     }
 
@@ -292,6 +335,95 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
         }
     }
 
+    private void DrawSearchHighlights(
+        DrawingContext context,
+        MarkdownFormattedTextLayout layout,
+        bool activeOnly)
+    {
+        var brush = ResolveOptionalBrush(activeOnly ? "MmFindActiveBrush" : "MmFindHighlightBrush");
+        if (brush is null)
+        {
+            return;
+        }
+
+        if (activeOnly)
+        {
+            if (ActiveSearchHighlight is not { } active)
+            {
+                return;
+            }
+
+            var activeRange = DocumentRange.Intersection(active);
+            if (activeRange.IsEmpty)
+            {
+                return;
+            }
+
+            var stroke = ResolveOptionalBrush("MmAccentBrush");
+            var pen = stroke is null ? null : new Pen(stroke, 1);
+            DrawSearchRange(context, layout, brush, activeRange, pen);
+            return;
+        }
+
+        if (SearchHighlightRanges.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var range in SearchHighlightRanges)
+        {
+            DrawSearchRange(context, layout, brush, range, pen: null);
+        }
+    }
+
+    private void DrawSearchRange(
+        DrawingContext context,
+        MarkdownFormattedTextLayout layout,
+        IBrush brush,
+        DocumentTextRange range,
+        Pen? pen)
+    {
+        var localStart = Math.Clamp(range.Start - DocumentRange.Start, 0, StyledText.Text.Length);
+        var localEnd = Math.Clamp(range.End - DocumentRange.Start, 0, StyledText.Text.Length);
+        if (localEnd <= localStart)
+        {
+            return;
+        }
+
+        foreach (var rect in layout.GetSelectionRects(new DocumentTextRange(localStart, localEnd)))
+        {
+            context.FillRectangle(brush, rect);
+            if (pen is not null)
+            {
+                context.DrawRectangle(pen, rect);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the top Y (in this fragment's coordinates) of the text line
+    /// containing <paramref name="localOffset"/>, for scroll positioning.
+    /// </summary>
+    internal bool TryGetLineTopForLocalOffset(int localOffset, out double y)
+    {
+        y = 0;
+        if (StyledText.Text.Length == 0 || DocumentRange.IsEmpty)
+        {
+            return false;
+        }
+
+        var layout = GetOrCreateTextLayout(Math.Max(Bounds.Width, 1));
+        var offset = Math.Clamp(localOffset, 0, Math.Max(0, StyledText.Text.Length - 1));
+        var rects = layout.GetSelectionRects(new DocumentTextRange(offset, offset + 1));
+        if (rects.Count == 0)
+        {
+            return false;
+        }
+
+        y = rects[0].Y;
+        return true;
+    }
+
     private MarkdownFormattedTextLayout GetOrCreateTextLayout(double availableWidth)
     {
         var normalizedWidth = NormalizeLayoutWidth(availableWidth);
@@ -304,6 +436,7 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
         _layoutWidth = normalizedWidth;
         _textLayout = new MarkdownFormattedTextLayout(
             StyledText,
+            _inlineImages,
             BaseFontFamily,
             ResolveInlineCodeFontFamily(),
             BaseFontSize,
@@ -410,6 +543,16 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
 
     public override void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _imageLoadCts.Cancel();
+        _imageLoadCts.Dispose();
+        DisposeInlineImages();
+
         ActualThemeVariantChanged -= OnActualThemeVariantChanged;
         ResourcesChanged -= OnResourcesChanged;
         AttachedToVisualTree -= OnAttachedToVisualTree;
@@ -427,7 +570,10 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
         => InvalidateForAppearanceChange();
 
     private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
-        => InvalidateForAppearanceChange();
+    {
+        InvalidateForAppearanceChange();
+        EnsureInlineImagesLoaded();
+    }
 
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
@@ -462,5 +608,102 @@ internal sealed class MarkdownSelectionTextFragment : MarkdownDocumentSelectionF
         _textLayout?.Dispose();
         _textLayout = null;
         _layoutWidth = double.NaN;
+    }
+
+    private void RestartInlineImageLoading()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _imageLoadCts.Cancel();
+        _imageLoadCts.Dispose();
+        _imageLoadCts = new CancellationTokenSource();
+        DisposeInlineImages();
+        _pendingInlineImages.Clear();
+
+        InvalidateTextLayout();
+        InvalidateMeasure();
+        InvalidateVisual();
+        EnsureInlineImagesLoaded();
+    }
+
+    private void EnsureInlineImagesLoaded()
+    {
+        if (_disposed || _imageSourceResolver is null || VisualRoot is null || StyledText.Images.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var image in StyledText.Images)
+        {
+            if (_inlineImages.ContainsKey(image.Index) || _pendingInlineImages.Contains(image.Index))
+            {
+                continue;
+            }
+
+            _pendingInlineImages.Add(image.Index);
+            _ = LoadInlineImageAsync(image, _imageLoadCts.Token);
+        }
+    }
+
+    private async Task LoadInlineImageAsync(MarkdownInlineImageSpan image, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var loaded = await MarkdownImageLoader
+                .TryLoadAsync(_imageSourceResolver, image.Url, _baseDirectory, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (cancellationToken.IsCancellationRequested || _disposed)
+            {
+                if (loaded is { } canceledImage)
+                {
+                    MarkdownImageLoader.DisposeLoadedImage(canceledImage.Image, canceledImage.BackingStream);
+                }
+                return;
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() => CompleteInlineImageLoad(image.Index, loaded));
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => CompleteInlineImageLoad(image.Index, null));
+        }
+    }
+
+    private void CompleteInlineImageLoad(int index, (IImage Image, Stream BackingStream)? loaded)
+    {
+        if (_disposed)
+        {
+            if (loaded is { } disposedImage)
+            {
+                MarkdownImageLoader.DisposeLoadedImage(disposedImage.Image, disposedImage.BackingStream);
+            }
+            return;
+        }
+
+        _pendingInlineImages.Remove(index);
+        _inlineImages[index] = loaded is null
+            ? MarkdownInlineImageState.FailedState
+            : new MarkdownInlineImageState(loaded.Value.Image, loaded.Value.BackingStream, Failed: false);
+
+        InvalidateTextLayout();
+        InvalidateMeasure();
+        InvalidateVisual();
+    }
+
+    private void DisposeInlineImages()
+    {
+        foreach (var state in _inlineImages.Values)
+        {
+            MarkdownImageLoader.DisposeLoadedImage(state.Image, state.BackingStream);
+        }
+
+        _inlineImages.Clear();
     }
 }

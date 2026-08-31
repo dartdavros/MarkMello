@@ -53,6 +53,7 @@ dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
 
 ## Linux
 
+- `linux/build-appimage.sh` assembles the AppDir from a published app folder and runs `appimagetool`.
 - `linux/markmello.desktop` is the desktop entry baseline for AppImage packaging.
 - `linux/markmello.png` is the launcher icon generated from the shared master icon.
 - The desktop entry advertises Markdown support through `MimeType=text/markdown;` and includes AppImage-specific metadata keys.

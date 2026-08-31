@@ -5,7 +5,9 @@ using MarkMello.Application.Updates;
 using MarkMello.Application.UseCases;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
+using MarkMello.Presentation.Editing;
 using MarkMello.Presentation.Localization;
+using MarkMello.Presentation.Services;
 using System.Reflection;
 using System.ComponentModel;
 
@@ -15,7 +17,7 @@ namespace MarkMello.Presentation.ViewModels;
 /// View model главного окна. Отвечает за state machine (NoDocument/Viewing/LoadError),
 /// тему, reading preferences, команды open/reload, lazy edit mode и dirty/save flow.
 /// </summary>
-public partial class MainWindowViewModel : ObservableObject
+public partial class ShellViewModel : ObservableObject
 {
     private readonly OpenDocumentUseCase _openDocument;
     private readonly SaveDocumentUseCase _saveDocument;
@@ -26,8 +28,22 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly IStartupMetrics _startupMetrics;
     private readonly RenderMarkdownDocumentUseCase _renderMarkdown;
+    private readonly OpenFolderUseCase _openFolder;
+    private readonly ExpandFolderNodeUseCase _expandFolderNode;
+    private readonly SearchWorkspaceFilesUseCase _searchWorkspaceFiles;
+    private readonly WorkspaceFileOperationsUseCase _fileOperations;
+    private readonly IPlatformServices _platform;
+    private readonly Func<IWorkspaceWatcher> _watcherFactory;
+    private readonly IWindowLauncher _windowLauncher;
+
+    /// <summary>
+    /// Проверка существования пути при восстановлении сессии. Отдельно от файловой системы
+    /// дерева, потому что нужна и без открытой папки; в тестах подменяется.
+    /// </summary>
+    private readonly Func<string, bool> _fileExists;
     private readonly IUpdateService _updateService;
     private readonly IImageSourceResolver? _imageSourceResolver;
+    private readonly Func<IEditorPreviewScheduler>? _previewSchedulerFactory;
 
     private bool _documentModelReadyMarked;
     private bool _readableDocumentMarked;
@@ -40,10 +56,12 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly string _aboutLicense = "GPLv3";
     private AppUpdatePackage? _availableUpdatePackage;
     private ReadingPreferences _documentReadingPreferences = GetDocumentRenderingPreferences(ReadingPreferences.Default);
+    private WindowBorderMode _windowBorderMode = WindowBorderMode.Auto;
+    private bool _isWindowBorderLoaded;
 
     public event EventHandler? CloseRequested;
 
-    public MainWindowViewModel(
+    public ShellViewModel(
         OpenDocumentUseCase openDocument,
         SaveDocumentUseCase saveDocument,
         IFilePicker filePicker,
@@ -54,7 +72,16 @@ public partial class MainWindowViewModel : ObservableObject
         IStartupMetrics startupMetrics,
         RenderMarkdownDocumentUseCase renderMarkdown,
         IUpdateService updateService,
-        IImageSourceResolver? imageSourceResolver = null)
+        OpenFolderUseCase openFolder,
+        ExpandFolderNodeUseCase expandFolderNode,
+        SearchWorkspaceFilesUseCase searchWorkspaceFiles,
+        WorkspaceFileOperationsUseCase fileOperations,
+        IPlatformServices platform,
+        Func<IWorkspaceWatcher> watcherFactory,
+        IWindowLauncher windowLauncher,
+        Func<string, bool>? fileExists = null,
+        IImageSourceResolver? imageSourceResolver = null,
+        Func<IEditorPreviewScheduler>? previewSchedulerFactory = null)
     {
         _openDocument = openDocument;
         _saveDocument = saveDocument;
@@ -66,8 +93,18 @@ public partial class MainWindowViewModel : ObservableObject
         _startupMetrics = startupMetrics;
         _renderMarkdown = renderMarkdown;
         _updateService = updateService;
+        _openFolder = openFolder;
+        _expandFolderNode = expandFolderNode;
+        _searchWorkspaceFiles = searchWorkspaceFiles;
+        _fileOperations = fileOperations;
+        _platform = platform;
+        _watcherFactory = watcherFactory;
+        _windowLauncher = windowLauncher;
+        _fileExists = fileExists ?? (static path => File.Exists(path) || Directory.Exists(path));
         _imageSourceResolver = imageSourceResolver;
+        _previewSchedulerFactory = previewSchedulerFactory;
         _aboutVersion = GetProductVersion();
+        InitializeOpenDocuments();
         _localization.PropertyChanged += OnLocalizationChanged;
         _commandLine.FileActivated += OnFileActivated;
         RefreshUpdateStatusTexts();
@@ -127,6 +164,22 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private double _readingProgress;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindResultLabel))]
+    private bool _isFindBarOpen;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindResultLabel))]
+    private string _findQuery = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindResultLabel))]
+    private int _findMatchIndex = -1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FindResultLabel))]
+    private int _findMatchCount;
 
     [ObservableProperty]
     private ThemeMode _theme = ThemeMode.System;
@@ -211,7 +264,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool HasDocumentTitle => State == ViewState.Viewing && !string.IsNullOrWhiteSpace(FileName);
 
-    public bool IsWelcome => State == ViewState.NoDocument;
+    public bool IsWelcome => State == ViewState.NoDocument && !ShowsSidebar;
 
     public bool IsViewer => State == ViewState.Viewing;
 
@@ -245,6 +298,21 @@ public partial class MainWindowViewModel : ObservableObject
     public object? ReadingSettingsOverlayContent => IsSettingsOpen && IsViewer ? this : null;
 
     public bool ShowsReadingStatus => IsViewer && !IsEditMode;
+
+    public string FindResultLabel
+    {
+        get
+        {
+            if (FindMatchCount == 0)
+            {
+                return FindQuery.Length > 0
+                    ? _localization["FindNoResults"]
+                    : _localization.Format("FindResultCount", 0, 0);
+            }
+
+            return _localization.Format("FindResultCount", FindMatchIndex + 1, FindMatchCount);
+        }
+    }
 
     public bool ShowsMoonThemeIcon => EffectiveTheme == ThemeMode.Light;
 
@@ -482,6 +550,69 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
 
+    /// <summary>
+    /// Рамка окна. Хранится отдельно от <see cref="ReadingPreferences"/>: это
+    /// настройка оболочки, а не чтения документа.
+    /// </summary>
+    public WindowBorderMode WindowBorderMode
+    {
+        get => _windowBorderMode;
+        set
+        {
+            if (_windowBorderMode == value)
+            {
+                return;
+            }
+
+            _windowBorderMode = value;
+            OnPropertyChanged();
+            RaiseWindowBorderSelectionChanged();
+
+            if (_isWindowBorderLoaded)
+            {
+                _ = _settings.SaveWindowBorderModeAsync(value).AsTask();
+            }
+        }
+    }
+
+    public bool IsWindowBorderAutoSelected
+    {
+        get => WindowBorderMode == WindowBorderMode.Auto;
+        set => SelectWindowBorderMode(value, WindowBorderMode.Auto, nameof(IsWindowBorderAutoSelected));
+    }
+
+    public bool IsWindowBorderOnSelected
+    {
+        get => WindowBorderMode == WindowBorderMode.On;
+        set => SelectWindowBorderMode(value, WindowBorderMode.On, nameof(IsWindowBorderOnSelected));
+    }
+
+    public bool IsWindowBorderOffSelected
+    {
+        get => WindowBorderMode == WindowBorderMode.Off;
+        set => SelectWindowBorderMode(value, WindowBorderMode.Off, nameof(IsWindowBorderOffSelected));
+    }
+
+    private void SelectWindowBorderMode(bool isChecked, WindowBorderMode mode, string propertyName)
+    {
+        if (!isChecked)
+        {
+            // Unchecking the active segment would leave the group with no
+            // selection; the segmented control only ever moves between options.
+            OnPropertyChanged(propertyName);
+            return;
+        }
+
+        WindowBorderMode = mode;
+    }
+
+    private void RaiseWindowBorderSelectionChanged()
+    {
+        OnPropertyChanged(nameof(IsWindowBorderAutoSelected));
+        OnPropertyChanged(nameof(IsWindowBorderOnSelected));
+        OnPropertyChanged(nameof(IsWindowBorderOffSelected));
+    }
+
     public DocumentMinimapMode SelectedDocumentMinimapMode
     {
         get => ReadingPreferences.DocumentMinimapMode;
@@ -549,6 +680,14 @@ public partial class MainWindowViewModel : ObservableObject
         ? _localization["ThemeSwitchToDark"]
         : _localization["ThemeSwitchToLight"];
 
+    private bool _suppressStartupActivation;
+
+    /// <summary>
+    /// Окно открыто не запуском процесса, а из уже работающего приложения:
+    /// стартовые аргументы к нему не относятся.
+    /// </summary>
+    public void SuppressStartupActivation() => _suppressStartupActivation = true;
+
     public async Task InitializeAsync()
     {
         ReadingPreferences = await _settings.LoadPreferencesAsync().ConfigureAwait(true);
@@ -563,6 +702,24 @@ public partial class MainWindowViewModel : ObservableObject
 
         var savedTheme = await _settings.LoadThemeAsync().ConfigureAwait(true);
         ApplyTheme(savedTheme);
+
+        WindowBorderMode = await _settings.LoadWindowBorderModeAsync().ConfigureAwait(true);
+        _isWindowBorderLoaded = true;
+
+        // Аргументы командной строки принадлежат запуску процесса, а не каждому окну:
+        // второе окно получает свою папку от launcher'а и стартовую активацию пропускает.
+        if (_suppressStartupActivation)
+        {
+            return;
+        }
+
+        // Каталог в аргументах открывает папку, файл — документ. Порядок важен:
+        // «MarkMello docs notes.md» должен показать и дерево, и запрошенный документ.
+        var folderPath = _commandLine.GetActivationFolderPath();
+        if (!string.IsNullOrEmpty(folderPath))
+        {
+            await OpenFolderPathAsync(folderPath).ConfigureAwait(true);
+        }
 
         var path = _commandLine.GetActivationFilePath();
         if (!string.IsNullOrEmpty(path))
@@ -730,9 +887,29 @@ public partial class MainWindowViewModel : ObservableObject
     {
         MarkSecondaryFeaturesReady();
 
+        IsFindBarOpen = false;
         ShellOverlay = IsSettingsOpen
             ? ShellOverlayKind.None
             : ShellOverlayKind.ReadingSettings;
+    }
+
+    [RelayCommand]
+    private void ToggleFindBar()
+    {
+        if (IsFindBarOpen)
+        {
+            IsFindBarOpen = false;
+            return;
+        }
+
+        CloseOverlayCore();
+        IsFindBarOpen = true;
+    }
+
+    [RelayCommand]
+    private void CloseFindBar()
+    {
+        IsFindBarOpen = false;
     }
 
     [RelayCommand]
@@ -755,6 +932,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         MarkSecondaryFeaturesReady();
 
+        IsFindBarOpen = false;
         ShellOverlay = IsAppOverlayOpen
             ? ShellOverlayKind.None
             : ShellOverlayKind.AppMenu;
@@ -771,6 +949,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         MarkSecondaryFeaturesReady();
 
+        IsFindBarOpen = false;
         ShellOverlay = ShellOverlayKind.AppSettings;
     }
 
@@ -785,6 +964,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         MarkSecondaryFeaturesReady();
 
+        IsFindBarOpen = false;
         ShellOverlay = ShellOverlayKind.AppAbout;
     }
 
@@ -938,6 +1118,12 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void ClearError()
     {
+        if (IsFindBarOpen)
+        {
+            IsFindBarOpen = false;
+            return;
+        }
+
         if (IsDirtyPromptOpen)
         {
             CancelDirtyPrompt();
@@ -974,9 +1160,17 @@ public partial class MainWindowViewModel : ObservableObject
             return true;
         }
 
-        if (!RequiresDirtyResolution)
+        // Грязной может быть любая вкладка, а не только активная: показываем её пользователю
+        // и спрашиваем про неё, после разрешения запрос на закрытие повторяется — так окно
+        // проходит по всем несохранённым вкладкам по очереди.
+        if (FindFirstDirtyTab() is not { } dirtyTab)
         {
             return false;
+        }
+
+        if (!ReferenceEquals(OpenDocuments.ActiveTab, dirtyTab))
+        {
+            _ = RestoreTabAsync(dirtyTab);
         }
 
         QueueDirtyAction(
@@ -1000,16 +1194,31 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnStateChanged(ViewState value)
     {
+        if (value != ViewState.Viewing)
+        {
+            IsFindBarOpen = false;
+        }
+
         OnPropertyChanged(nameof(HasDocumentTitle));
         OnPropertyChanged(nameof(ShowsReadingStatus));
         OnPropertyChanged(nameof(ShowsEditToggle));
         OnPropertyChanged(nameof(ReadingSettingsOverlayContent));
+
+        // Пустое состояние зависит от State, а вкладка регистрируется до перехода
+        // в Viewing — без этого уведомления заглушка оставалась поверх документа.
+        OnPropertyChanged(nameof(IsEmptyDocumentSurface));
+        OnPropertyChanged(nameof(IsWelcome));
+
         RefreshWindowTitle();
         UpdateCommandStates();
     }
 
     partial void OnIsEditModeChanged(bool value)
     {
+        SyncActiveTabEditorState();
+
+        IsFindBarOpen = false;
+
         if (value)
         {
             CloseAppOverlayCore();
@@ -1021,6 +1230,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowsReadEyeIcon));
         OnPropertyChanged(nameof(ShowsReadingStatus));
         OnPropertyChanged(nameof(ShowsAppMenuControl));
+        OnPropertyChanged(nameof(ShowsFloatingAppMenuButton));
         OnPropertyChanged(nameof(IsAppMenuOpen));
         OnPropertyChanged(nameof(IsAppSettingsOpen));
         OnPropertyChanged(nameof(IsAppAboutOpen));
@@ -1035,9 +1245,18 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnEditorSessionChanging(EditorSessionViewModel? oldValue, EditorSessionViewModel? newValue)
     {
-        if (oldValue is not null)
+        if (oldValue is null)
         {
-            oldValue.PropertyChanged -= OnEditorSessionPropertyChanged;
+            return;
+        }
+
+        oldValue.PropertyChanged -= OnEditorSessionPropertyChanged;
+
+        // Сессия принадлежит вкладке: выбрасываем её только если вкладка её больше не держит.
+        // Иначе переключение вкладок убивало бы несохранённые правки соседней.
+        if (!OpenDocuments.Tabs.Any(tab => ReferenceEquals(tab.EditorSession, oldValue)))
+        {
+            oldValue.Dispose();
         }
     }
 
@@ -1049,6 +1268,8 @@ public partial class MainWindowViewModel : ObservableObject
             value.UpdateReadingPreferences(ReadingPreferences);
             _currentPath = value.CurrentPath;
         }
+
+        SyncActiveTabEditorState();
 
         RefreshDocumentSummary();
         RefreshWindowTitle();
@@ -1118,7 +1339,8 @@ public partial class MainWindowViewModel : ObservableObject
             ReadingPreferences,
             _renderMarkdown,
             _imageSourceResolver,
-            _localization);
+            _localization,
+            CreatePreviewScheduler());
 
         if (!_editorActivationMarked)
         {
@@ -1129,19 +1351,33 @@ public partial class MainWindowViewModel : ObservableObject
         EditorSession.UpdateReadingPreferences(ReadingPreferences);
         EditorSession.SetStatusMessage(string.Empty);
         IsEditMode = true;
+        TrackNewDocumentTab();
         RefreshWindowTitle();
         UpdateCommandStates();
     }
 
-    private Task CloseFileCoreAsync()
+    private async Task CloseFileCoreAsync()
     {
+        CloseOverlayCore();
+
+        if (OpenDocuments.ActiveTab is { } tab)
+        {
+            await RemoveTabAsync(tab).ConfigureAwait(true);
+            return;
+        }
+
         CloseFileCore();
-        return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Полная очистка document surface вместе со всеми вкладками.
+    /// Используется там, где уходит весь контекст: закрытие папки, фатальная ошибка.
+    /// </summary>
     private void CloseFileCore()
     {
         CloseOverlayCore();
+        OpenDocuments.Activate(null);
+        OpenDocuments.Tabs.Clear();
         IsEditMode = false;
         EditorSession = null;
         Document = null;
@@ -1150,8 +1386,10 @@ public partial class MainWindowViewModel : ObservableObject
         State = ViewState.NoDocument;
         ReadingProgress = 0;
         ClearLoadError();
+        SyncWorkspaceActiveDocument();
         RefreshWindowTitle();
         UpdateCommandStates();
+        RefreshTabState();
     }
 
     private void EnterEditModeCore()
@@ -1168,7 +1406,8 @@ public partial class MainWindowViewModel : ObservableObject
                 ReadingPreferences,
                 _renderMarkdown,
                 _imageSourceResolver,
-                _localization);
+                _localization,
+                CreatePreviewScheduler());
         }
 
         if (!_editorActivationMarked)
@@ -1214,10 +1453,16 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void ApplyLoadedDocument(MarkdownSource source, bool preserveEditModeAfterLoad)
     {
-        Document = source;
-        RenderedDocument = _renderMarkdown.Execute(
+        var rendered = _renderMarkdown.Execute(
             source.Content,
             baseDirectory: TryGetDirectory(source.Path));
+
+        // Вкладку переключаем до того, как трогаем EditorSession: иначе сброс сессии
+        // прилетит в предыдущую вкладку и заберёт с собой её несохранённые правки.
+        var loadedTab = TrackLoadedDocumentTab(source, rendered);
+
+        Document = source;
+        RenderedDocument = rendered;
         _currentPath = source.Path;
         State = ViewState.Viewing;
         ReadingProgress = 0;
@@ -1225,18 +1470,20 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (preserveEditModeAfterLoad || AlwaysOpenDocumentsInEditMode)
         {
-            if (EditorSession is null)
+            if (loadedTab.EditorSession is null)
             {
                 EditorSession = new EditorSessionViewModel(
                     source,
                     ReadingPreferences,
                     _renderMarkdown,
                     _imageSourceResolver,
-                    _localization);
+                    _localization,
+                    CreatePreviewScheduler());
             }
             else
             {
-                EditorSession.ApplyLoadedDocument(source);
+                loadedTab.EditorSession.ApplyLoadedDocument(source);
+                EditorSession = loadedTab.EditorSession;
             }
 
             IsEditMode = true;
@@ -1259,6 +1506,7 @@ public partial class MainWindowViewModel : ObservableObject
             _startupMetrics.Mark(StartupStage.DocumentModelReady);
         }
 
+        SyncWorkspaceActiveDocument();
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -1312,13 +1560,15 @@ public partial class MainWindowViewModel : ObservableObject
                 ReadingPreferences,
                 _renderMarkdown,
                 _imageSourceResolver,
-                _localization);
+                _localization,
+                CreatePreviewScheduler());
         }
         else
         {
             EditorSession.ApplySavedDocument(source);
         }
 
+        RetargetActiveTab(source);
         RefreshWindowTitle();
         UpdateCommandStates();
     }
@@ -1350,6 +1600,14 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private bool RequiresDirtyResolution => IsEditMode && EditorSession?.IsDirty == true;
+
+    /// <summary>
+    /// Каждая editor-сессия получает собственный планировщик preview: отложенный
+    /// рендер прошлой сессии не должен долетать до новой. Без фабрики (unit-тесты)
+    /// сессия работает синхронно.
+    /// </summary>
+    private IEditorPreviewScheduler? CreatePreviewScheduler()
+        => _previewSchedulerFactory?.Invoke();
 
     private void QueueDirtyAction(PendingDirtyActionKind kind, Func<Task> action)
     {
@@ -1497,19 +1755,22 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(WordCountStatusLabel));
         OnPropertyChanged(nameof(ReadTimeStatusLabel));
         OnPropertyChanged(nameof(IsDirty));
+        SyncActiveTabDirtyState();
     }
 
     private void RefreshWindowTitle()
     {
-        if (State != ViewState.Viewing)
+        var folderSegment = Workspace is { } workspace
+            ? $"{workspace.RootDisplayName} — "
+            : string.Empty;
+
+        if (State != ViewState.Viewing || string.IsNullOrWhiteSpace(FileName))
         {
-            WindowTitle = "MarkMello";
+            WindowTitle = $"{folderSegment}MarkMello";
             return;
         }
 
-        WindowTitle = string.IsNullOrWhiteSpace(FileName)
-            ? "MarkMello"
-            : $"{TitleFileDisplayName} — MarkMello";
+        WindowTitle = $"{TitleFileDisplayName} — {folderSegment}MarkMello";
     }
 
     private void UpdateCommandStates()
@@ -1534,7 +1795,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static string GetProductVersion()
     {
-        var assembly = Assembly.GetEntryAssembly() ?? typeof(MainWindowViewModel).Assembly;
+        var assembly = Assembly.GetEntryAssembly() ?? typeof(ShellViewModel).Assembly;
 
         var informationalVersion = assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
@@ -1567,7 +1828,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private string? CurrentDocumentPath => EditorSession?.CurrentPath ?? _currentPath ?? Document?.Path;
+    /// <summary>Путь активного документа. Публичен: по нему дерево подсвечивает строку.</summary>
+    public string? CurrentDocumentPath => EditorSession?.CurrentPath ?? _currentPath ?? Document?.Path;
 
     private static int CountWords(string? text)
     {

@@ -5,7 +5,7 @@
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.WelcomeView"
-             x:DataType="vm:MainWindowViewModel">
+             x:DataType="vm:ShellViewModel">
 
   <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
@@ -47,6 +47,21 @@
                   StrokeThickness="1.5"
                   StrokeLineCap="Round" />
             <TextBlock Text="{Binding WelcomeCreateMd}" />
+          </StackPanel>
+        </Button>
+        <Button Classes="welcome-secondary"
+                Command="{Binding OpenFolderCommand}">
+          <StackPanel Orientation="Horizontal"
+                      Spacing="8">
+            <Path Data="M1.75 3.75A1 1 0 0 1 2.75 2.75H5.5L6.75 4.25H11.25A1 1 0 0 1 12.25 5.25V10.25A1 1 0 0 1 11.25 11.25H2.75A1 1 0 0 1 1.75 10.25Z"
+                  Width="14"
+                  Height="14"
+                  Stroke="{DynamicResource MmTextSoftBrush}"
+                  StrokeThickness="1.5"
+                  StrokeLineCap="Round"
+                  StrokeJoin="Round"
+                  Fill="Transparent" />
+            <TextBlock Text="{Binding WelcomeOpenFolder}" />
           </StackPanel>
         </Button>
         <Button Classes="welcome-primary"

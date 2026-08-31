@@ -130,6 +130,22 @@ public sealed class MarkdownDocumentTextMapTests
     }
 
     [Fact]
+    public void ExtractPlainTextUsesShortPlaceholderForDataImageWithoutAltText()
+    {
+        var inlines = new MarkdownInline[]
+        {
+            new MarkdownTextInline("Cost "),
+            new MarkdownImageInline("data:image/png;base64,QUJDREVGRw==", null, null),
+            new MarkdownTextInline(" now")
+        };
+
+        var text = MarkdownDocumentTextMap.ExtractPlainText(inlines);
+
+        Assert.Equal("Cost image now", text);
+        Assert.DoesNotContain("QUJD", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TryGetFragmentReturnsFalseForUnknownKey()
     {
         var textMap = MarkdownDocumentTextMap.Create(

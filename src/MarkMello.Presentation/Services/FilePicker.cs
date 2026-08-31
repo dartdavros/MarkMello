@@ -56,6 +56,29 @@ public sealed class FilePicker : IFilePicker
         return files[0].TryGetLocalPath();
     }
 
+    public async Task<string?> PickFolderAsync(CancellationToken cancellationToken = default)
+    {
+        var topLevel = _topLevelAccessor();
+        if (topLevel?.StorageProvider is not { CanPickFolder: true } provider)
+        {
+            return null;
+        }
+
+        var options = new FolderPickerOpenOptions
+        {
+            Title = _localization["OpenFolderDialogTitle"],
+            AllowMultiple = false
+        };
+
+        var folders = await provider.OpenFolderPickerAsync(options).ConfigureAwait(true);
+        if (folders.Count == 0)
+        {
+            return null;
+        }
+
+        return folders[0].TryGetLocalPath();
+    }
+
     public async Task<string?> PickSaveMarkdownFileAsync(
         string suggestedFileName,
         CancellationToken cancellationToken = default)

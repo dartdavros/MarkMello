@@ -14,6 +14,10 @@ public static class DependencyInjection
         services.AddSingleton<OpenDocumentUseCase>();
         services.AddSingleton<SaveDocumentUseCase>();
         services.AddSingleton<RenderMarkdownDocumentUseCase>();
+        services.AddSingleton<OpenFolderUseCase>();
+        services.AddSingleton<ExpandFolderNodeUseCase>();
+        services.AddSingleton<SearchWorkspaceFilesUseCase>();
+        services.AddSingleton<WorkspaceFileOperationsUseCase>();
         services.AddSingleton<IDiagramRenderService, DiagramRenderService>();
 
         return services;

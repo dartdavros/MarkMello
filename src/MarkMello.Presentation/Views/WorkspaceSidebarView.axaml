@@ -1,0 +1,604 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             xmlns:ws="using:MarkMello.Domain.Workspace"
+             xmlns:views="using:MarkMello.Presentation.Views"
+             mc:Ignorable="d"
+             x:Class="MarkMello.Presentation.Views.WorkspaceSidebarView"
+             x:DataType="vm:ShellViewModel">
+
+  <!-- Стили открытой папки живут здесь, а не в глобальном словаре: в single-file
+       режиме этот контрол не создаётся, и парсить их незачем. -->
+  <UserControl.Styles>
+    <!-- ======================= Сайдбар открытой папки ======================= -->
+
+    <Style Selector="Border.mm-sidebar">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,1,0" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-sidebar-root">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style Selector="ToggleButton.mm-sidebar-icon">
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ToggleButton.mm-sidebar-icon:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="ToggleButton.mm-sidebar-icon:checked /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <Style Selector="TreeView.mm-tree">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="8,2,8,12" />
+      <!-- Без виртуализации каталог на 5000 элементов реализует 5000 строк:
+           замер давал 11 с на раскрытие и 939 МБ рабочего множества. -->
+      <Setter Property="ItemsPanel">
+        <ItemsPanelTemplate>
+          <VirtualizingStackPanel />
+        </ItemsPanelTemplate>
+      </Setter>
+    </Style>
+
+    <Style Selector="TreeView.mm-tree TreeViewItem">
+      <!-- Без этой связки шеврон раскрывает только контейнер: view-model не узнаёт
+           о раскрытии, каталог не читается, и под папкой остаётся пустая строка-заглушка. -->
+      <Setter Property="IsExpanded"
+              Value="{CompiledBinding IsExpanded, Mode=TwoWay, DataType=vm:FileTreeNodeViewModel}" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+      <!-- Тот же панельный шаблон для вложенных уровней: раскрытый большой каталог
+           не должен стоить дороже корневого. -->
+      <Setter Property="ItemsPanel">
+        <ItemsPanelTemplate>
+          <VirtualizingStackPanel />
+        </ItemsPanelTemplate>
+      </Setter>
+    </Style>
+
+    <!-- Отступы уровней из макета: 6px у корня, +20px на уровень, шеврон 12px
+         с щелью 6px. Штатный шаблон отводит место под шеврон в каждой строке и
+         добавляет свой отступ вложенности — вместе это давало дыру перед именем,
+         особенно у файлов, у которых шеврона нет вовсе. -->
+    <Style Selector="TreeView.mm-tree TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
+      <Setter Property="Width"
+              Value="{CompiledBinding IsDirectory, DataType=vm:FileTreeNodeViewModel, Converter={x:Static views:TreeChevronWidthConverter.Instance}}" />
+      <Setter Property="Margin"
+              Value="{Binding $parent[TreeViewItem].Level, Converter={x:Static views:TreeLevelIndentConverter.Instance}}" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Height" Value="12" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+
+    <!-- Выделение и наведение: без этого TreeViewItem красится системным акцентом,
+         который в тёплой палитре выглядит инородным фиолетовым пятном. -->
+    <Style Selector="TreeView.mm-tree TreeViewItem /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="TreeView.mm-tree TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-tree-label">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <!-- Не-документ: показан, но не открывается -->
+    <Style Selector="TextBlock.mm-tree-label.inert">
+      <Setter Property="Foreground" Value="{DynamicResource MmTreeInertTextBrush}" />
+    </Style>
+    <!-- Активный документ: акцент даёт планку слева бесплатно через вес и цвет -->
+    <Style Selector="Border.mm-tree-active-bar">
+      <Setter Property="Width" Value="2" />
+      <Setter Property="Margin" Value="-6,4,0,4" />
+      <Setter Property="CornerRadius" Value="1" />
+      <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-tree-label.active">
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-tree-error">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ======================= Поиск в сайдбаре ======================= -->
+
+    <Style Selector="Border.mm-search-shell">
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Margin" Value="10,0,10,8" />
+      <Setter Property="Padding" Value="9,0" />
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <!-- Активный поиск обводится акцентом: дерево в этот момент скрыто, и это единственный признак -->
+    <Style Selector="Border.mm-search-shell.active">
+      <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.mm-search-input">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="CaretBrush" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <!-- Рамку рисует контейнер поля. Без этих трёх правил Fluent подставляет
+         на фокусе и наведении системный акцент вместо палитры приложения. -->
+    <Style Selector="TextBox.mm-search-input /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.mm-search-input:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.mm-search-input:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- Шапка списка совпадений: дерево в этот момент скрыто, и список надо назвать -->
+    <Style Selector="TextBlock.mm-search-caption">
+      <Setter Property="Margin" Value="14,2,14,4" />
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="LetterSpacing" Value="0.8" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-search-count">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button.mm-search-hit">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Padding" Value="6,4" />
+      <Setter Property="Margin" Value="0,1" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.mm-search-hit:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-search-hit-path">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-search-empty">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="TextAlignment" Value="Center" />
+      <Setter Property="Margin" Value="18,0" />
+    </Style>
+
+    <!-- Обрезанная выдача обязана быть видна: иначе 200 совпадений выглядят полным ответом -->
+    <Style Selector="Border.mm-search-truncated">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+      <Setter Property="Padding" Value="12,8" />
+    </Style>
+    <Style Selector="Border.mm-search-truncated TextBlock">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+    </Style>
+
+    <Style Selector="Border.mm-sidebar-footer">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="Border.mm-sidebar-footer TextBlock">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentMonoFontFamily}" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ======================= Операции в дереве ======================= -->
+
+    <Style Selector="Button.mm-sidebar-action">
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.mm-sidebar-action:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <!-- Инлайн-ввод имени встаёт в дерево, а не в диалог: видно, куда попадёт элемент -->
+    <Style Selector="TextBox.mm-tree-edit-input">
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="6,0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="SelectionBrush" Value="{DynamicResource MmSelectionBrush}" />
+      <Setter Property="SelectionForegroundBrush" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="Margin" Value="0,1" />
+    </Style>
+    <Style Selector="TextBox.mm-tree-edit-input /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.mm-tree-edit-input:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.mm-tree-edit-input:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MmAccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <!-- Ошибочное имя подсвечивается толстой рамкой: BoxShadow у TextBox перекрывается шаблоном -->
+    <Style Selector="TextBox.mm-tree-edit-input.invalid /template/ Border#PART_BorderElement">
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="TextBox.mm-tree-edit-input.invalid:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-tree-edit-error">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+    </Style>
+
+    <!-- Удаление — единственное деструктивное действие в меню, поэтому оно акцентное -->
+    <Style Selector="MenuItem.mm-menu-destructive">
+      <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Classes="mm-sidebar">
+    <Grid RowDefinitions="44,Auto,*,Auto">
+
+      <!-- Шапка: гамбургер переезжает сюда с плавающей позиции, рядом — имя корня -->
+      <Grid Grid.Row="0"
+            ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+            Margin="10,0,8,0"
+            VerticalAlignment="Center">
+        <ToggleButton Grid.Column="0"
+                      Classes="mm-sidebar-icon"
+                      IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
+                      Command="{Binding ToggleAppMenuCommand}"
+                      IsVisible="{Binding ShowsAppMenuControl}"
+                      ToolTip.Tip="{Binding AppMenuTooltip}">
+          <Path Data="M2.5 4H11.5 M2.5 7H11.5 M2.5 10H11.5"
+                Width="14"
+                Height="14"
+                Stroke="{DynamicResource MmTextSoftBrush}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round" />
+        </ToggleButton>
+
+        <TextBlock Grid.Column="1"
+                   Classes="mm-sidebar-root"
+                   Margin="8,0,0,0"
+                   Text="{Binding Workspace.RootDisplayName}"
+                   ToolTip.Tip="{Binding Workspace.Folder.RootPath}" />
+
+        <Button Grid.Column="2"
+                Classes="mm-sidebar-action"
+                Command="{Binding Workspace.StartNewFileCommand}"
+                ToolTip.Tip="{Binding SidebarNewFile}">
+          <Path Data="M7 2.5V11.5M2.5 7H11.5"
+                Width="14"
+                Height="14"
+                Stroke="{DynamicResource MmTextSoftBrush}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round" />
+        </Button>
+
+        <Button Grid.Column="4"
+                Classes="mm-sidebar-action"
+                Command="{Binding ToggleSidebarCommand}"
+                ToolTip.Tip="{Binding SidebarCollapse}">
+          <Path Data="M8.5 3.5L4.5 7L8.5 10.5"
+                Width="14"
+                Height="14"
+                Stroke="{DynamicResource MmTextSoftBrush}"
+                StrokeThickness="1.5"
+                StrokeLineCap="Round"
+                StrokeJoin="Round" />
+        </Button>
+
+        <Button Grid.Column="3"
+                Classes="mm-sidebar-action"
+                Command="{Binding Workspace.StartNewFolderCommand}"
+                ToolTip.Tip="{Binding SidebarNewFolder}">
+          <Path Data="M1.75 4.25A0.75 0.75 0 0 1 2.5 3.5H5.25L6.5 5H11.5A0.75 0.75 0 0 1 12.25 5.75V10.5A0.75 0.75 0 0 1 11.5 11.25H2.5A0.75 0.75 0 0 1 1.75 10.5Z M7 6.75V9.75M5.5 8.25H8.5"
+                Width="14"
+                Height="14"
+                Stretch="Uniform"
+                Stroke="{DynamicResource MmTextSoftBrush}"
+                StrokeThickness="1.3"
+                StrokeLineCap="Round"
+                StrokeJoin="Round"
+                Fill="Transparent" />
+        </Button>
+      </Grid>
+
+      <!-- Поиск по именам: поле и лупа получают акцент, пока запрос активен -->
+      <Border Grid.Row="1"
+              Classes="mm-search-shell"
+              Classes.active="{Binding Workspace.HasSearchQuery}">
+        <Grid ColumnDefinitions="Auto,*,Auto"
+              ColumnSpacing="7">
+          <Panel Grid.Column="0"
+                 Width="12"
+                 Height="12"
+                 VerticalAlignment="Center">
+            <Path Data="M9.25 9.25L12 12 M2.5 6.25A3.75 3.75 0 1 1 10 6.25A3.75 3.75 0 1 1 2.5 6.25Z"
+                  Stretch="Uniform"
+                  IsVisible="{Binding Workspace.ShowsTree}"
+                  Stroke="{DynamicResource MmTextFaintBrush}"
+                  StrokeThickness="1.4"
+                  StrokeLineCap="Round"
+                  Fill="Transparent" />
+            <Path Data="M9.25 9.25L12 12 M2.5 6.25A3.75 3.75 0 1 1 10 6.25A3.75 3.75 0 1 1 2.5 6.25Z"
+                  Stretch="Uniform"
+                  IsVisible="{Binding Workspace.HasSearchQuery}"
+                  Stroke="{DynamicResource MmAccentBrush}"
+                  StrokeThickness="1.4"
+                  StrokeLineCap="Round"
+                  Fill="Transparent" />
+          </Panel>
+
+          <!-- Esc вешается в code-behind: TextBox помечает клавишу обработанной,
+               и обработчик из разметки до неё не доходит. -->
+          <TextBox Grid.Column="1"
+                   Name="SearchInput"
+                   Classes="mm-search-input"
+                   Text="{Binding Workspace.SearchQuery, Mode=TwoWay}"
+                   PlaceholderText="{Binding SidebarSearchPlaceholder}" />
+
+          <TextBlock Grid.Column="2"
+                     Classes="mm-search-count"
+                     IsVisible="{Binding Workspace.HasSearchQuery}"
+                     Text="{Binding Workspace.SearchCountLabel}" />
+        </Grid>
+      </Border>
+
+      <!-- Строки не уезжают за правый край: без этого поле ввода и сообщение об ошибке
+           растягивают дерево по ширине текста и обрезаются краем сайдбара. -->
+      <TreeView Grid.Row="2"
+                Name="FileTree"
+                Classes="mm-tree"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                KeyDown="OnTreeKeyDown"
+                IsVisible="{Binding Workspace.ShowsTree}"
+                ItemsSource="{Binding Workspace.Roots}"
+                SelectedItem="{Binding Workspace.SelectedNode, Mode=TwoWay}">
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate x:DataType="vm:FileTreeNodeViewModel"
+                            ItemsSource="{Binding Children}">
+            <Grid ColumnDefinitions="*,Auto"
+                  ColumnSpacing="6"
+                  Background="Transparent">
+              <Grid.ContextMenu>
+                <ContextMenu>
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeOpenInNewTab}"
+                            IsEnabled="{Binding IsSupportedDocument}"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.OpenNodeCommand}"
+                            CommandParameter="{Binding}" />
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeRename}"
+                            InputGesture="F2"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.StartRenameCommand}"
+                            CommandParameter="{Binding}" />
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeDuplicate}"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.DuplicateCommand}"
+                            CommandParameter="{Binding}" />
+                  <Separator />
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeRevealInExplorer}"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.RevealCommand}"
+                            CommandParameter="{Binding}" />
+                  <MenuItem Header="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).TreeDelete}"
+                            InputGesture="Delete"
+                            Classes="mm-menu-destructive"
+                            Command="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.RequestDeleteCommand}"
+                            CommandParameter="{Binding}" />
+                </ContextMenu>
+              </Grid.ContextMenu>
+
+              <!-- Акцентная планка активного документа: 2px у левого края строки.
+                   Лежит поверх строки, как в макете: отдельной колонкой она сдвигала
+                   бы имя вправо в каждой строке дерева, а не только в активной. -->
+              <Border Grid.Column="0"
+                      Classes="mm-tree-active-bar"
+                      HorizontalAlignment="Left"
+                      IsVisible="{Binding IsActiveDocument}" />
+
+              <StackPanel Grid.Column="0"
+                          Orientation="Horizontal"
+                          Spacing="6"
+                          IsVisible="{Binding !IsEditing}">
+                <TextBlock Classes="mm-tree-label"
+                           Classes.inert="{Binding IsInert}"
+                           Classes.active="{Binding IsActiveDocument}"
+                           Text="{Binding Name}" />
+                <TextBlock Classes="mm-tree-error"
+                           IsVisible="{Binding HasLoadError}"
+                           Text="{Binding LoadError}" />
+              </StackPanel>
+
+              <!-- Ввод имени стоит в самой строке, а не отдельной панелью над деревом
+                   (макет 09). Content = null, пока строка не редактируется, поэтому
+                   поле существует только в одной строке из всех. -->
+              <ContentControl Grid.Column="0"
+                              Content="{Binding Editor}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate x:DataType="vm:FileTreeNodeViewModel">
+                    <StackPanel Spacing="3">
+                      <TextBox Classes="mm-tree-edit-input"
+                               Classes.invalid="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.HasEditError}"
+                               Text="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.EditName, Mode=TwoWay}"
+                               AttachedToVisualTree="OnEditNameAttached"
+                               LostFocus="OnEditNameLostFocus" />
+                      <TextBlock Classes="mm-tree-edit-error"
+                                 IsVisible="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.HasEditError}"
+                                 Text="{Binding $parent[TreeView].((vm:ShellViewModel)DataContext).Workspace.EditError}"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+
+              <!-- Несохранённый документ: та же точка, что и во вкладке -->
+              <Ellipse Grid.Column="1"
+                       IsVisible="{Binding IsDirty}"
+                       Width="5"
+                       Height="5"
+                       Margin="6,0,2,0"
+                       VerticalAlignment="Center"
+                       Fill="{DynamicResource MmAccentBrush}" />
+            </Grid>
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+
+      <Grid Grid.Row="2"
+            IsVisible="{Binding Workspace.HasSearchQuery}"
+            RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0"
+                   Classes="mm-search-caption"
+                   IsVisible="{Binding Workspace.HasSearchHits}"
+                   Text="{Binding SidebarSearchMatches}" />
+
+        <ScrollViewer Grid.Row="1">
+          <ItemsControl ItemsSource="{Binding Workspace.SearchHits}"
+                        Margin="8,2,8,12">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <VirtualizingStackPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="ws:WorkspaceSearchHit">
+                <Button Classes="mm-search-hit"
+                        Command="{Binding $parent[ItemsControl].((vm:ShellViewModel)DataContext).Workspace.ActivateSearchHitCommand}"
+                        CommandParameter="{Binding}">
+                  <StackPanel Spacing="1">
+                    <!-- Подсвечена только совпавшая часть имени. Переносы между Run
+                         превращаются в пробелы и разрывают имя, поэтому они в одну строку. -->
+                    <TextBlock Classes="mm-tree-label"><Run Text="{Binding NameBeforeMatch}" /><Run Text="{Binding MatchedName}" Background="{DynamicResource MmAccentSoftBrush}" Foreground="{DynamicResource MmAccentBrush}" /><Run Text="{Binding NameAfterMatch}" /></TextBlock>
+                    <TextBlock Classes="mm-search-hit-path"
+                               IsVisible="{Binding HasRelativeDirectory}"
+                               Text="{Binding RelativeDirectory}" />
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="0"
+                   Grid.RowSpan="2"
+                   Classes="mm-search-empty"
+                   IsVisible="{Binding Workspace.ShowsSearchEmptyState}"
+                   Text="{Binding SidebarSearchEmpty}" />
+      </Grid>
+
+      <!-- Подвал: в поиске — неполная выдача и подсказка про Esc, иначе счётчик документов -->
+      <StackPanel Grid.Row="3">
+        <Border Classes="mm-search-truncated"
+                IsVisible="{Binding Workspace.IsSearchTruncated}">
+          <TextBlock Text="{Binding SidebarSearchTruncated}"
+                     TextWrapping="Wrap" />
+        </Border>
+        <Border Classes="mm-sidebar-footer">
+          <Panel>
+            <TextBlock IsVisible="{Binding Workspace.HasSearchQuery}"
+                       Text="{Binding SidebarSearchReset}" />
+            <TextBlock IsVisible="{Binding Workspace.ShowsTree}"
+                       Text="{Binding SidebarFooterLabel}" />
+          </Panel>
+        </Border>
+      </StackPanel>
+    </Grid>
+  </Border>
+
+</UserControl>

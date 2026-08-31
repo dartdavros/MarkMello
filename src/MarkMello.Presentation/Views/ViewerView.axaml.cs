@@ -10,9 +10,10 @@ using System.ComponentModel;
 
 namespace MarkMello.Presentation.Views;
 
-public partial class ViewerView : UserControl
+public partial class ViewerView : UserControl, IFindHost
 {
     private const double WheelStepMultiplier = 6.0;
+    private const double KeyboardPageOverlap = 48.0;
     private ScrollViewer? _scroll;
     private MarkdownDocumentView? _documentView;
     private ContentControl? _minimapHost;
@@ -22,17 +23,35 @@ public partial class ViewerView : UserControl
     private bool _hasRenderedDocument;
     private Size _lastMinimapExtent;
     private Size _lastMinimapViewport;
-    private MainWindowViewModel? _viewModel;
+    private ShellViewModel? _viewModel;
 
     public ViewerView()
     {
         InitializeComponent();
     }
 
+    // ---------- IFindHost ----------
+
+    public string? ActiveQuery => _documentView?.ActiveSearchQuery;
+
+    public int MatchIndex => _documentView?.MatchIndex ?? -1;
+
+    public int MatchCount => _documentView?.MatchCount ?? 0;
+
+    public event EventHandler? FindStateChanged;
+
+    public void ApplyQuery(string? query) => _documentView?.ApplySearchQuery(query);
+
+    public void FindNext() => _documentView?.FindNext();
+
+    public void FindPrevious() => _documentView?.FindPrevious();
+
+    public void ClearFind() => _documentView?.ApplySearchQuery(null);
+
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        AttachViewModel(DataContext as MainWindowViewModel);
+        AttachViewModel(DataContext as ShellViewModel);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -44,6 +63,8 @@ public partial class ViewerView : UserControl
             _scroll.ScrollChanged += OnScrollChanged;
             _scroll.AddHandler(InputElement.PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
         }
+
+        AddHandler(KeyDownEvent, OnViewerKeyDown, RoutingStrategies.Tunnel);
 
         _minimapHost = this.FindControl<ContentControl>("MinimapHost");
         if (_minimapHost is not null)
@@ -57,12 +78,13 @@ public partial class ViewerView : UserControl
             _documentView.DocumentRendered += OnDocumentRendered;
             _documentView.DocumentRenderInvalidated += OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested += OnMarkdownFileLinkRequested;
+            _documentView.SearchStateChanged += OnDocumentSearchStateChanged;
         }
 
         SizeChanged += OnViewerSizeChanged;
         ActualThemeVariantChanged += OnViewerAppearanceChanged;
         ResourcesChanged += OnViewerResourcesChanged;
-        AttachViewModel(DataContext as MainWindowViewModel);
+        AttachViewModel(DataContext as ShellViewModel);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -86,11 +108,14 @@ public partial class ViewerView : UserControl
             _scroll = null;
         }
 
+        RemoveHandler(KeyDownEvent, OnViewerKeyDown);
+
         if (_documentView is not null)
         {
             _documentView.DocumentRendered -= OnDocumentRendered;
             _documentView.DocumentRenderInvalidated -= OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested -= OnMarkdownFileLinkRequested;
+            _documentView.SearchStateChanged -= OnDocumentSearchStateChanged;
             _documentView = null;
         }
 
@@ -131,15 +156,128 @@ public partial class ViewerView : UserControl
         e.Handled = true;
     }
 
+    private void OnViewerKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_scroll is null || e.Handled || DataContext is not ShellViewModel { IsViewer: true, IsEditMode: false })
+        {
+            return;
+        }
+
+        if (HasCommandModifier(e.KeyModifiers) || e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            return;
+        }
+
+        var nextOffsetY = GetKeyboardScrollOffset(
+            e.Key,
+            e.KeyModifiers,
+            _scroll.Offset.Y,
+            _scroll.ScrollBarMaximum.Y,
+            _scroll.SmallChange.Height,
+            _scroll.Viewport.Height);
+
+        if (nextOffsetY is null || Math.Abs(nextOffsetY.Value - _scroll.Offset.Y) <= double.Epsilon)
+        {
+            return;
+        }
+
+        _scroll.Offset = new Vector(_scroll.Offset.X, nextOffsetY.Value);
+        e.Handled = true;
+    }
+
+    internal static double? GetKeyboardScrollOffset(
+        Key key,
+        KeyModifiers modifiers,
+        double currentOffset,
+        double maximumOffset,
+        double smallChange,
+        double viewportHeight)
+    {
+        var max = Math.Max(0, maximumOffset);
+        var current = Math.Clamp(currentOffset, 0, max);
+        var lineStep = smallChange > 0 ? smallChange : 40.0;
+        var pageStep = Math.Max(lineStep, viewportHeight - KeyboardPageOverlap);
+
+        var target = key switch
+        {
+            Key.Down => current + lineStep,
+            Key.Up => current - lineStep,
+            Key.PageDown => current + pageStep,
+            Key.PageUp => current - pageStep,
+            Key.Home => 0,
+            Key.End => max,
+            Key.Space when modifiers.HasFlag(KeyModifiers.Shift) => current - pageStep,
+            Key.Space => current + pageStep,
+            _ => (double?)null,
+        };
+
+        return target is null ? null : Math.Clamp(target.Value, 0, max);
+    }
+
+    private static bool HasCommandModifier(KeyModifiers modifiers)
+        => modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Meta);
+
     private void OnDocumentRendered(object? sender, EventArgs e)
     {
-        if (DataContext is MainWindowViewModel vm)
+        if (DataContext is ShellViewModel vm)
         {
             vm.MarkReadableDocumentRendered();
+            RestorePendingScrollOffset(vm);
         }
 
         _hasRenderedDocument = true;
+        FocusDocumentViewAsync();
         QueueMinimapBuild();
+
+        // Keep the active search match in view after a document re-render.
+        if (_documentView?.MatchIndex >= 0)
+        {
+            _documentView.ScrollToActiveMatch();
+        }
+    }
+
+    /// <summary>
+    /// Возврат на вкладку восстанавливает её позицию прокрутки. Делается после отрисовки:
+    /// до неё ScrollBarMaximum ещё нулевой и любое смещение схлопнется в ноль.
+    /// </summary>
+    private void RestorePendingScrollOffset(ShellViewModel viewModel)
+    {
+        if (viewModel.TakePendingScrollOffset() is not { } offset || _scroll is null)
+        {
+            return;
+        }
+
+        if (offset <= 0)
+        {
+            return;
+        }
+
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                if (_scroll is null)
+                {
+                    return;
+                }
+
+                var target = Math.Clamp(offset, 0, _scroll.ScrollBarMaximum.Y);
+                _scroll.Offset = new Vector(_scroll.Offset.X, target);
+            },
+            DispatcherPriority.Background);
+    }
+
+    private void OnDocumentSearchStateChanged(object? sender, EventArgs e)
+        => FindStateChanged?.Invoke(this, EventArgs.Empty);
+
+    private void FocusDocumentViewAsync()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_documentView is not null && DataContext is ShellViewModel { IsViewer: true, IsEditMode: false })
+            {
+                _documentView.Focus(NavigationMethod.Unspecified);
+            }
+        }, DispatcherPriority.Background);
     }
 
     private void OnDocumentRenderInvalidated(object? sender, EventArgs e)
@@ -153,7 +291,7 @@ public partial class ViewerView : UserControl
 
     private async void OnMarkdownFileLinkRequested(object? sender, MarkdownFileLinkRequestedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel vm)
+        if (DataContext is not ShellViewModel vm)
         {
             return;
         }
@@ -170,9 +308,13 @@ public partial class ViewerView : UserControl
 
         var max = _scroll.ScrollBarMaximum.Y;
         var current = _scroll.Offset.Y;
-        if (DataContext is MainWindowViewModel vm)
+        if (DataContext is ShellViewModel vm)
         {
             vm.ReadingProgress = max > 0 ? Math.Clamp(current / max * 100.0, 0, 100) : 0;
+
+            // Позиция уезжает во вкладку на каждое изменение: при переключении
+            // вьюер уже показывает другой документ и спрашивать его поздно.
+            vm.ReportScrollOffset(current);
         }
 
         if (_hasRenderedDocument && HasMinimapLayoutMetricsChanged())
@@ -214,7 +356,7 @@ public partial class ViewerView : UserControl
         QueueMinimapBuild();
     }
 
-    private void AttachViewModel(MainWindowViewModel? viewModel)
+    private void AttachViewModel(ShellViewModel? viewModel)
     {
         if (ReferenceEquals(_viewModel, viewModel))
         {
@@ -236,7 +378,7 @@ public partial class ViewerView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(MainWindowViewModel.ReadingPreferences))
+        if (e.PropertyName != nameof(ShellViewModel.ReadingPreferences))
         {
             return;
         }
@@ -394,7 +536,7 @@ public partial class ViewerView : UserControl
             return false;
         }
 
-        var mode = DataContext is MainWindowViewModel vm
+        var mode = DataContext is ShellViewModel vm
             ? vm.ReadingPreferences.DocumentMinimapMode
             : DocumentMinimapMode.Auto;
 

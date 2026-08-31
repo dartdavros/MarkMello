@@ -33,6 +33,9 @@
       <SolidColorBrush x:Key="MmTextSoftBrush">#5A544F</SolidColorBrush>
       <!-- oklch(0.62 0.010 60) -->
       <SolidColorBrush x:Key="MmTextFaintBrush">#8B8580</SolidColorBrush>
+      <!-- Не-документы в дереве: на полтона темнее faint, иначе 12.5px строка
+           даёт 3.2:1 на фоне сайдбара и 3.0:1 на наведённой строке -->
+      <SolidColorBrush x:Key="MmTreeInertTextBrush">#6F6A65</SolidColorBrush>
       <!-- oklch(0.58 0.14 42) -->
       <SolidColorBrush x:Key="MmAccentBrush">#BD592F</SolidColorBrush>
       <!-- oklch(0.94 0.04 50) -->
@@ -45,6 +48,10 @@
       <SolidColorBrush x:Key="MmQuoteBarBrush">#C4BCB6</SolidColorBrush>
       <!-- Selection: warm highlight aligned with accent-soft -->
       <SolidColorBrush x:Key="MmSelectionBrush">#F5D9C4</SolidColorBrush>
+      <!-- Find (search): non-active matches, soft amber -->
+      <SolidColorBrush x:Key="MmFindHighlightBrush">#F3E3A9</SolidColorBrush>
+      <!-- Find (search): active match, stronger amber -->
+      <SolidColorBrush x:Key="MmFindActiveBrush">#EDD47E</SolidColorBrush>
       <!-- oklch(0.975 0.006 80) -->
       <SolidColorBrush x:Key="MmTitleBarBrush">#F9F6F2</SolidColorBrush>
       <!-- oklch(0.40 0.01 60) -->
@@ -70,6 +77,8 @@
       <SolidColorBrush x:Key="MmTextSoftBrush">#A29E98</SolidColorBrush>
       <!-- oklch(0.55 0.010 70) -->
       <SolidColorBrush x:Key="MmTextFaintBrush">#75716B</SolidColorBrush>
+      <!-- Не-документы в дереве: значение MmTextSoftBrush, faint здесь даёт 3.5:1 -->
+      <SolidColorBrush x:Key="MmTreeInertTextBrush">#A29E98</SolidColorBrush>
       <!-- oklch(0.72 0.12 42) -->
       <SolidColorBrush x:Key="MmAccentBrush">#E38A67</SolidColorBrush>
       <!-- oklch(0.30 0.05 42) -->
@@ -82,6 +91,10 @@
       <SolidColorBrush x:Key="MmQuoteBarBrush">#4D4641</SolidColorBrush>
       <!-- Selection: warm highlight, aligned with dark accent-soft -->
       <SolidColorBrush x:Key="MmSelectionBrush">#3D2B20</SolidColorBrush>
+      <!-- Find (search): non-active matches, soft amber -->
+      <SolidColorBrush x:Key="MmFindHighlightBrush">#3A3420</SolidColorBrush>
+      <!-- Find (search): active match, stronger amber -->
+      <SolidColorBrush x:Key="MmFindActiveBrush">#54461F</SolidColorBrush>
       <!-- oklch(0.16 0.008 60) -->
       <SolidColorBrush x:Key="MmTitleBarBrush">#100C0A</SolidColorBrush>
       <!-- oklch(0.65 0.010 70) -->

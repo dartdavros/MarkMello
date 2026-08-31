@@ -8,7 +8,7 @@ using System.Globalization;
 
 namespace MarkMello.Presentation.Tests;
 
-public sealed class MainWindowViewModelTests
+public sealed class ShellViewModelTests
 {
     [Fact]
     public async Task ToggleEditModeCommandLazilyCreatesEditorSession()
@@ -59,6 +59,28 @@ public sealed class MainWindowViewModelTests
         harness.ViewModel.AlwaysOpenDocumentsInEditMode = true;
 
         Assert.True(harness.Settings.AlwaysOpenDocumentsInEditMode);
+    }
+
+    [Fact]
+    public async Task AlwaysOpenDocumentsInEditModeCreatesSeparateEditorSessionsPerTab()
+    {
+        var harness = CreateHarness();
+        var firstPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        var secondPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "two.md");
+        harness.Loader.Sources[firstPath] = CreateSource(firstPath, "first");
+        harness.Loader.Sources[secondPath] = CreateSource(secondPath, "second");
+        harness.ViewModel.AlwaysOpenDocumentsInEditMode = true;
+
+        await harness.ViewModel.OpenPathAsync(firstPath);
+        var firstSession = harness.ViewModel.EditorSession;
+        await harness.ViewModel.OpenPathAsync(secondPath);
+
+        Assert.True(harness.ViewModel.IsEditMode);
+        Assert.NotNull(firstSession);
+        Assert.NotNull(harness.ViewModel.EditorSession);
+        Assert.NotSame(firstSession, harness.ViewModel.EditorSession);
+        Assert.Same(firstSession, harness.ViewModel.OpenDocuments.Tabs[0].EditorSession);
+        Assert.Same(harness.ViewModel.EditorSession, harness.ViewModel.OpenDocuments.Tabs[1].EditorSession);
     }
 
     [Fact]
@@ -131,6 +153,82 @@ public sealed class MainWindowViewModelTests
 
         Assert.False(harness.ViewModel.IsAppMenuOpen);
         Assert.False(harness.ViewModel.HasOpenOverlay);
+    }
+
+    [Fact]
+    public void ToggleFindBarCommandOpensAndClosesFindBar()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+
+        Assert.True(harness.ViewModel.IsFindBarOpen);
+
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsFindBarOpen);
+    }
+
+    [Fact]
+    public void OpeningAppMenuClosesFindBar()
+    {
+        var harness = CreateHarness();
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+        Assert.True(harness.ViewModel.IsFindBarOpen);
+
+        harness.ViewModel.ToggleAppMenuCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsFindBarOpen);
+        Assert.True(harness.ViewModel.IsAppMenuOpen);
+    }
+
+    [Fact]
+    public void ClearErrorCommandClosesFindBarFirst()
+    {
+        var harness = CreateHarness();
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+        Assert.True(harness.ViewModel.IsFindBarOpen);
+
+        harness.ViewModel.ClearErrorCommand.Execute(null);
+
+        Assert.False(harness.ViewModel.IsFindBarOpen);
+    }
+
+    [Fact]
+    public void FindResultLabelFormatsCountersAndNoResults()
+    {
+        var harness = CreateHarness();
+
+        harness.ViewModel.FindQuery = "alpha";
+        harness.ViewModel.FindMatchCount = 3;
+        harness.ViewModel.FindMatchIndex = 1;
+
+        Assert.Equal("2 of 3", harness.ViewModel.FindResultLabel);
+
+        harness.ViewModel.FindMatchCount = 0;
+
+        Assert.Equal("No results", harness.ViewModel.FindResultLabel);
+
+        harness.ViewModel.FindQuery = string.Empty;
+
+        Assert.Equal("0 of 0", harness.ViewModel.FindResultLabel);
+    }
+
+    [Fact]
+    public async Task EnteringEditModeClosesFindBar()
+    {
+        var harness = CreateHarness();
+        var path = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "one.md");
+        harness.Loader.Sources[path] = CreateSource(path, "alpha beta");
+
+        await harness.ViewModel.OpenPathAsync(path);
+        harness.ViewModel.ToggleFindBarCommand.Execute(null);
+        Assert.True(harness.ViewModel.IsFindBarOpen);
+
+        await harness.ViewModel.ToggleEditModeCommand.ExecuteAsync(null);
+
+        Assert.False(harness.ViewModel.IsFindBarOpen);
+        Assert.True(harness.ViewModel.IsEditMode);
     }
 
     [Fact]
@@ -211,7 +309,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("second", harness.ViewModel.Document!.Content);
     }
 
-    private static Task WaitForDocumentChangeAsync(MainWindowViewModel viewModel, string expectedFileName)
+    private static Task WaitForDocumentChangeAsync(ShellViewModel viewModel, string expectedFileName)
     {
         if (viewModel.FileName == expectedFileName)
         {
@@ -221,7 +319,7 @@ public sealed class MainWindowViewModelTests
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void Handler(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(MainWindowViewModel.FileName) && viewModel.FileName == expectedFileName)
+            if (e.PropertyName == nameof(ShellViewModel.FileName) && viewModel.FileName == expectedFileName)
             {
                 viewModel.PropertyChanged -= Handler;
                 tcs.TrySetResult();
@@ -564,10 +662,10 @@ public sealed class MainWindowViewModelTests
 
         harness.ViewModel.SelectedLanguageOption = russianOption;
 
-        Assert.Contains(nameof(MainWindowViewModel.WelcomeTagline), names);
-        Assert.Contains(nameof(MainWindowViewModel.AppMenuHeader), names);
-        Assert.Contains(nameof(MainWindowViewModel.LanguageOptions), names);
-        Assert.Contains(nameof(MainWindowViewModel.SelectedLanguageOption), names);
+        Assert.Contains(nameof(ShellViewModel.WelcomeTagline), names);
+        Assert.Contains(nameof(ShellViewModel.AppMenuHeader), names);
+        Assert.Contains(nameof(ShellViewModel.LanguageOptions), names);
+        Assert.Contains(nameof(ShellViewModel.SelectedLanguageOption), names);
         Assert.DoesNotContain("Item", names);
         Assert.DoesNotContain("Item[]", names);
         Assert.Equal("Тихое место для чтения Markdown.", harness.ViewModel.WelcomeTagline);
@@ -604,7 +702,7 @@ public sealed class MainWindowViewModelTests
             ArchitectureName: "x64",
             InstallAction: AppUpdateInstallAction.LaunchInstaller);
 
-    private static TestHarness CreateHarness()
+    private static TestHarness CreateHarness(FakeWorkspaceFileSystem? workspaceFileSystem = null)
     {
         var loader = new StubDocumentLoader();
         var saver = new RecordingDocumentSaver();
@@ -615,7 +713,8 @@ public sealed class MainWindowViewModelTests
         var startupMetrics = new RecordingStartupMetrics();
         var updateService = new StubUpdateService();
         var commandLine = new StubCommandLineActivation();
-        var viewModel = new MainWindowViewModel(
+        var fileSystem = workspaceFileSystem ?? new FakeWorkspaceFileSystem();
+        var viewModel = new ShellViewModel(
             new OpenDocumentUseCase(loader),
             new SaveDocumentUseCase(saver),
             picker,
@@ -625,9 +724,25 @@ public sealed class MainWindowViewModelTests
             themeService,
             startupMetrics,
             new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
-            updateService);
+            updateService,
+            new OpenFolderUseCase(fileSystem),
+            new ExpandFolderNodeUseCase(fileSystem),
+            new SearchWorkspaceFilesUseCase(fileSystem),
+            new WorkspaceFileOperationsUseCase(fileSystem, new FakePlatformServices()),
+            new FakePlatformServices(),
+            static () => new FakeWorkspaceWatcher(),
+            new RecordingWindowLauncher());
 
-        return new TestHarness(loader, saver, picker, settings, startupMetrics, updateService, commandLine, viewModel);
+        return new TestHarness(
+            loader,
+            saver,
+            picker,
+            settings,
+            startupMetrics,
+            updateService,
+            commandLine,
+            fileSystem,
+            viewModel);
     }
 
     private sealed record TestHarness(
@@ -638,5 +753,6 @@ public sealed class MainWindowViewModelTests
         RecordingStartupMetrics StartupMetrics,
         StubUpdateService UpdateService,
         StubCommandLineActivation CommandLine,
-        MainWindowViewModel ViewModel);
+        FakeWorkspaceFileSystem WorkspaceFileSystem,
+        ShellViewModel ViewModel);
 }

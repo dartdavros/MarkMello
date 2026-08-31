@@ -33,14 +33,22 @@ New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
 $architecturesAllowed = if ($RuntimeId -eq "win-arm64") { "arm64" } else { "x64compatible" }
 $outputBaseName = "MarkMello-setup-$RuntimeId"
 
+# The machine-wide locations come first because that is where CI installs
+# Inno Setup. The per-user one is what an unelevated `winget install
+# JRSoftware.InnoSetup` produces, which is the common case on a dev box.
 $candidateCompilers = @(
     (Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"),
-    (Join-Path $env:ProgramFiles "Inno Setup 6\ISCC.exe")
+    (Join-Path $env:ProgramFiles "Inno Setup 6\ISCC.exe"),
+    (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe")
 ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
 
 $iscc = $candidateCompilers | Select-Object -First 1
 if (-not $iscc) {
-    throw "ISCC.exe was not found. Install Inno Setup 6 first."
+    $iscc = (Get-Command "ISCC.exe" -ErrorAction SilentlyContinue).Source
+}
+
+if (-not $iscc) {
+    throw "ISCC.exe was not found. Install Inno Setup 6 first, or put ISCC.exe on PATH."
 }
 
 & $iscc `

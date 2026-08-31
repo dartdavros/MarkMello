@@ -149,10 +149,13 @@
                    Classes="mm-editor-textarea"
                    AcceptsReturn="True"
                    AcceptsTab="True"
+                   NewLine="{Binding DocumentNewLine}"
                    TextWrapping="Wrap"
                    ScrollViewer.AllowAutoHide="False"
                    ScrollViewer.VerticalScrollBarVisibility="Auto"
                    ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   KeyDown="OnEditorKeyDown"
+                   TextInput="OnEditorTextInput"
                    Text="{Binding SourceText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
           <Border Classes="mm-editor-status-shell"

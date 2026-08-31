@@ -2,6 +2,8 @@ using MarkMello.Application.Abstractions;
 using MarkMello.Application.Updates;
 using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
+using MarkMello.Domain.Workspace;
+using MarkMello.Presentation.Editing;
 
 namespace MarkMello.Presentation.Tests;
 
@@ -55,8 +57,18 @@ internal sealed class StubFilePicker : IFilePicker
 
     public List<string> SuggestedSaveFileNames { get; } = [];
 
+    public string? OpenFolderPath { get; set; }
+
+    public int PickFolderCallCount { get; private set; }
+
     public Task<string?> PickMarkdownFileAsync(CancellationToken cancellationToken = default)
         => Task.FromResult(OpenPath);
+
+    public Task<string?> PickFolderAsync(CancellationToken cancellationToken = default)
+    {
+        PickFolderCallCount++;
+        return Task.FromResult(OpenFolderPath);
+    }
 
     public Task<string?> PickSaveMarkdownFileAsync(string suggestedFileName, CancellationToken cancellationToken = default)
     {
@@ -69,7 +81,11 @@ internal sealed class StubCommandLineActivation : ICommandLineActivation
 {
     public string? ActivationPath { get; set; }
 
+    public string? ActivationFolderPath { get; set; }
+
     public string? GetActivationFilePath() => ActivationPath;
+
+    public string? GetActivationFolderPath() => ActivationFolderPath;
 
     public event EventHandler<FileActivationEventArgs>? FileActivated;
 
@@ -93,8 +109,32 @@ internal sealed class InMemorySettingsStore : ISettingsStore
 
     public WindowPlacement? WindowPlacement { get; set; }
 
+    public WindowBorderMode WindowBorderMode { get; set; } = WindowBorderMode.Auto;
+
+    public double SidebarWidth { get; set; } = WorkspaceSidebarWidth.Default;
+
     public ValueTask<ReadingPreferences> LoadPreferencesAsync(CancellationToken cancellationToken = default)
         => ValueTask.FromResult(Preferences);
+
+    public WorkspaceSessionState Session { get; set; } = WorkspaceSessionState.Empty;
+
+    public ValueTask<WorkspaceSessionState> LoadSessionAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(Session);
+
+    public ValueTask SaveSessionAsync(WorkspaceSessionState session, CancellationToken cancellationToken = default)
+    {
+        Session = session;
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(SidebarWidth);
+
+    public ValueTask SaveSidebarWidthAsync(double width, CancellationToken cancellationToken = default)
+    {
+        SidebarWidth = WorkspaceSidebarWidth.Normalize(width);
+        return ValueTask.CompletedTask;
+    }
 
     public ValueTask SavePreferencesAsync(ReadingPreferences preferences, CancellationToken cancellationToken = default)
     {
@@ -108,6 +148,15 @@ internal sealed class InMemorySettingsStore : ISettingsStore
     public ValueTask SaveThemeAsync(ThemeMode theme, CancellationToken cancellationToken = default)
     {
         Theme = theme;
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask<WindowBorderMode> LoadWindowBorderModeAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(WindowBorderMode);
+
+    public ValueTask SaveWindowBorderModeAsync(WindowBorderMode mode, CancellationToken cancellationToken = default)
+    {
+        WindowBorderMode = mode;
         return ValueTask.CompletedTask;
     }
 
@@ -175,13 +224,57 @@ internal sealed class RecordingStartupMetrics : IStartupMetrics
 
 internal sealed class TestMarkdownRenderer : IMarkdownDocumentRenderer
 {
+    /// <summary>
+    /// Number of completed renders. Edit-mode preview must not run one of these
+    /// per keystroke — see <c>EditorSessionViewModelTests</c>.
+    /// </summary>
+    public int RenderCount { get; private set; }
+
     public RenderedMarkdownDocument Render(string markdown)
-        => RenderedMarkdownDocument.PlainText(markdown);
+    {
+        RenderCount++;
+        return RenderedMarkdownDocument.PlainText(markdown);
+    }
 
     public RenderedMarkdownDocument Render(string markdown, string? baseDirectory)
     {
+        RenderCount++;
         var document = RenderedMarkdownDocument.PlainText(markdown);
         return baseDirectory is null ? document : document with { BaseDirectory = baseDirectory };
+    }
+}
+
+/// <summary>
+/// <see cref="IEditorPreviewScheduler"/> that holds the pending render until the
+/// test flushes it, standing in for the debounce timer used in production.
+/// </summary>
+internal sealed class ManualEditorPreviewScheduler : IEditorPreviewScheduler
+{
+    private Action? _pending;
+
+    public int ScheduleCount { get; private set; }
+
+    public int CancelCount { get; private set; }
+
+    public bool HasPendingRender => _pending is not null;
+
+    public void Schedule<T>(Func<T> render, Action<T> apply)
+    {
+        ScheduleCount++;
+        _pending = () => apply(render());
+    }
+
+    public void Cancel()
+    {
+        CancelCount++;
+        _pending = null;
+    }
+
+    public void Flush()
+    {
+        var pending = _pending;
+        _pending = null;
+        pending?.Invoke();
     }
 }
 
@@ -227,4 +320,31 @@ internal sealed class StubUpdateService : IUpdateService
         string downloadedFilePath,
         CancellationToken cancellationToken = default)
         => Task.FromResult(NextPrepareResult);
+}
+
+/// <summary>
+/// Запуск окон в тестах: реальные окна не создаём, но фиксируем, что вторая папка
+/// ушла именно в новое окно, а не подменила дерево в текущем.
+/// </summary>
+internal sealed class RecordingWindowLauncher : MarkMello.Presentation.Services.IWindowLauncher
+{
+    public List<string> NewWindowFolders { get; } = [];
+
+    public List<string> FocusedFolders { get; } = [];
+
+    /// <summary>Папки, которые считаются уже открытыми в других окнах.</summary>
+    public HashSet<string> OpenFolders { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public bool TryFocusWindowWithFolder(string folderPath)
+    {
+        if (!OpenFolders.Contains(folderPath))
+        {
+            return false;
+        }
+
+        FocusedFolders.Add(folderPath);
+        return true;
+    }
+
+    public void OpenFolderInNewWindow(string folderPath) => NewWindowFolders.Add(folderPath);
 }

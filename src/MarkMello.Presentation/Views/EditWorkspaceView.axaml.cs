@@ -6,18 +6,22 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using MarkMello.Domain;
 using MarkMello.Presentation.Editing;
 using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Views;
 
-public partial class EditWorkspaceView : UserControl
+public partial class EditWorkspaceView : UserControl, IFindHost
 {
     private const double ScrollSyncViewportAnchorRatio = 0.38;
     private const double ScrollSyncMinViewportAnchorY = 24;
     private const double ScrollSyncHitTestX = 2;
     private const int MaxScrollSyncAttachAttempts = 4;
 
+    private readonly List<DocumentTextRange> _searchMatches = [];
+    private string _activeSearchQuery = string.Empty;
+    private int _activeMatchIndex = -1;
     private TextBox? _editorTextBox;
     private TextPresenter? _editorTextPresenter;
     private ScrollViewer? _editorScrollViewer;
@@ -28,6 +32,141 @@ public partial class EditWorkspaceView : UserControl
     public EditWorkspaceView()
     {
         InitializeComponent();
+    }
+
+    // ---------- IFindHost ----------
+
+    public string? ActiveQuery => _activeSearchQuery.Length == 0 ? null : _activeSearchQuery;
+
+    public int MatchIndex => _searchMatches.Count == 0 ? -1 : _activeMatchIndex;
+
+    public int MatchCount => _searchMatches.Count;
+
+    public event EventHandler? FindStateChanged;
+
+    public void ApplyQuery(string? query)
+    {
+        // Not trimmed, matching the reader: spaces are searchable text.
+        var normalized = query ?? string.Empty;
+        if (string.Equals(_activeSearchQuery, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _activeSearchQuery = normalized;
+        RebuildSearchMatches(keepCurrentIndex: false);
+        _previewDocumentView?.ApplySearchQuery(normalized.Length == 0 ? null : normalized);
+    }
+
+    public void FindNext()
+    {
+        if (_searchMatches.Count == 0)
+        {
+            return;
+        }
+
+        _activeMatchIndex = MarkdownTextSearch.NextIndex(_activeMatchIndex, _searchMatches.Count);
+        ApplyCurrentMatch();
+    }
+
+    public void FindPrevious()
+    {
+        if (_searchMatches.Count == 0)
+        {
+            return;
+        }
+
+        _activeMatchIndex = MarkdownTextSearch.PreviousIndex(_activeMatchIndex, _searchMatches.Count);
+        ApplyCurrentMatch();
+    }
+
+    public void ClearFind()
+    {
+        if (_activeSearchQuery.Length == 0)
+        {
+            return;
+        }
+
+        _activeSearchQuery = string.Empty;
+        _searchMatches.Clear();
+        _activeMatchIndex = -1;
+        _previewDocumentView?.ApplySearchQuery(null);
+        FindStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RebuildSearchMatches(bool keepCurrentIndex)
+    {
+        _searchMatches.Clear();
+        if (_activeSearchQuery.Length > 0)
+        {
+            _searchMatches.AddRange(
+                MarkdownTextSearch.FindAll(_editorTextBox?.Text ?? string.Empty, _activeSearchQuery));
+        }
+
+        if (_searchMatches.Count == 0)
+        {
+            _activeMatchIndex = -1;
+        }
+        else
+        {
+            _activeMatchIndex = keepCurrentIndex && _activeMatchIndex >= 0 && _activeMatchIndex < _searchMatches.Count
+                ? _activeMatchIndex
+                : 0;
+        }
+
+        FindStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ApplyCurrentMatch()
+    {
+        if (_searchMatches.Count == 0 || _activeMatchIndex < 0 || _activeMatchIndex >= _searchMatches.Count)
+        {
+            return;
+        }
+
+        var match = _searchMatches[_activeMatchIndex];
+        if (_editorTextBox is not null)
+        {
+            _editorTextBox.SelectionStart = match.Start;
+            _editorTextBox.SelectionEnd = match.End;
+            _editorTextBox.CaretIndex = match.End;
+            ScrollEditorToOffset(match.Start);
+        }
+
+        FindStateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ScrollEditorToOffset(int characterIndex)
+    {
+        if (_editorTextBox is null || _editorTextPresenter is null || _editorScrollViewer is null)
+        {
+            return;
+        }
+
+        var text = _editorTextBox.Text ?? string.Empty;
+
+        // Scroll-sync speaks in fractional source positions; a match lands at
+        // the start of its line, which is the whole-number position.
+        var sourceLine = GetSourceLineFromCharacterIndex(text, characterIndex);
+        if (!TryGetEditorVerticalOffsetForSourcePosition(sourceLine, out var offsetY))
+        {
+            return;
+        }
+
+        SetSynchronizedVerticalOffset(_editorScrollViewer, offsetY);
+    }
+
+    private void OnEditorTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (_activeSearchQuery.Length == 0)
+        {
+            return;
+        }
+
+        // Refresh the match set and counter while the user is editing, but do
+        // not move their caret/selection; explicit Enter/Shift+Enter navigation
+        // re-selects the current match.
+        RebuildSearchMatches(keepCurrentIndex: true);
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -85,7 +224,8 @@ public partial class EditWorkspaceView : UserControl
         if (_editorScrollViewer is null
             || _editorTextPresenter is null
             || _previewScrollViewer is null
-            || _previewDocumentView is null)
+            || _previewDocumentView is null
+            || _editorTextBox is null)
         {
             if (attempt < MaxScrollSyncAttachAttempts)
             {
@@ -99,6 +239,12 @@ public partial class EditWorkspaceView : UserControl
         _previewScrollViewer.PropertyChanged += OnScrollViewerPropertyChanged;
         _previewDocumentView.DocumentRendered += OnPreviewDocumentRendered;
         _previewDocumentView.DocumentRenderInvalidated += OnPreviewDocumentRenderInvalidated;
+        _editorTextBox.TextChanged += OnEditorTextChanged;
+
+        if (_activeSearchQuery.Length > 0)
+        {
+            _previewDocumentView.ApplySearchQuery(_activeSearchQuery);
+        }
 
         SynchronizePreviewToEditor();
     }
@@ -119,6 +265,11 @@ public partial class EditWorkspaceView : UserControl
         {
             _previewDocumentView.DocumentRendered -= OnPreviewDocumentRendered;
             _previewDocumentView.DocumentRenderInvalidated -= OnPreviewDocumentRenderInvalidated;
+        }
+
+        if (_editorTextBox is not null)
+        {
+            _editorTextBox.TextChanged -= OnEditorTextChanged;
         }
 
         _editorTextBox = null;
@@ -161,8 +312,8 @@ public partial class EditWorkspaceView : UserControl
     {
         if (_previewScrollViewer is null
             || _previewDocumentView is null
-            || !TryGetEditorSourceLineAtViewportAnchor(out var sourceLine)
-            || !_previewDocumentView.TryGetVerticalOffsetForSourceLine(sourceLine, out var previewDocumentOffsetY)
+            || !TryGetEditorSourcePositionAtViewportAnchor(out var sourcePosition)
+            || !_previewDocumentView.TryGetVerticalOffsetForSourcePosition(sourcePosition, out var previewDocumentOffsetY)
             || !TryGetViewportRelativeOriginY(_previewDocumentView, _previewScrollViewer, out var previewDocumentOriginY))
         {
             return;
@@ -188,8 +339,8 @@ public partial class EditWorkspaceView : UserControl
             0,
             GetViewportAnchorY(_previewScrollViewer) - previewDocumentOriginY);
 
-        if (!_previewDocumentView.TryGetSourceLineForVerticalOffset(previewDocumentOffsetY, out var sourceLine)
-            || !TryGetEditorVerticalOffsetForSourceLine(sourceLine, out var editorOffsetY))
+        if (!_previewDocumentView.TryGetSourcePositionForVerticalOffset(previewDocumentOffsetY, out var sourcePosition)
+            || !TryGetEditorVerticalOffsetForSourcePosition(sourcePosition, out var editorOffsetY))
         {
             return;
         }
@@ -197,9 +348,18 @@ public partial class EditWorkspaceView : UserControl
         SetSynchronizedVerticalOffset(_editorScrollViewer!, editorOffsetY);
     }
 
-    private bool TryGetEditorSourceLineAtViewportAnchor(out int sourceLine)
+    /// <summary>
+    /// Позиция в исходнике под якорем вьюпорта редактора, выраженная дробно:
+    /// номер логической строки плюс доля пройденного по ней пути.
+    ///
+    /// Строка markdown-абзаца при мягком переносе занимает в редакторе много
+    /// визуальных строк. Округление до её номера теряло бы всё продвижение
+    /// внутри абзаца — именно из-за этого preview отставал тем сильнее, чем
+    /// дальше по документу уехал редактор.
+    /// </summary>
+    private bool TryGetEditorSourcePositionAtViewportAnchor(out double sourcePosition)
     {
-        sourceLine = 0;
+        sourcePosition = 0;
         if (_editorTextBox is null
             || _editorTextPresenter is null
             || _editorScrollViewer is null
@@ -220,12 +380,14 @@ public partial class EditWorkspaceView : UserControl
 
         var hit = _editorTextPresenter.TextLayout.HitTestPoint(new Point(localX, localY));
         var characterIndex = Math.Clamp(hit.TextPosition, 0, text.Length);
-        sourceLine = GetSourceLineFromCharacterIndex(text, characterIndex);
-        sourceLine = Math.Clamp(sourceLine, 0, Math.Max(0, CountSourceLines(text) - 1));
+        var lastLine = Math.Max(0, CountSourceLines(text) - 1);
+        var sourceLine = Math.Clamp(GetSourceLineFromCharacterIndex(text, characterIndex), 0, lastLine);
+
+        sourcePosition = sourceLine + GetProgressWithinSourceLine(text, sourceLine, localY);
         return true;
     }
 
-    private bool TryGetEditorVerticalOffsetForSourceLine(int sourceLine, out double offsetY)
+    private bool TryGetEditorVerticalOffsetForSourcePosition(double sourcePosition, out double offsetY)
     {
         offsetY = 0;
         if (_editorTextBox is null
@@ -237,13 +399,59 @@ public partial class EditWorkspaceView : UserControl
         }
 
         var text = _editorTextBox.Text ?? string.Empty;
-        var lineStartCharacterIndex = GetLineStartCharacterIndex(text, sourceLine);
-        var lineBounds = _editorTextPresenter.TextLayout.HitTestTextPosition(lineStartCharacterIndex);
+        var lastLine = Math.Max(0, CountSourceLines(text) - 1);
+        var sourceLine = (int)Math.Clamp(Math.Floor(sourcePosition), 0, lastLine);
+        var progress = Math.Clamp(sourcePosition - sourceLine, 0, 1);
+
+        GetSourceLineTops(text, sourceLine, out var lineTop, out var nextLineTop);
+        var localY = nextLineTop > lineTop
+            ? lineTop + ((nextLineTop - lineTop) * progress)
+            : lineTop;
+
         offsetY = _editorScrollViewer.Offset.Y
             + presenterOriginY
-            + lineBounds.Y
+            + localY
             - GetViewportAnchorY(_editorScrollViewer);
         return true;
+    }
+
+    /// <summary>
+    /// Доля [0..1] пройденного по логической строке на высоте
+    /// <paramref name="localY"/> внутри text presenter.
+    /// </summary>
+    private double GetProgressWithinSourceLine(string text, int sourceLine, double localY)
+    {
+        GetSourceLineTops(text, sourceLine, out var lineTop, out var nextLineTop);
+        if (nextLineTop <= lineTop)
+        {
+            return 0;
+        }
+
+        return Math.Clamp((localY - lineTop) / (nextLineTop - lineTop), 0, 1);
+    }
+
+    /// <summary>
+    /// Вертикальные границы логической строки внутри text presenter: её верх и
+    /// верх следующей. Обе границы берутся за один проход по тексту — метод
+    /// вызывается на каждое событие скролла.
+    /// </summary>
+    private void GetSourceLineTops(string text, int sourceLine, out double lineTop, out double nextLineTop)
+    {
+        var layout = _editorTextPresenter!.TextLayout;
+        var lineStart = GetLineStartCharacterIndex(text, sourceLine);
+        lineTop = layout.HitTestTextPosition(lineStart).Y;
+
+        var lineBreak = text.IndexOf('\n', lineStart);
+        if (lineBreak < 0)
+        {
+            // Последняя строка: её низ, иначе завершающий абзац остался бы без
+            // разрешения внутри себя.
+            var end = layout.HitTestTextPosition(text.Length);
+            nextLineTop = end.Y + end.Height;
+            return;
+        }
+
+        nextLineTop = layout.HitTestTextPosition(lineBreak + 1).Y;
     }
 
     private static bool TryGetViewportRelativeOriginY(Control control, Visual relativeTo, out double originY)
@@ -382,6 +590,11 @@ public partial class EditWorkspaceView : UserControl
 
         var selectionStart = Math.Min(editor.SelectionStart, editor.SelectionEnd);
         var selectionEnd = Math.Max(editor.SelectionStart, editor.SelectionEnd);
+        if (TryBlockUnsafeProtectedRangeEdit(editor, session, new DocumentTextRange(selectionStart, selectionEnd)))
+        {
+            return;
+        }
+
         var result = MarkdownEditorFormatter.Apply(session.SourceText, kind, selectionStart, selectionEnd);
 
         editor.Text = result.Text;
@@ -389,6 +602,107 @@ public partial class EditWorkspaceView : UserControl
         editor.SelectionEnd = result.SelectionEnd;
         editor.CaretIndex = result.SelectionEnd;
         editor.Focus();
+    }
+
+    private void OnEditorKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox editor || DataContext is not EditorSessionViewModel session)
+        {
+            return;
+        }
+
+        if (!TryGetMutationRangeForKey(editor, e, out var editRange))
+        {
+            return;
+        }
+
+        if (TryBlockUnsafeProtectedRangeEdit(editor, session, editRange))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void OnEditorTextInput(object? sender, TextInputEventArgs e)
+    {
+        if (string.IsNullOrEmpty(e.Text)
+            || sender is not TextBox editor
+            || DataContext is not EditorSessionViewModel session)
+        {
+            return;
+        }
+
+        var editRange = GetSelectionRange(editor);
+        if (TryBlockUnsafeProtectedRangeEdit(editor, session, editRange))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private static bool TryGetMutationRangeForKey(TextBox editor, KeyEventArgs e, out DocumentTextRange editRange)
+    {
+        editRange = DocumentTextRange.Empty;
+        var selectionRange = GetSelectionRange(editor);
+
+        if (HasCommandModifier(e.KeyModifiers))
+        {
+            if (e.Key is Key.V or Key.X)
+            {
+                editRange = selectionRange;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (!selectionRange.IsEmpty)
+        {
+            if (e.Key is Key.Back or Key.Delete or Key.Enter or Key.Space)
+            {
+                editRange = selectionRange;
+                return true;
+            }
+
+            return false;
+        }
+
+        var textLength = editor.Text?.Length ?? 0;
+        var caret = Math.Clamp(editor.CaretIndex, 0, textLength);
+        switch (e.Key)
+        {
+            case Key.Back when caret > 0:
+                editRange = new DocumentTextRange(caret - 1, caret);
+                return true;
+            case Key.Delete when caret < textLength:
+                editRange = new DocumentTextRange(caret, caret + 1);
+                return true;
+            case Key.Enter:
+            case Key.Space:
+                editRange = new DocumentTextRange(caret, caret);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static DocumentTextRange GetSelectionRange(TextBox editor)
+        => DocumentTextRange.FromBounds(editor.SelectionStart, editor.SelectionEnd);
+
+    private static bool HasCommandModifier(KeyModifiers modifiers)
+        => (modifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+
+    private static bool TryBlockUnsafeProtectedRangeEdit(
+        TextBox editor,
+        EditorSessionViewModel session,
+        DocumentTextRange editRange)
+    {
+        if (!MarkdownEditorProtectedRangeScanner.IsUnsafeEdit(editor.Text, editRange))
+        {
+            return false;
+        }
+
+        session.SetStatusMessage(session.EditorProtectedImageDataMessage);
+        editor.Focus();
+        return true;
     }
 
     private void OnSplitterDragCompleted(object? sender, VectorEventArgs e)

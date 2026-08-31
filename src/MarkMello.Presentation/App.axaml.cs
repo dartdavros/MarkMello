@@ -41,6 +41,9 @@ public partial class App : global::Avalonia.Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // Приложение живёт, пока открыто хотя бы одно окно: вторая папка получает своё.
+            desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnLastWindowClose;
+
             var metrics = Services.GetRequiredService<IStartupMetrics>();
             var window = Services.GetRequiredService<MainWindow>();
 

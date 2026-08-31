@@ -1,3 +1,4 @@
+using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
 using MarkMello.Presentation.Views;
 using MarkMello.Presentation.Views.Markdown;
@@ -8,6 +9,8 @@ namespace MarkMello.Presentation.Tests;
 
 public sealed class MarkdownDocumentViewTests
 {
+    private static readonly int[] ShiftedStartLines = [2, 4, 6];
+
     [Fact]
     public void SelectAllReturnsCanonicalTextAcrossAllBlockTypes()
     {
@@ -195,12 +198,347 @@ public sealed class MarkdownDocumentViewTests
         Assert.False(fragment.SelectionRange.IsEmpty);
     }
 
+    [Fact]
+    public void ImageSourceResolverChangeRebuildsMixedParagraphImageFragment()
+    {
+        var document = new RenderedMarkdownDocument(
+        [
+            new MarkdownParagraphBlock(
+            [
+                new MarkdownTextInline("Before "),
+                new MarkdownImageInline("data:image/png;base64,AQIDBA==", null, null),
+                new MarkdownTextInline(" after")
+            ])
+        ]);
+        var resolver = new TestImageSourceResolver();
+        var view = CreateView(document);
+
+        var initialFragment = GetOnlyDocumentChild<MarkdownSelectionTextFragment>(view);
+        Assert.Null(initialFragment.ImageSourceResolver);
+
+        view.ImageSourceResolver = resolver;
+
+        var rebuiltFragment = GetOnlyDocumentChild<MarkdownSelectionTextFragment>(view);
+        Assert.Same(resolver, rebuiltFragment.ImageSourceResolver);
+    }
+
+    [Fact]
+    public void EditingOneBlockKeepsTheControlsOfEveryOtherBlock()
+    {
+        var view = CreateView(CreateThreeParagraphDocument("first", "second", "third"));
+        var before = GetBlockControls(view);
+
+        view.Document = CreateThreeParagraphDocument("first", "second edited", "third");
+
+        var after = GetBlockControls(view);
+        Assert.Equal(3, after.Length);
+        Assert.Same(before[0], after[0]);
+        Assert.NotSame(before[1], after[1]);
+        Assert.Same(before[2], after[2]);
+    }
+
+    [Fact]
+    public void ReusedBlocksExposeTheDocumentTextOfTheNewParse()
+    {
+        var view = CreateView(CreateThreeParagraphDocument("first", "second", "third"));
+        var edited = CreateThreeParagraphDocument("first", "second is now much longer", "third");
+
+        view.Document = edited;
+        view.SelectAll();
+
+        // "third" is a reused control, but its document range moved with the
+        // longer paragraph above it.
+        Assert.Equal(MarkdownDocumentTextMap.Create(edited).Text, view.SelectedText);
+    }
+
+    [Fact]
+    public void ReusedBlocksPickUpShiftedSourceSpans()
+    {
+        var view = CreateView(CreateThreeParagraphDocument("first", "second", "third"));
+
+        // Same content, every block pushed down two lines by an insertion above.
+        view.Document = CreateThreeParagraphDocument("first", "second", "third", firstLine: 2);
+
+        var startLines = view.EnumerateRegisteredSourceSpans()
+            .Select(span => span.StartLine)
+            .ToArray();
+        Assert.Equal(ShiftedStartLines, startLines);
+    }
+
+    [Fact]
+    public void HeadingAnchorsStayResolvableAfterAnEdit()
+    {
+        var view = CreateView(CreateHeadingDocument("Alpha", "Beta"));
+        Assert.True(view.HasHeadingAnchor("#alpha"));
+        Assert.True(view.HasHeadingAnchor("#beta"));
+
+        view.Document = CreateHeadingDocument("Alpha", "Gamma");
+
+        Assert.True(view.HasHeadingAnchor("#alpha"));
+        Assert.True(view.HasHeadingAnchor("#gamma"));
+        Assert.False(view.HasHeadingAnchor("#beta"));
+    }
+
+    [Fact]
+    public void DuplicateHeadingsKeepStableAnchorNumberingAfterAnEdit()
+    {
+        var view = CreateView(CreateHeadingDocument("Same", "Same", "Tail"));
+        Assert.True(view.HasHeadingAnchor("#same"));
+        Assert.True(view.HasHeadingAnchor("#same-1"));
+
+        view.Document = CreateHeadingDocument("Same", "Same", "Same");
+
+        Assert.True(view.HasHeadingAnchor("#same"));
+        Assert.True(view.HasHeadingAnchor("#same-1"));
+        Assert.True(view.HasHeadingAnchor("#same-2"));
+    }
+
+    private static RenderedMarkdownDocument CreateThreeParagraphDocument(
+        string first,
+        string second,
+        string third,
+        int firstLine = 0)
+        => new(
+        [
+            new MarkdownParagraphBlock([new MarkdownTextInline(first)])
+            {
+                SourceSpan = new MarkdownSourceSpan(firstLine)
+            },
+            new MarkdownParagraphBlock([new MarkdownTextInline(second)])
+            {
+                SourceSpan = new MarkdownSourceSpan(firstLine + 2)
+            },
+            new MarkdownParagraphBlock([new MarkdownTextInline(third)])
+            {
+                SourceSpan = new MarkdownSourceSpan(firstLine + 4)
+            }
+        ]);
+
+    private static RenderedMarkdownDocument CreateHeadingDocument(params string[] headings)
+        => new(headings
+            .Select((text, index) => (MarkdownBlock)new MarkdownHeadingBlock(2, [new MarkdownTextInline(text)])
+            {
+                SourceSpan = new MarkdownSourceSpan(index * 2)
+            })
+            .ToArray());
+
+    private static Control[] GetBlockControls(MarkdownDocumentView view)
+    {
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
+        return root.Children.ToArray();
+    }
+
+    [Fact]
+    public void ApplySearchQueryCountsMatchesCaseInsensitively()
+    {
+        var view = CreateView(CreateCompositeDocument());
+
+        view.ApplySearchQuery("a");
+
+        Assert.Equal("a", view.ActiveSearchQuery);
+        Assert.Equal(GetMatchCount(view, "a"), view.MatchCount);
+        Assert.Equal(0, view.MatchIndex);
+    }
+
+    [Fact]
+    public void ApplySearchQueryMovesToFirstMatchAndHighlightsFragments()
+    {
+        var view = CreateView(CreateCompositeDocument());
+
+        view.ApplySearchQuery("Body");
+
+        Assert.True(view.MatchCount > 0);
+        Assert.Equal(0, view.MatchIndex);
+        Assert.Contains(
+            GetTextFragments(view),
+            fragment => fragment.SearchHighlightRanges.Any(range => range.Start > 0 && !range.IsEmpty));
+    }
+
+    [Fact]
+    public void FindNextCyclesThroughMatchesAndWrapsAround()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("a");
+
+        var count = view.MatchCount;
+        var visited = new List<int>();
+        for (var index = 0; index < count; index++)
+        {
+            visited.Add(view.MatchIndex);
+            view.FindNext();
+        }
+
+        Assert.Equal(count, visited.Distinct().Count());
+        Assert.Equal(0, view.MatchIndex);
+    }
+
+    [Fact]
+    public void FindPreviousWrapsAroundToLastMatch()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("a");
+
+        var count = view.MatchCount;
+        view.FindPrevious();
+
+        Assert.Equal(count - 1, view.MatchIndex);
+    }
+
+    [Fact]
+    public void NoMatchesSetsIndexToMinusOne()
+    {
+        var view = CreateView(CreateCompositeDocument());
+
+        view.ApplySearchQuery("zzz-no-such-text");
+
+        Assert.Equal(0, view.MatchCount);
+        Assert.Equal(-1, view.MatchIndex);
+    }
+
+    [Fact]
+    public void EmptyQueryClearsSearchStateAndHighlights()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("Body");
+        Assert.True(view.MatchCount > 0);
+
+        view.ApplySearchQuery(string.Empty);
+
+        Assert.Null(view.ActiveSearchQuery);
+        Assert.Equal(0, view.MatchCount);
+        Assert.Equal(-1, view.MatchIndex);
+        Assert.All(GetTextFragments(view), fragment => Assert.Empty(fragment.SearchHighlightRanges));
+    }
+
+    [Theory]
+    [InlineData("e")]
+    [InlineData("a")]
+    [InlineData(" ")]
+    [InlineData("Body")]
+    public void EveryFragmentGetsExactlyTheMatchesThatOverlapIt(string query)
+    {
+        // The lookup narrows to a window of the sorted match list instead of
+        // testing every match against every fragment; this pins the result to
+        // the naive computation so the narrowing cannot quietly drop a match.
+        var document = CreateCompositeDocument();
+        var view = CreateView(document);
+        var allMatches = MarkdownTextSearch.FindAll(MarkdownDocumentTextMap.Create(document).Text, query);
+
+        view.ApplySearchQuery(query);
+
+        Assert.NotEmpty(allMatches);
+        foreach (var fragment in GetTextFragments(view))
+        {
+            var expected = allMatches
+                .Select(match => fragment.DocumentRange.Intersection(match))
+                .Where(intersection => !intersection.IsEmpty)
+                .ToArray();
+
+            Assert.Equal(expected, fragment.SearchHighlightRanges);
+        }
+    }
+
+    [Fact]
+    public void NavigatingMatchesLeavesTheHighlightRangesUntouched()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("e");
+        var before = GetTextFragments(view)
+            .Select(fragment => fragment.SearchHighlightRanges.ToArray())
+            .ToArray();
+
+        view.FindNext();
+        view.FindNext();
+        view.FindPrevious();
+
+        var after = GetTextFragments(view)
+            .Select(fragment => fragment.SearchHighlightRanges.ToArray())
+            .ToArray();
+        Assert.Equal(before, after);
+        Assert.Equal(1, view.MatchIndex);
+    }
+
+    [Fact]
+    public void QueryKeepsTheWhitespaceTheUserTyped()
+    {
+        var view = CreateView(CreateCompositeDocument());
+
+        view.ApplySearchQuery(" ");
+
+        // A trimmed query would collapse to empty here and quietly search for
+        // nothing, leaving phrases with spaces unsearchable.
+        Assert.Equal(" ", view.ActiveSearchQuery);
+        Assert.True(view.MatchCount > 0);
+    }
+
+    [Fact]
+    public void DocumentChangeReappliesActiveQueryToNewText()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("Body");
+        var originalCount = view.MatchCount;
+        Assert.True(originalCount > 0);
+
+        view.Document = new RenderedMarkdownDocument(
+        [
+            new MarkdownParagraphBlock([new MarkdownTextInline("Body")])
+        ]);
+
+        Assert.Equal("Body", view.ActiveSearchQuery);
+        Assert.Equal(1, view.MatchCount);
+        Assert.Equal(0, view.MatchIndex);
+    }
+
+    [Fact]
+    public void ReapplyingSameQueryKeepsCurrentMatchIndex()
+    {
+        var view = CreateView(CreateCompositeDocument());
+        view.ApplySearchQuery("a");
+        view.FindNext();
+        view.FindNext();
+        var index = view.MatchIndex;
+
+        view.ApplySearchQuery("a");
+
+        Assert.Equal(index, view.MatchIndex);
+    }
+
+    private static int GetMatchCount(MarkdownDocumentView view, string query)
+    {
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
+        var textMap = MarkdownDocumentTextMap.Create(view.Document!);
+        return MarkdownTextSearch.FindAll(textMap.Text, query).Count;
+    }
+
+    private static IEnumerable<MarkdownSelectionTextFragment> GetTextFragments(MarkdownDocumentView view)
+    {
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
+        return root.Children.OfType<MarkdownSelectionTextFragment>();
+    }
+
     private static MarkdownDocumentView CreateView(RenderedMarkdownDocument document)
         => new()
         {
             Document = document,
             ReadingPreferences = ReadingPreferences.Default
         };
+
+    private static T GetOnlyDocumentChild<T>(MarkdownDocumentView view)
+        where T : Control
+    {
+        var viewport = Assert.IsType<Border>(view.Content);
+        var root = Assert.IsType<StackPanel>(viewport.Child);
+        return Assert.IsType<T>(Assert.Single(root.Children));
+    }
+
+    private sealed class TestImageSourceResolver : IImageSourceResolver
+    {
+        public Task<Stream?> TryOpenAsync(string url, string? baseDirectory, CancellationToken cancellationToken)
+            => Task.FromResult<Stream?>(new MemoryStream([1, 2, 3, 4]));
+    }
 
     private static RenderedMarkdownDocument CreateCompositeDocument()
         => new(
