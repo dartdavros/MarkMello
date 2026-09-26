@@ -218,7 +218,7 @@ public partial class ShellViewModel
     }
 
     /// <summary>Заводит вкладку под загруженный документ или обновляет уже открытую.</summary>
-    private void TrackLoadedDocumentTab(MarkdownSource source, RenderedMarkdownDocument rendered)
+    private DocumentTabViewModel TrackLoadedDocumentTab(MarkdownSource source, RenderedMarkdownDocument rendered)
     {
         var tab = OpenDocuments.FindByPath(source.Path);
         if (tab is null)
@@ -234,6 +234,7 @@ public partial class ShellViewModel
         OpenDocuments.Activate(tab);
         OpenDocuments.Refresh();
         RefreshTabState();
+        return tab;
     }
 
     /// <summary>Новый несохранённый документ тоже занимает вкладку — просто без пути.</summary>
