@@ -1,0 +1,25 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    Wherever the platform asks Avalonia for a drawn title bar - today that is
+    Windows, where the main window keeps its native frame under an extended client
+    area so DWM still animates minimize / maximize / restore - the drawn bar would
+    add its own title and caption buttons. MarkMello draws that bar itself in
+    MainWindow.axaml, so the drawn one stays empty.
+
+    This has to replace the control theme rather than be a style: the window
+    creates the decorations before its own styles load, and adding them
+    invalidates style values on every descendant. The decorations are not a
+    Control, so nothing re-applies styles to them afterwards, while the control
+    theme survives and is looked up again whenever resources change.
+  -->
+  <ControlTheme x:Key="{x:Type WindowDrawnDecorations}" TargetType="WindowDrawnDecorations">
+    <Setter Property="Template">
+      <WindowDrawnDecorationsTemplate>
+        <WindowDrawnDecorationsContent />
+      </WindowDrawnDecorationsTemplate>
+    </Setter>
+  </ControlTheme>
+
+</ResourceDictionary>

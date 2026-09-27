@@ -10,7 +10,6 @@ public partial class MainWindow
 
     private async void OnWindowOpened(object? sender, EventArgs e)
     {
-        ApplyPendingWindowsStartupMaximize();
         // Start the delay when the first window opens, outside startup initialization.
         _ = _viewModel.CheckForUpdatesAfterStartupAsync(_updateNotificationLifetime.Token);
         await _startupInitializationTask.ConfigureAwait(true);

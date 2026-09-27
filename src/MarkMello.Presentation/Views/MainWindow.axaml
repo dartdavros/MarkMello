@@ -155,12 +155,19 @@
           BorderThickness="0">
     <Grid RowDefinitions="Auto,*">
 
+      <!-- On Windows the element roles map this bar onto native non-client
+           hit-testing: the drag area answers as the caption, so dragging,
+           double-click maximize, Aero Snap and drag-to-restore go through Windows
+           and keep its animations; the buttons answer as the native caption
+           buttons, which brings the snap layouts flyout to maximize. Their Click
+           handlers still run: Avalonia redirects that input to the client. -->
       <Border Grid.Row="0"
               Height="36"
               Background="{DynamicResource MmTitleBarBrush}">
         <Grid ColumnDefinitions="*,Auto">
           <Border Grid.Column="0"
                   Background="Transparent"
+                  WindowDecorationProperties.ElementRole="{OnPlatform Default=None, Windows=TitleBar}"
                   PointerPressed="OnTitleBarPointerPressed">
             <DockPanel Name="TitleBarContent"
                      LastChildFill="True"
@@ -185,6 +192,7 @@
                       Orientation="Horizontal"
                       IsVisible="{Binding ShowCustomTitleBar}">
             <Button Classes="titlebar"
+                    WindowDecorationProperties.ElementRole="{OnPlatform Default=None, Windows=MinimizeButton}"
                     Click="OnMinimizeClick"
                     ToolTip.Tip="{Binding TitleBarMinimize}">
               <Path Data="M0,5 L10,5"
@@ -193,6 +201,7 @@
             </Button>
             <Button Name="TitleBarMaximizeButton"
                     Classes="titlebar"
+                    WindowDecorationProperties.ElementRole="{OnPlatform Default=None, Windows=MaximizeButton}"
                     Click="OnMaximizeClick">
               <Grid Width="10" Height="10">
                 <Path Name="TitleBarMaximizeIcon"
@@ -209,6 +218,7 @@
               </Grid>
             </Button>
             <Button Classes="titlebar close"
+                    WindowDecorationProperties.ElementRole="{OnPlatform Default=None, Windows=CloseButton}"
                     Click="OnCloseClick"
                     ToolTip.Tip="{Binding TitleBarClose}">
               <Path Data="M0,0 L10,10 M10,0 L0,10"

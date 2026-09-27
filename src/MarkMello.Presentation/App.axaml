@@ -14,6 +14,7 @@
       <ResourceDictionary.MergedDictionaries>
         <ResourceInclude Source="avares://MarkMello.Presentation/Themes/Colors.axaml" />
         <ResourceInclude Source="avares://MarkMello.Presentation/Themes/Typography.axaml" />
+        <ResourceInclude Source="avares://MarkMello.Presentation/Themes/WindowDecorations.axaml" />
       </ResourceDictionary.MergedDictionaries>
       <localization:LocalizationService x:Key="Localization" />
     </ResourceDictionary>
