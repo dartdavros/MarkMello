@@ -50,6 +50,8 @@
     <KeyBinding Gesture="Cmd+R" Command="{Binding ReloadCommand}" />
     <KeyBinding Gesture="Ctrl+F" Command="{Binding ToggleFindBarCommand}" />
     <KeyBinding Gesture="Cmd+F" Command="{Binding ToggleFindBarCommand}" />
+    <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding ToggleSettingsCommand}" />
+    <KeyBinding Gesture="Cmd+OemComma" Command="{Binding ToggleSettingsCommand}" />
     <KeyBinding Gesture="Escape" Command="{Binding ClearErrorCommand}" />
   </Window.KeyBindings>
 
@@ -328,6 +330,33 @@
                 Margin="0,12,16,0">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <views:ThemeActionsView />
+
+            <Button Classes="topbar-action"
+                    IsVisible="{Binding ShowsSaveButton}"
+                    Command="{Binding SaveCommand}"
+                    ToolTip.Tip="{Binding SaveTooltip}">
+              <StackPanel Orientation="Horizontal"
+                          Spacing="6"
+                          VerticalAlignment="Center">
+                <Viewbox Width="12"
+                         Height="12"
+                         Stretch="Uniform"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center">
+                  <Canvas Width="14" Height="14">
+                    <Path Data="M2.5 1.5h7l2 2v8a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z M4 1.5v3.5h5V1.5 M4 8.5v3.5h6V8.5z"
+                          Stroke="{DynamicResource MmTextSoftBrush}"
+                          StrokeThickness="1.2"
+                          StrokeLineCap="Round"
+                          StrokeJoin="Round"
+                          Fill="Transparent" />
+                  </Canvas>
+                </Viewbox>
+                <TextBlock Text="{Binding SaveButtonLabel}"
+                           FontFamily="{DynamicResource MmDocumentSansFontFamily}"
+                           FontSize="12" />
+              </StackPanel>
+            </Button>
 
             <ToggleButton Classes="topbar-action"
                           IsVisible="{Binding ShowsEditToggle}"

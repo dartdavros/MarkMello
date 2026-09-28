@@ -59,13 +59,21 @@ public partial class ShellViewModel
         nameof(AppMenuHeader),
         nameof(AppMenuCloseFolderHint),
         nameof(AppMenuCloseFolderLabel),
+        nameof(AppMenuNewDocumentHint),
+        nameof(AppMenuNewDocumentLabel),
         nameof(AppMenuOpenFileHint),
         nameof(AppMenuOpenFileLabel),
         nameof(AppMenuOpenFolderHint),
         nameof(AppMenuOpenFolderLabel),
+        nameof(AppMenuSaveHint),
+        nameof(AppMenuSaveLabel),
+        nameof(AppMenuSaveAsHint),
+        nameof(AppMenuSaveAsLabel),
         nameof(AppMenuSettingsHint),
         nameof(AppMenuSettingsLabel),
         nameof(AppMenuTooltip),
+        nameof(SaveButtonLabel),
+        nameof(SaveTooltip),
         nameof(AppSettingsHeader),
         nameof(DirtyPromptCancel),
         nameof(DirtyPromptDiscard),
@@ -237,10 +245,18 @@ public partial class ShellViewModel
 
     /// <summary>«ещё N» — счётчик приходит из состава вкладок, поэтому свойство пересчитывается.</summary>
     public string TabsOverflowLabel => _localization.Format("TabsOverflow", OpenDocuments.OverflowTabs.Count);
+    public string AppMenuNewDocumentHint => _localization["AppMenuNewDocumentHint"];
+    public string AppMenuNewDocumentLabel => _localization["AppMenuNewDocumentLabel"];
     public string AppMenuOpenFileLabel => _localization["AppMenuOpenFileLabel"];
+    public string AppMenuSaveHint => _localization["AppMenuSaveHint"];
+    public string AppMenuSaveLabel => _localization["AppMenuSaveLabel"];
+    public string AppMenuSaveAsHint => _localization["AppMenuSaveAsHint"];
+    public string AppMenuSaveAsLabel => _localization["AppMenuSaveAsLabel"];
     public string AppMenuSettingsHint => _localization["AppMenuSettingsHint"];
     public string AppMenuSettingsLabel => _localization["AppMenuSettingsLabel"];
     public string AppMenuTooltip => _localization["AppMenuTooltip"];
+    public string SaveButtonLabel => _localization["SaveButtonLabel"];
+    public string SaveTooltip => _localization["SaveTooltip"];
     public string AppSettingsHeader => _localization["AppSettingsHeader"];
     public string DirtyPromptCancel => _localization["DirtyPromptCancel"];
     public string DirtyPromptDiscard => _localization["DirtyPromptDiscard"];

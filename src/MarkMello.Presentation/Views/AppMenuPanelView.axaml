@@ -31,6 +31,28 @@
           <Border Classes="mm-settings-body-shell">
             <StackPanel Spacing="0">
               <Button Classes="mm-menu-item"
+                      Command="{Binding CreateNewDocumentCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="{Binding AppMenuNewDocumentLabel}" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="{Binding AppMenuNewDocumentHint}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Ctrl N" />
+                </Grid>
+              </Button>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
                       Command="{Binding OpenFileCommand}">
                 <Grid ColumnDefinitions="*,Auto"
                       ColumnSpacing="12">
@@ -71,6 +93,54 @@
               </Button>
 
               <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
+                      IsVisible="{Binding ShowsSaveButton}"
+                      Command="{Binding SaveCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="{Binding AppMenuSaveLabel}" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="{Binding AppMenuSaveHint}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Ctrl S" />
+                </Grid>
+              </Button>
+
+              <Line Classes="mm-setting-divider"
+                    IsVisible="{Binding ShowsSaveButton}"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Button Classes="mm-menu-item"
+                      IsVisible="{Binding CanSaveAs}"
+                      Command="{Binding SaveAsCommand}">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2"
+                              HorizontalAlignment="Left">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="{Binding AppMenuSaveAsLabel}" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="{Binding AppMenuSaveAsHint}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Classes="mm-setting-meta"
+                             Text="Ctrl Shift S" />
+                </Grid>
+              </Button>
+
+              <Line Classes="mm-setting-divider"
+                    IsVisible="{Binding CanSaveAs}"
                     StartPoint="0,0.5"
                     EndPoint="1,0.5" />
 

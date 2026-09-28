@@ -604,6 +604,17 @@ public partial class EditWorkspaceView : UserControl, IFindHost
         editor.Focus();
     }
 
+    private void OnSaveButtonClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this)?.DataContext is ShellViewModel shell)
+        {
+            if (shell.SaveCommand.CanExecute(null))
+            {
+                shell.SaveCommand.Execute(null);
+            }
+        }
+    }
+
     private void OnEditorKeyDown(object? sender, KeyEventArgs e)
     {
         if (sender is not TextBox editor || DataContext is not EditorSessionViewModel session)

@@ -79,6 +79,7 @@ public partial class ViewerView : UserControl, IFindHost
             _documentView.DocumentRenderInvalidated += OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested += OnMarkdownFileLinkRequested;
             _documentView.SearchStateChanged += OnDocumentSearchStateChanged;
+            _documentView.DocumentContentEdited += OnDocumentContentEdited;
         }
 
         SizeChanged += OnViewerSizeChanged;
@@ -116,10 +117,16 @@ public partial class ViewerView : UserControl, IFindHost
             _documentView.DocumentRenderInvalidated -= OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested -= OnMarkdownFileLinkRequested;
             _documentView.SearchStateChanged -= OnDocumentSearchStateChanged;
+            _documentView.DocumentContentEdited -= OnDocumentContentEdited;
             _documentView = null;
         }
 
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnDocumentContentEdited(object? sender, MarkdownDocumentContentEditedEventArgs e)
+    {
+        _viewModel?.ApplyQuickDocumentEdit(e.NewContent);
     }
 
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)

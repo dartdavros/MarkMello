@@ -81,7 +81,7 @@ public partial class ShellViewModel
     /// Плавающий гамбургер живёт только без сайдбара: при открытой папке его роль
     /// исполняет кнопка в шапке сайдбара (макет 03).
     /// </summary>
-    public bool ShowsFloatingAppMenuButton => ShowsAppMenuControl && !ShowsSidebar;
+    public bool ShowsFloatingAppMenuButton => ShowsAppMenuControl && !ShowsSidebar && !IsEditMode;
 
     /// <summary>
     /// Кнопка возврата свёрнутого дерева. В макете возврат был только через меню

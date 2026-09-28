@@ -444,21 +444,160 @@ public partial class MainWindow : Window
 
     private void OnWindowKeyDown(object? sender, KeyEventArgs e)
     {
-        if (!HasSettingsShortcutModifier(e.KeyModifiers))
+        var hasCmdOrCtrl = (e.KeyModifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+        var hasShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+
+        if (e.Key == Key.F5 && e.KeyModifiers == KeyModifiers.None)
         {
-            return;
+            if (_viewModel.ReloadCommand.CanExecute(null))
+            {
+                _viewModel.ReloadCommand.Execute(null);
+                e.Handled = true;
+                return;
+            }
         }
 
-        if (e.PhysicalKey != PhysicalKey.Comma
-            && e.Key != Key.OemComma
-            && !string.Equals(e.KeySymbol, ",", StringComparison.Ordinal))
+        if (hasCmdOrCtrl)
         {
-            return;
-        }
+            if (hasShift)
+            {
+                if (MatchesKey(e, PhysicalKey.S, Key.S))
+                {
+                    if (_viewModel.SaveAsCommand.CanExecute(null))
+                    {
+                        _viewModel.SaveAsCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
 
-        _viewModel.ToggleSettingsCommand.Execute(null);
-        e.Handled = true;
+                if (MatchesKey(e, PhysicalKey.O, Key.O))
+                {
+                    if (_viewModel.OpenFolderCommand.CanExecute(null))
+                    {
+                        _viewModel.OpenFolderCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.Tab, Key.Tab))
+                {
+                    if (_viewModel.ActivatePreviousTabCommand.CanExecute(null))
+                    {
+                        _viewModel.ActivatePreviousTabCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                if (MatchesKey(e, PhysicalKey.S, Key.S))
+                {
+                    if (_viewModel.SaveCommand.CanExecute(null))
+                    {
+                        _viewModel.SaveCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.N, Key.N))
+                {
+                    if (_viewModel.CreateNewDocumentCommand.CanExecute(null))
+                    {
+                        _viewModel.CreateNewDocumentCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.O, Key.O))
+                {
+                    if (_viewModel.OpenFileCommand.CanExecute(null))
+                    {
+                        _viewModel.OpenFileCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.E, Key.E))
+                {
+                    if (_viewModel.ToggleEditModeCommand.CanExecute(null))
+                    {
+                        _viewModel.ToggleEditModeCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.B, Key.B))
+                {
+                    if (_viewModel.ToggleSidebarCommand.CanExecute(null))
+                    {
+                        _viewModel.ToggleSidebarCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.W, Key.W))
+                {
+                    if (_viewModel.CloseActiveTabCommand.CanExecute(null))
+                    {
+                        _viewModel.CloseActiveTabCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.F, Key.F))
+                {
+                    if (_viewModel.ToggleFindBarCommand.CanExecute(null))
+                    {
+                        _viewModel.ToggleFindBarCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.R, Key.R))
+                {
+                    if (_viewModel.ReloadCommand.CanExecute(null))
+                    {
+                        _viewModel.ReloadCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.Comma, Key.OemComma) || string.Equals(e.KeySymbol, ",", StringComparison.Ordinal))
+                {
+                    if (_viewModel.ToggleSettingsCommand.CanExecute(null))
+                    {
+                        _viewModel.ToggleSettingsCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+
+                if (MatchesKey(e, PhysicalKey.Tab, Key.Tab))
+                {
+                    if (_viewModel.ActivateNextTabCommand.CanExecute(null))
+                    {
+                        _viewModel.ActivateNextTabCommand.Execute(null);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
+        }
     }
+
+    private static bool MatchesKey(KeyEventArgs e, PhysicalKey physicalKey, Key virtualKey)
+        => e.PhysicalKey == physicalKey || e.Key == virtualKey;
 
     // ---------- Drag & drop ----------
 

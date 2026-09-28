@@ -109,7 +109,7 @@
     <Setter Property="Stroke" Value="{DynamicResource MmAccentBrush}" />
   </Style>
 
-  <Style Selector="ToggleButton.topbar-action">
+  <Style Selector="ToggleButton.topbar-action, Button.topbar-action">
     <Setter Property="Background" Value="{DynamicResource MmElevatedBackgroundBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
@@ -123,17 +123,17 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
-  <Style Selector="ToggleButton.topbar-action:pointerover /template/ ContentPresenter">
+  <Style Selector="ToggleButton.topbar-action:pointerover /template/ ContentPresenter, Button.topbar-action:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource MmSurfaceBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource MmBorderBrush}" />
   </Style>
-  <Style Selector="ToggleButton.topbar-action:pointerover Path">
+  <Style Selector="ToggleButton.topbar-action:pointerover Path, Button.topbar-action:pointerover Path">
     <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
   </Style>
-  <Style Selector="ToggleButton.topbar-action:pointerover Ellipse">
+  <Style Selector="ToggleButton.topbar-action:pointerover Ellipse, Button.topbar-action:pointerover Ellipse">
     <Setter Property="Stroke" Value="{DynamicResource MmTextBrush}" />
   </Style>
-  <Style Selector="ToggleButton.topbar-action:pointerover TextBlock">
+  <Style Selector="ToggleButton.topbar-action:pointerover TextBlock, Button.topbar-action:pointerover TextBlock">
     <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
   </Style>
   <Style Selector="ToggleButton.topbar-action:checked /template/ ContentPresenter">
@@ -149,7 +149,7 @@
   <Style Selector="ToggleButton.topbar-action:checked TextBlock">
     <Setter Property="Foreground" Value="{DynamicResource MmAccentBrush}" />
   </Style>
-  <Style Selector="ToggleButton.topbar-action:disabled">
+  <Style Selector="ToggleButton.topbar-action:disabled, Button.topbar-action:disabled">
     <Setter Property="Opacity" Value="0.55" />
   </Style>
 
@@ -661,6 +661,37 @@
   <Style Selector="TextBox.mm-editor-textarea /template/ TextPresenter#PART_TextPresenter">
     <Setter Property="Margin" Value="36,28,36,28" />
     <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="TextBox.mm-quick-inline-editor">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="4,1" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource MmAccentSoftBrush}" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+  </Style>
+  <Style Selector="TextBox.mm-quick-inline-editor /template/ Border#PART_BorderElement">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.mm-quick-inline-editor:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Background" Value="{DynamicResource MmGhostHoverBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.mm-quick-inline-editor:focus /template/ Border#PART_BorderElement">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Background" Value="{DynamicResource MmGhostHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
   </Style>
 
   <Style Selector="GridSplitter.mm-editor-splitter">
