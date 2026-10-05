@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using MarkMello.Domain;
 using MarkMello.Presentation.ViewModels;
 using MarkMello.Presentation.Views.Markdown.Minimap;
@@ -79,6 +80,7 @@ public partial class ViewerView : UserControl, IFindHost
             _documentView.DocumentRenderInvalidated += OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested += OnMarkdownFileLinkRequested;
             _documentView.SearchStateChanged += OnDocumentSearchStateChanged;
+            _documentView.DocumentContentEdited += OnDocumentContentEdited;
         }
 
         SizeChanged += OnViewerSizeChanged;
@@ -116,10 +118,16 @@ public partial class ViewerView : UserControl, IFindHost
             _documentView.DocumentRenderInvalidated -= OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested -= OnMarkdownFileLinkRequested;
             _documentView.SearchStateChanged -= OnDocumentSearchStateChanged;
+            _documentView.DocumentContentEdited -= OnDocumentContentEdited;
             _documentView = null;
         }
 
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnDocumentContentEdited(object? sender, MarkdownDocumentContentEditedEventArgs e)
+    {
+        _viewModel?.ApplyQuickDocumentEdit(e.NewContent);
     }
 
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
@@ -159,6 +167,12 @@ public partial class ViewerView : UserControl, IFindHost
     private void OnViewerKeyDown(object? sender, KeyEventArgs e)
     {
         if (_scroll is null || e.Handled || DataContext is not ShellViewModel { IsViewer: true, IsEditMode: false })
+        {
+            return;
+        }
+
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() as Visual;
+        if (focused is Markdown.MarkdownQuickEditorControl || IsVisualDescendantOf(focused, typeof(Markdown.MarkdownQuickEditorControl)))
         {
             return;
         }
@@ -216,6 +230,20 @@ public partial class ViewerView : UserControl, IFindHost
 
     private static bool HasCommandModifier(KeyModifiers modifiers)
         => modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Meta);
+
+    private static bool IsVisualDescendantOf(Visual? child, Type parentType)
+    {
+        var current = child;
+        while (current is not null)
+        {
+            if (parentType.IsInstanceOfType(current))
+            {
+                return true;
+            }
+            current = current.GetVisualParent();
+        }
+        return false;
+    }
 
     private void OnDocumentRendered(object? sender, EventArgs e)
     {
@@ -366,6 +394,10 @@ public partial class ViewerView : UserControl, IFindHost
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            if (_viewModel.CommitActiveInlineEditor == CommitActiveInlineEditor)
+            {
+                _viewModel.CommitActiveInlineEditor = null;
+            }
         }
 
         _viewModel = viewModel;
@@ -373,7 +405,13 @@ public partial class ViewerView : UserControl, IFindHost
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _viewModel.CommitActiveInlineEditor = CommitActiveInlineEditor;
         }
+    }
+
+    private void CommitActiveInlineEditor()
+    {
+        _documentView?.CommitQuickEditor();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

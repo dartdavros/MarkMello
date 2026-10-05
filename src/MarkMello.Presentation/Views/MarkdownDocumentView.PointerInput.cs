@@ -43,6 +43,16 @@ public sealed partial class MarkdownDocumentView
             return;
         }
 
+        if (_quickInlineEditingController.HasActiveEditor)
+        {
+            if (_quickInlineEditingController.IsPointerOverActiveEditor(e.Source, e.GetPosition(this)))
+            {
+                return;
+            }
+
+            _quickInlineEditingController.CommitQuickEditor();
+        }
+
         var currentPoint = e.GetCurrentPoint(this);
         if (currentPoint.Properties.IsRightButtonPressed)
         {
@@ -65,6 +75,8 @@ public sealed partial class MarkdownDocumentView
         // Focus via NavigationMethod.Pointer so the act of starting a selection
         // does not raise RequestBringIntoView and make the ScrollViewer jump.
         Focus(NavigationMethod.Pointer);
+
+        CancelPendingQuickEditTimer();
 
         if (e.ClickCount >= 3)
         {
@@ -90,6 +102,7 @@ public sealed partial class MarkdownDocumentView
         _isDraggingSelection = false;
         _preserveSelectionOnRelease = false;
         _pointerPressOrigin = e.GetPosition(this);
+        _pressedLocalPosition = localPosition;
         _pressedFragment = fragment;
         _pressedLink = fragment.TryGetLinkAt(localPosition, out var pressedLink)
             ? pressedLink
@@ -118,6 +131,7 @@ public sealed partial class MarkdownDocumentView
             return;
         }
 
+        CancelPendingQuickEditTimer();
         _isDraggingSelection = true;
         var offset = ResolveDocumentOffset(position);
         SetSelection(SelectionAnchor.Value, offset);
@@ -131,6 +145,13 @@ public sealed partial class MarkdownDocumentView
             return;
         }
 
+        var shouldTryQuickEdit = !_isDraggingSelection
+            && !_quickInlineEditingController.HasActiveEditor
+            && _pressedLink is null
+            && _pressedFragment is not null
+            && !string.IsNullOrEmpty(SourceText)
+            && e.InitialPressMouseButton == MouseButton.Left;
+
         await TryActivatePressedLinkAsync(e);
 
         if (!_isDraggingSelection && !_preserveSelectionOnRelease)
@@ -138,9 +159,52 @@ public sealed partial class MarkdownDocumentView
             ClearSelection();
         }
 
+        var fragmentToEdit = _pressedFragment;
+        var localPosToEdit = _pressedLocalPosition;
+
         ResetPointerState();
         e.Pointer.Capture(null);
         e.Handled = true;
+
+        if (shouldTryQuickEdit && fragmentToEdit is not null)
+        {
+            ScheduleQuickEdit(fragmentToEdit, localPosToEdit);
+        }
+    }
+
+    private void ScheduleQuickEdit(MarkdownDocumentSelectionFragmentBase fragment, Point localPosition)
+    {
+        CancelPendingQuickEditTimer();
+
+        _pendingQuickEditAction = () =>
+        {
+            if (!_quickInlineEditingController.HasActiveEditor && !HasSelection)
+            {
+                _quickInlineEditingController.BeginQuickEdit(fragment, localPosition, _sourceLineAnchors, _root);
+            }
+        };
+
+        _pendingQuickEditTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(280)
+        };
+        _pendingQuickEditTimer.Tick += (_, _) =>
+        {
+            CancelPendingQuickEditTimer();
+            _pendingQuickEditAction?.Invoke();
+            _pendingQuickEditAction = null;
+        };
+        _pendingQuickEditTimer.Start();
+    }
+
+    private void CancelPendingQuickEditTimer()
+    {
+        if (_pendingQuickEditTimer is not null)
+        {
+            _pendingQuickEditTimer.Stop();
+            _pendingQuickEditTimer = null;
+        }
+        _pendingQuickEditAction = null;
     }
 
     private void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)

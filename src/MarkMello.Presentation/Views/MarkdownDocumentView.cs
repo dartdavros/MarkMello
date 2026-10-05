@@ -46,6 +46,9 @@ public sealed partial class MarkdownDocumentView : UserControl
     public static readonly StyledProperty<IImageSourceResolver?> ImageSourceResolverProperty =
         AvaloniaProperty.Register<MarkdownDocumentView, IImageSourceResolver?>(nameof(ImageSourceResolver));
 
+    public static readonly StyledProperty<string?> SourceTextProperty =
+        AvaloniaProperty.Register<MarkdownDocumentView, string?>(nameof(SourceText));
+
     private const double DragSelectionThreshold = 4;
     private const double CodeBlockHorizontalScrollBarReserve = 16;
     private static readonly DataFormat<byte[]> WindowsHtmlClipboardFormat = DataFormat.CreateBytesPlatformFormat("HTML Format");
@@ -85,9 +88,13 @@ public sealed partial class MarkdownDocumentView : UserControl
     private bool _isPointerPressed;
     private bool _isDraggingSelection;
     private Point _pointerPressOrigin;
+    private Point _pressedLocalPosition;
     private MarkdownDocumentSelectionFragmentBase? _pressedFragment;
     private MarkdownLinkSpan? _pressedLink;
     private bool _preserveSelectionOnRelease;
+    private readonly MarkdownQuickInlineEditingController _quickInlineEditingController;
+    private DispatcherTimer? _pendingQuickEditTimer;
+    private Action? _pendingQuickEditAction;
     private MenuItem? _copyMenuItem;
     private MenuItem? _copyLinkMenuItem;
     private MenuItem? _copyTelegramMarkdownMenuItem;
@@ -108,6 +115,7 @@ public sealed partial class MarkdownDocumentView : UserControl
 
     public MarkdownDocumentView()
     {
+        _quickInlineEditingController = new MarkdownQuickInlineEditingController(this);
         Focusable = true;
         IsTabStop = true;
         UseLayoutRounding = true;
@@ -139,6 +147,12 @@ public sealed partial class MarkdownDocumentView : UserControl
     {
         get => GetValue(DocumentProperty);
         set => SetValue(DocumentProperty, value);
+    }
+
+    public string? SourceText
+    {
+        get => GetValue(SourceTextProperty);
+        set => SetValue(SourceTextProperty, value);
     }
 
     public ReadingPreferences ReadingPreferences
@@ -176,4 +190,13 @@ public sealed partial class MarkdownDocumentView : UserControl
     public event EventHandler? DocumentRenderInvalidated;
 
     public event EventHandler<MarkdownFileLinkRequestedEventArgs>? MarkdownFileLinkRequested;
+
+    public event EventHandler<MarkdownDocumentContentEditedEventArgs>? DocumentContentEdited;
+
+    public void CommitQuickEditor() => _quickInlineEditingController.CommitQuickEditor();
+
+    public void CancelQuickEditor() => _quickInlineEditingController.CancelQuickEditor();
+
+    internal void RaiseDocumentContentEdited(string newContent)
+        => DocumentContentEdited?.Invoke(this, new MarkdownDocumentContentEditedEventArgs(newContent));
 }

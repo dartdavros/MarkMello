@@ -663,6 +663,37 @@
     <Setter Property="Background" Value="Transparent" />
   </Style>
 
+  <Style Selector="TextBox.mm-quick-inline-editor">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="4,1" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource MmAccentBrush}" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource MmAccentSoftBrush}" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+  </Style>
+  <Style Selector="TextBox.mm-quick-inline-editor /template/ Border#PART_BorderElement">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.mm-quick-inline-editor:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Background" Value="{DynamicResource MmGhostHoverBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="TextBox.mm-quick-inline-editor:focus /template/ Border#PART_BorderElement">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Background" Value="{DynamicResource MmGhostHoverBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource MmBorderSoftBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
   <Style Selector="GridSplitter.mm-editor-splitter">
     <Setter Property="Width" Value="9" />
     <Setter Property="Margin" Value="-4,0" />

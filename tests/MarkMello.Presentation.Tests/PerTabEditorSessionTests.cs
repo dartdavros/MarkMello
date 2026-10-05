@@ -36,6 +36,107 @@ public sealed class PerTabEditorSessionTests
     }
 
     [Fact]
+    public async Task QuickEditInReadingModeSurvivesSwitchingTabsAndBack()
+    {
+        var harness = CreateHarness();
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
+        harness.ViewModel.ApplyQuickDocumentEdit("# first quick edited");
+
+        var first = harness.ViewModel.OpenDocuments.Tabs[0];
+        Assert.True(first.IsDirty);
+        Assert.False(harness.ViewModel.IsEditMode);
+
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\second.md");
+
+        Assert.False(harness.ViewModel.IsEditMode);
+        Assert.True(first.IsDirty);
+
+        await harness.ViewModel.OpenDocuments.ActivateCommand.ExecuteAsync(first);
+
+        Assert.False(harness.ViewModel.IsEditMode);
+        Assert.Equal("# first quick edited", harness.ViewModel.Document!.Content);
+        Assert.True(harness.ViewModel.IsDirty);
+    }
+
+    [Fact]
+    public async Task UncommittedQuickEditIsCommittedWhenSwitchingTabs()
+    {
+        var harness = CreateHarness();
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
+
+        var uncommittedDraft = "# first edited uncommitted";
+        // Simulate active inline editor hook
+        harness.ViewModel.CommitActiveInlineEditor = () =>
+        {
+            harness.ViewModel.ApplyQuickDocumentEdit(uncommittedDraft);
+        };
+
+        var first = harness.ViewModel.OpenDocuments.Tabs[0];
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\second.md");
+
+        // Switching tab should have committed the uncommitted draft
+        Assert.True(first.IsDirty);
+        Assert.Equal(uncommittedDraft, first.Document!.Content);
+
+        await harness.ViewModel.OpenDocuments.ActivateCommand.ExecuteAsync(first);
+        Assert.Equal(uncommittedDraft, harness.ViewModel.Document!.Content);
+    }
+
+    [Fact]
+    public async Task UncommittedQuickEditIsCommittedWhenSwitchingToEditMode()
+    {
+        var harness = CreateHarness();
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
+
+        var uncommittedDraft = "# first uncommitted edit for full editor";
+        harness.ViewModel.CommitActiveInlineEditor = () =>
+        {
+            harness.ViewModel.ApplyQuickDocumentEdit(uncommittedDraft);
+        };
+
+        await harness.ViewModel.ToggleEditModeCommand.ExecuteAsync(null);
+
+        Assert.True(harness.ViewModel.IsEditMode);
+        Assert.Equal(uncommittedDraft, harness.ViewModel.EditorSession!.SourceText);
+        Assert.True(harness.ViewModel.IsDirty);
+    }
+
+    [Fact]
+    public async Task UncommittedQuickEditIsCommittedWhenSavingDocument()
+    {
+        var harness = CreateHarness();
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
+
+        var uncommittedDraft = "# first saved inline content";
+        harness.ViewModel.CommitActiveInlineEditor = () =>
+        {
+            harness.ViewModel.ApplyQuickDocumentEdit(uncommittedDraft);
+        };
+
+        await harness.ViewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(uncommittedDraft, harness.ViewModel.Document!.Content);
+        Assert.False(harness.ViewModel.IsDirty);
+    }
+
+    [Fact]
+    public async Task QuickEditInReadingModeIsPreservedWhenSwitchingToEditMode()
+    {
+        var harness = CreateHarness();
+        await harness.ViewModel.OpenPathAsync(@"C:\docs\first.md");
+        harness.ViewModel.ApplyQuickDocumentEdit("# first quick edited");
+
+        Assert.False(harness.ViewModel.IsEditMode);
+        Assert.True(harness.ViewModel.IsDirty);
+
+        await harness.ViewModel.ToggleEditModeCommand.ExecuteAsync(null);
+
+        Assert.True(harness.ViewModel.IsEditMode);
+        Assert.Equal("# first quick edited", harness.ViewModel.EditorSession!.SourceText);
+        Assert.True(harness.ViewModel.IsDirty);
+    }
+
+    [Fact]
     public async Task SwitchingAwayFromDirtyTabDoesNotAskAnything()
     {
         var harness = CreateHarness();

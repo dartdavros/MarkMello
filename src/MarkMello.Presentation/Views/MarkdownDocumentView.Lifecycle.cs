@@ -33,6 +33,9 @@ public sealed partial class MarkdownDocumentView
 
     private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
+        CancelPendingQuickEditTimer();
+        _quickInlineEditingController.CommitQuickEditor();
+
         LayoutUpdated -= OnLayoutUpdatedAfterDocumentRebuild;
         _hasPendingRenderedNotification = false;
         _readingPreferencesRefreshCts?.Cancel();

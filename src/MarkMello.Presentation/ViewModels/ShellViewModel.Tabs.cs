@@ -96,6 +96,8 @@ public partial class ShellViewModel
             return;
         }
 
+        CommitActiveInlineEditor?.Invoke();
+
         // Диалог тут не нужен: правки остаются в своей вкладке и никуда не деваются,
         // спросим о них при закрытии вкладки или окна.
         await RestoreTabAsync(tab).ConfigureAwait(true);
