@@ -14,10 +14,11 @@ This folder captures the first release baseline from `ADR-0004`.
 
 - `windows/MarkMello.iss` is the per-user Inno Setup installer.
 - `windows/build-installer.ps1` compiles the installer from a published app folder.
-- `windows/sign-files.ps1` signs published binaries and installers when a PFX certificate is provided.
+- `signpath/README.md` describes SignPath CI signing for the app and Windows installers.
+- `windows/sign-files.ps1` remains available for explicit local PFX signing.
 - `windows/markmello-installer.ico` is the installer icon generated from the shared master icon.
 - The installer registers MarkMello as an available `.md` handler and adds `Open with MarkMello`-style shell integration without forcing a system-wide default.
-- `.github/workflows/release-windows.yml` is the desktop GitHub Releases pipeline for Windows and macOS assets.
+- `.github/workflows/release-windows.yml` coordinates desktop releases through separate platform build workflows.
 
 GitHub Actions flow:
 
@@ -85,12 +86,16 @@ Those values default in `src/MarkMello.Desktop/MarkMello.Desktop.csproj`, and ca
 
 This baseline prepares the repository for signed distribution, but actual signing credentials stay out of source control:
 
-- Windows signing should be injected into the release pipeline when calling `signtool`.
+- Windows CI signing uses SignPath before packaging and before uploading the installer.
 - macOS signing and notarization should be added later, once Apple Developer ID credentials are available.
 
-### GitHub Actions secrets for Windows signing
+### GitHub Actions configuration for Windows signing
 
-If you want the Windows workflow to sign artifacts, configure:
+- `SIGNPATH_API_TOKEN` — Actions secret containing the existing CI builds user's token.
+- `SIGNPATH_ORGANIZATION_ID` — Actions variable containing the SignPath organization ID.
+- `packaging/signpath/README.md` — artifact XML, initial test, and production setup.
 
-- `WINDOWS_SIGNING_CERT_BASE64` — base64-encoded `.pfx`
-- `WINDOWS_SIGNING_CERT_PASSWORD` — password for that certificate
+The `Test SignPath Windows` workflow signs both Windows architectures without
+creating or updating a GitHub Release. Normal releases require `release-signing`.
+The old `WINDOWS_SIGNING_CERT_BASE64` / `WINDOWS_SIGNING_CERT_PASSWORD` secrets
+are no longer used by CI.

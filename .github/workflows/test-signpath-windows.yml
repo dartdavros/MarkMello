@@ -1,0 +1,32 @@
+name: Test SignPath Windows
+
+on:
+  push:
+    branches:
+      - codex/signpath-windows
+  workflow_dispatch:
+
+concurrency:
+  group: test-signpath-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  sign_windows:
+    uses: ./.github/workflows/build-windows.yml
+    permissions:
+      contents: write
+      actions: read
+    with:
+      tag: v0.0.0-signpath-test
+      version: 0.0.0-signpath-test
+      version_core: 0.0.0
+      version_windows: 0.0.0.0
+      repo_name: MarkMello
+      signing_policy: test-signing
+      publish_release_assets: false
+    secrets:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}

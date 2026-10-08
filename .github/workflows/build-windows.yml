@@ -1,0 +1,207 @@
+name: Build Windows
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      version_core:
+        required: true
+        type: string
+      version_windows:
+        required: true
+        type: string
+      repo_name:
+        required: true
+        type: string
+      signing_policy:
+        required: false
+        type: string
+        default: release-signing
+      publish_release_assets:
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      SIGNPATH_API_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  build_windows:
+    name: Build ${{ matrix.runtime_id }} Installer
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime_id:
+          - win-x64
+          - win-arm64
+
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_VERSION_CORE: ${{ inputs.version_core }}
+      RELEASE_VERSION_WINDOWS: ${{ inputs.version_windows }}
+      RELEASE_OWNER: ${{ github.repository_owner }}
+      RELEASE_REPO: ${{ inputs.repo_name }}
+      SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate signing configuration
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNING_POLICY: ${{ inputs.signing_policy }}
+          PUBLISH_RELEASE_ASSETS: ${{ inputs.publish_release_assets }}
+        run: |
+          if (-not $env:SIGNPATH_API_TOKEN -or -not $env:SIGNPATH_ORGANIZATION_ID) {
+            throw "Configure SIGNPATH_API_TOKEN secret and SIGNPATH_ORGANIZATION_ID variable."
+          }
+          if ($env:SIGNING_POLICY -notin @('test-signing', 'release-signing')) {
+            throw "Unsupported SignPath signing policy."
+          }
+          if ($env:SIGNING_POLICY -eq 'test-signing' -and $env:PUBLISH_RELEASE_ASSETS -eq 'true') {
+            throw "Test-signed installers must not be uploaded to a GitHub Release."
+          }
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Publish desktop app
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE "publish" "${{ matrix.runtime_id }}"
+
+          dotnet publish .\src\MarkMello.Desktop\MarkMello.Desktop.csproj `
+            -m:1 `
+            -c Release `
+            -r "${{ matrix.runtime_id }}" `
+            --self-contained true `
+            -p:PublishAot=true `
+            -p:PublishSingleFile=false `
+            -p:Version=$env:RELEASE_VERSION `
+            -p:FileVersion=$env:RELEASE_VERSION_WINDOWS `
+            -p:AssemblyVersion=$env:RELEASE_VERSION_WINDOWS `
+            -p:InformationalVersion=$env:RELEASE_TAG `
+            -p:MarkMelloReleaseOwner=$env:RELEASE_OWNER `
+            -p:MarkMelloReleaseRepo=$env:RELEASE_REPO `
+            -o $publishDir
+
+      - name: Test signature verification
+        shell: pwsh
+        run: |
+          .\tests\packaging\verify-signatures.tests.ps1 `
+            -UnsignedAppDirectory "publish/${{ matrix.runtime_id }}"
+
+      - name: Sign published app binaries
+        uses: ./.github/actions/signpath-sign
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          signing-policy: ${{ inputs.signing_policy }}
+          artifact-configuration: windows-app
+          artifact-name: unsigned-app-${{ matrix.runtime_id }}
+          paths: |
+            publish/${{ matrix.runtime_id }}/MarkMello.exe
+            publish/${{ matrix.runtime_id }}/MarkMello.dll
+          output-directory: publish/${{ matrix.runtime_id }}
+
+      - name: Verify app signatures
+        shell: pwsh
+        env:
+          SIGNING_POLICY: ${{ inputs.signing_policy }}
+        run: |
+          .\packaging\windows\verify-signatures.ps1 `
+            -Directory "publish/${{ matrix.runtime_id }}" `
+            -FileNames @('MarkMello.exe', 'MarkMello.dll') `
+            -OptionalFileNames @('MarkMello.dll') `
+            -SigningPolicy $env:SIGNING_POLICY
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE "publish" "${{ matrix.runtime_id }}"
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE "artifacts" "${{ matrix.runtime_id }}"
+
+          .\packaging\windows\build-installer.ps1 `
+            -PublishDir $publishDir `
+            -RuntimeId "${{ matrix.runtime_id }}" `
+            -Version $env:RELEASE_VERSION `
+            -OutputDir $outputDir `
+            -ReleaseOwner $env:RELEASE_OWNER `
+            -ReleaseRepo $env:RELEASE_REPO
+
+      - name: Sign installer
+        uses: ./.github/actions/signpath-sign
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          signing-policy: ${{ inputs.signing_policy }}
+          artifact-configuration: windows-installer
+          artifact-name: unsigned-installer-${{ matrix.runtime_id }}
+          paths: artifacts/${{ matrix.runtime_id }}/MarkMello-setup-${{ matrix.runtime_id }}.exe
+          output-directory: artifacts/${{ matrix.runtime_id }}
+
+      - name: Verify installer signature
+        shell: pwsh
+        env:
+          SIGNING_POLICY: ${{ inputs.signing_policy }}
+        run: |
+          .\packaging\windows\verify-signatures.ps1 `
+            -Directory "artifacts/${{ matrix.runtime_id }}" `
+            -FileNames @('MarkMello-setup-${{ matrix.runtime_id }}.exe') `
+            -SigningPolicy $env:SIGNING_POLICY
+
+      - name: Generate SHA256 checksum
+        shell: pwsh
+        run: |
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE "artifacts" "${{ matrix.runtime_id }}"
+          $installerPath = Join-Path $outputDir "MarkMello-setup-${{ matrix.runtime_id }}.exe"
+          $hash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$installerPath.sha256"
+          [System.IO.File]::WriteAllText(
+            $checksumPath,
+            "$hash *$([System.IO.Path]::GetFileName($installerPath))")
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ matrix.runtime_id }}
+          path: |
+            artifacts/${{ matrix.runtime_id }}/MarkMello-setup-${{ matrix.runtime_id }}.exe
+            artifacts/${{ matrix.runtime_id }}/MarkMello-setup-${{ matrix.runtime_id }}.exe.sha256
+          if-no-files-found: error
+
+      - name: Upload release assets
+        if: ${{ inputs.publish_release_assets }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE "artifacts" "${{ matrix.runtime_id }}"
+          $installerPath = Join-Path $outputDir "MarkMello-setup-${{ matrix.runtime_id }}.exe"
+          $checksumPath = "$installerPath.sha256"
+
+          gh release upload $env:RELEASE_TAG $installerPath $checksumPath --clobber

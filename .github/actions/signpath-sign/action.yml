@@ -1,0 +1,46 @@
+name: Sign with SignPath
+description: Upload an unsigned ZIP artifact and restore the signed files.
+inputs:
+  api-token:
+    required: true
+    description: CI builds API token
+  organization-id:
+    required: true
+    description: SignPath organization ID
+  signing-policy:
+    required: true
+    description: test-signing or release-signing
+  artifact-configuration:
+    required: true
+    description: SignPath artifact configuration slug
+  artifact-name:
+    required: true
+    description: Unique GitHub artifact name
+  paths:
+    required: true
+    description: Files to upload; upload-artifact creates the ZIP envelope
+  output-directory:
+    required: true
+    description: Directory to receive extracted signed files
+runs:
+  using: composite
+  steps:
+    - name: Upload unsigned files
+      id: unsigned
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.paths }}
+        if-no-files-found: error
+        retention-days: 3
+    - name: Submit signing request and download signed files
+      uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+      with:
+        api-token: ${{ inputs.api-token }}
+        organization-id: ${{ inputs.organization-id }}
+        project-slug: MarkMello
+        signing-policy-slug: ${{ inputs.signing-policy }}
+        artifact-configuration-slug: ${{ inputs.artifact-configuration }}
+        github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+        wait-for-completion: true
+        output-artifact-directory: ${{ inputs.output-directory }}
