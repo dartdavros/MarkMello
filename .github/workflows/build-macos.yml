@@ -1,0 +1,250 @@
+name: Build Macos
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      version_core:
+        required: true
+        type: string
+      version_windows:
+        required: true
+        type: string
+      repo_name:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+env:
+  AVALONIA_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  build_macos:
+    name: Build ${{ matrix.runtime_id }} DMG
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime_id: osx-arm64
+            runner: macos-15
+            asset_name: MarkMello-macos-arm64.dmg
+          - runtime_id: osx-x64
+            runner: macos-15-intel
+            asset_name: MarkMello-macos-x64.dmg
+
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_VERSION_CORE: ${{ inputs.version_core }}
+      RELEASE_VERSION_WINDOWS: ${{ inputs.version_windows }}
+      RELEASE_OWNER: ${{ github.repository_owner }}
+      RELEASE_REPO: ${{ inputs.repo_name }}
+      MACOS_BUNDLE_ID: com.markmello.app
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore solution
+        shell: bash
+        run: dotnet restore ./MarkMello.sln -m:1
+
+      - name: Publish desktop app
+        shell: bash
+        run: |
+          publish_dir="$GITHUB_WORKSPACE/publish/${{ matrix.runtime_id }}"
+
+          dotnet publish ./src/MarkMello.Desktop/MarkMello.Desktop.csproj \
+            -m:1 \
+            -c Release \
+            -r "${{ matrix.runtime_id }}" \
+            --self-contained true \
+            -p:PublishAot=true \
+            -p:PublishSingleFile=false \
+            -p:Version="$RELEASE_VERSION" \
+            -p:FileVersion="$RELEASE_VERSION_WINDOWS" \
+            -p:AssemblyVersion="$RELEASE_VERSION_WINDOWS" \
+            -p:InformationalVersion="$RELEASE_TAG" \
+            -p:MarkMelloReleaseOwner="$RELEASE_OWNER" \
+            -p:MarkMelloReleaseRepo="$RELEASE_REPO" \
+            -o "$publish_dir"
+
+      - name: Build app bundle
+        id: app_bundle
+        shell: bash
+        run: |
+          publish_dir="$GITHUB_WORKSPACE/publish/${{ matrix.runtime_id }}"
+          output_dir="$GITHUB_WORKSPACE/artifacts/${{ matrix.runtime_id }}"
+
+          app_bundle_path="$(bash ./packaging/macos/build-app-bundle.sh \
+            --publish-dir "$publish_dir" \
+            --runtime-id "${{ matrix.runtime_id }}" \
+            --version "$RELEASE_VERSION_CORE" \
+            --build-number "$RELEASE_VERSION_WINDOWS" \
+            --bundle-id "$MACOS_BUNDLE_ID" \
+            --output-dir "$output_dir")"
+
+          echo "path=$app_bundle_path" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test macOS app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          app_bundle="${{ steps.app_bundle.outputs.path }}"
+          executable="$app_bundle/Contents/MacOS/MarkMello"
+          sample_file="$GITHUB_WORKSPACE/sample.md"
+          diagnostics_dir="$GITHUB_WORKSPACE/artifacts/${{ matrix.runtime_id }}/smoke-diagnostics"
+          diagnostic_reports_dir="$HOME/Library/Logs/DiagnosticReports"
+
+          rm -rf "$diagnostics_dir"
+          mkdir -p "$diagnostics_dir"
+
+          write_package_diagnostics() {
+            {
+              echo "Runtime ID: ${{ matrix.runtime_id }}"
+              echo "Runner: ${{ matrix.runner }}"
+              echo "App bundle: $app_bundle"
+              echo "Executable: $executable"
+              echo
+              find "$app_bundle/Contents" -maxdepth 3 -print | sort
+            } > "$diagnostics_dir/app-bundle.txt"
+
+            plutil -lint "$app_bundle/Contents/Info.plist" \
+              > "$diagnostics_dir/plutil.txt" 2>&1
+            file "$executable" > "$diagnostics_dir/executable-file.txt" 2>&1
+            otool -L "$executable" > "$diagnostics_dir/otool-MarkMello.txt" 2>&1 || true
+          }
+
+          copy_crash_reports() {
+            if [[ ! -d "$diagnostic_reports_dir" ]]; then
+              return
+            fi
+
+            find "$diagnostic_reports_dir" \
+              -maxdepth 1 \
+              -name 'MarkMello_*.crash' \
+              -print \
+              -exec cp {} "$diagnostics_dir/" ';' 2>/dev/null || true
+          }
+
+          write_system_log() {
+            log show \
+              --last 5m \
+              --predicate 'process == "MarkMello"' \
+              --style syslog \
+              > "$diagnostics_dir/system-log-MarkMello.txt" 2>&1 || true
+          }
+
+          run_with_watchdog() {
+            local timeout_seconds=30
+            local status=0
+            local timeout_marker="$diagnostics_dir/direct-launch-timeout.txt"
+
+            rm -f "$timeout_marker"
+            find "$diagnostic_reports_dir" \
+              -maxdepth 1 \
+              -name 'MarkMello_*.crash' \
+              -delete 2>/dev/null || true
+
+            MARKMELLO_SMOKE_EXIT_AFTER_OPEN_MS=1500 "$executable" "$sample_file" \
+              > "$diagnostics_dir/direct-launch.stdout.log" \
+              2> "$diagnostics_dir/direct-launch.stderr.log" &
+            local app_pid=$!
+
+            (
+              sleep "$timeout_seconds"
+              if kill -0 "$app_pid" 2>/dev/null; then
+                echo "MarkMello smoke launch did not exit within ${timeout_seconds}s." \
+                  > "$timeout_marker"
+                kill "$app_pid" 2>/dev/null || true
+              fi
+            ) &
+            local watchdog_pid=$!
+
+            set +e
+            wait "$app_pid"
+            status=$?
+            set -e
+
+            kill "$watchdog_pid" 2>/dev/null || true
+            wait "$watchdog_pid" 2>/dev/null || true
+
+            write_system_log
+            copy_crash_reports
+
+            if [[ -f "$timeout_marker" ]]; then
+              return 124
+            fi
+
+            return "$status"
+          }
+
+          test -d "$app_bundle"
+          test -f "$app_bundle/Contents/Info.plist"
+          test -x "$executable"
+          test -f "$sample_file"
+
+          write_package_diagnostics
+          run_with_watchdog
+
+      - name: Upload macOS smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-smoke-diagnostics-${{ matrix.runtime_id }}
+          path: artifacts/${{ matrix.runtime_id }}/smoke-diagnostics/
+          if-no-files-found: ignore
+
+      - name: Build unsigned DMG
+        id: dmg
+        shell: bash
+        run: |
+          output_dir="$GITHUB_WORKSPACE/artifacts/${{ matrix.runtime_id }}"
+          dmg_path="$(bash ./packaging/macos/build-dmg.sh \
+            --app-bundle "${{ steps.app_bundle.outputs.path }}" \
+            --runtime-id "${{ matrix.runtime_id }}" \
+            --output-dir "$output_dir")"
+
+          echo "path=$dmg_path" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SHA256 checksum
+        shell: bash
+        run: |
+          checksum_path="${{ steps.dmg.outputs.path }}.sha256"
+          shasum -a 256 "${{ steps.dmg.outputs.path }}" > "$checksum_path"
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-${{ matrix.runtime_id }}
+          path: |
+            artifacts/${{ matrix.runtime_id }}/${{ matrix.asset_name }}
+            artifacts/${{ matrix.runtime_id }}/${{ matrix.asset_name }}.sha256
+          if-no-files-found: error
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            "${{ steps.dmg.outputs.path }}" \
+            "${{ steps.dmg.outputs.path }}.sha256" \
+            --clobber
