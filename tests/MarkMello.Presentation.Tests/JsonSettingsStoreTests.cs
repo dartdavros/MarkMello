@@ -22,17 +22,20 @@ public sealed class JsonSettingsStoreTests
             await store.SavePreferencesAsync(expectedPreferences);
             await store.SaveThemeAsync(ThemeMode.Dark);
             await store.SaveLanguageAsync(AppLanguage.Russian);
+            await store.SaveAlwaysOpenDocumentsInEditModeAsync(true);
             await store.SaveWindowPlacementAsync(new WindowPlacement(120, 80, 900, 700, IsMaximized: true));
 
             var reloadedStore = new JsonSettingsStore(rootDirectory);
             var actualPreferences = await reloadedStore.LoadPreferencesAsync();
             var actualTheme = await reloadedStore.LoadThemeAsync();
             var actualLanguage = await reloadedStore.LoadLanguageAsync();
+            var actualAlwaysOpenDocumentsInEditMode = await reloadedStore.LoadAlwaysOpenDocumentsInEditModeAsync();
             var actualWindowPlacement = await reloadedStore.LoadWindowPlacementAsync();
 
             Assert.Equal(expectedPreferences, actualPreferences);
             Assert.Equal(ThemeMode.Dark, actualTheme);
             Assert.Equal(AppLanguage.Russian, actualLanguage);
+            Assert.True(actualAlwaysOpenDocumentsInEditMode);
             Assert.Equal(new WindowPlacement(120, 80, 900, 700, IsMaximized: true), actualWindowPlacement);
         }
         finally
@@ -54,12 +57,14 @@ public sealed class JsonSettingsStoreTests
             var preferences = await store.LoadPreferencesAsync();
             var theme = await store.LoadThemeAsync();
             var language = await store.LoadLanguageAsync();
+            var alwaysOpenDocumentsInEditMode = await store.LoadAlwaysOpenDocumentsInEditModeAsync();
             var windowPlacement = await store.LoadWindowPlacementAsync();
 
             Assert.Equal(ReadingPreferences.Default, preferences);
             Assert.Equal(ThemeMode.System, theme);
             Assert.Equal(DocumentMinimapMode.Auto, preferences.DocumentMinimapMode);
             Assert.Equal(AppLanguage.System, language);
+            Assert.False(alwaysOpenDocumentsInEditMode);
             Assert.Null(windowPlacement);
         }
         finally
@@ -93,6 +98,7 @@ public sealed class JsonSettingsStoreTests
             var preferences = await store.LoadPreferencesAsync();
             var theme = await store.LoadThemeAsync();
             var language = await store.LoadLanguageAsync();
+            var alwaysOpenDocumentsInEditMode = await store.LoadAlwaysOpenDocumentsInEditModeAsync();
             var windowPlacement = await store.LoadWindowPlacementAsync();
 
             Assert.Equal(ThemeMode.Light, theme);
@@ -102,6 +108,7 @@ public sealed class JsonSettingsStoreTests
             Assert.Equal(ReadingPreferences.MaxContentWidth, preferences.ContentWidth);
             Assert.Equal(DocumentMinimapMode.Off, preferences.DocumentMinimapMode);
             Assert.Equal(AppLanguage.System, language);
+            Assert.False(alwaysOpenDocumentsInEditMode);
             Assert.Null(windowPlacement);
         }
         finally

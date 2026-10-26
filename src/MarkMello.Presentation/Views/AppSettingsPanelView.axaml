@@ -72,6 +72,28 @@
                     EndPoint="1,0.5" />
 
               <Border Classes="mm-setting-row">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                  <StackPanel Grid.Column="0"
+                              Spacing="2">
+                    <TextBlock Classes="mm-setting-label"
+                               Text="{Binding AlwaysOpenDocumentsInEditModeLabel}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Classes="mm-setting-hint"
+                               Text="{Binding AlwaysOpenDocumentsInEditModeHint}"
+                               TextWrapping="Wrap" />
+                  </StackPanel>
+                  <CheckBox Grid.Column="1"
+                            VerticalAlignment="Center"
+                            IsChecked="{Binding AlwaysOpenDocumentsInEditMode, Mode=TwoWay}" />
+                </Grid>
+              </Border>
+
+              <Line Classes="mm-setting-divider"
+                    StartPoint="0,0.5"
+                    EndPoint="1,0.5" />
+
+              <Border Classes="mm-setting-row">
                 <Grid ColumnDefinitions="Auto,*"
                       ColumnSpacing="12">
                   <StackPanel Grid.Column="0"
