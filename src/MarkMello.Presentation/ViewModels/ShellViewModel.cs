@@ -105,28 +105,11 @@ public partial class ShellViewModel : ObservableObject
         _aboutVersion = GetProductVersion();
         InitializeOpenDocuments();
         _localization.PropertyChanged += OnLocalizationChanged;
-        _commandLine.FileActivated += OnFileActivated;
-        RefreshUpdateStatusTexts();
-    }
 
-    /// <summary>
-    /// Handler for runtime «open this file» signals emitted by the platform
-    /// after startup. On macOS Finder sends an Apple Event to the already-
-    /// running process; cold-start activations come back through
-    /// <see cref="ICommandLineActivation.GetActivationFilePath"/> instead.
-    /// </summary>
-    private async void OnFileActivated(object? sender, FileActivationEventArgs e)
-    {
-        try
-        {
-            await OpenPathAsync(e.Path).ConfigureAwait(true);
-        }
-        catch (Exception)
-        {
-            // The open use-case already surfaces user-visible errors via
-            // the view-state machine; the event handler must not throw
-            // back into Avalonia's lifetime dispatch loop.
-        }
+        // Runtime-сигналы «открой файл» (Apple Event, повторный запуск) принимает
+        // InstanceActivationRouter и отдаёт одному окну: подписка в каждом shell
+        // открывала файл во всех окнах сразу.
+        RefreshUpdateStatusTexts();
     }
 
     public IImageSourceResolver? ImageSourceResolver => _imageSourceResolver;

@@ -4,6 +4,7 @@ using MarkMello.Domain;
 using MarkMello.Domain.Diagnostics;
 using MarkMello.Domain.Workspace;
 using MarkMello.Presentation.Editing;
+using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Tests;
 
@@ -309,4 +310,19 @@ internal sealed class RecordingWindowLauncher : MarkMello.Presentation.Services.
     }
 
     public void OpenFolderInNewWindow(string folderPath) => NewWindowFolders.Add(folderPath);
+
+    /// <summary>Окно, которое получает документы из повторного запуска.</summary>
+    public ShellViewModel? ActivationTarget { get; set; }
+
+    public int BringToFrontCount { get; private set; }
+
+    public void TrackWindow(Avalonia.Controls.Window window)
+    {
+    }
+
+    public ShellViewModel? BringActivationTargetToFront()
+    {
+        BringToFrontCount++;
+        return ActivationTarget;
+    }
 }

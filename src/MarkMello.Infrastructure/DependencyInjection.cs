@@ -5,6 +5,7 @@ using MarkMello.Infrastructure.Documents;
 using MarkMello.Infrastructure.Images;
 using MarkMello.Infrastructure.Markdown;
 using MarkMello.Infrastructure.Platform;
+using MarkMello.Infrastructure.Platform.SingleInstance;
 using MarkMello.Infrastructure.Settings;
 using MarkMello.Infrastructure.Updates;
 using MarkMello.Infrastructure.Workspace;
@@ -21,7 +22,8 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         IStartupMetrics metrics,
-        string[] commandLineArgs)
+        string[] commandLineArgs,
+        IInstanceActivation? instanceActivation = null)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(metrics);
@@ -44,6 +46,10 @@ public static class DependencyInjection
         services.AddSingleton(_ => new CommandLineActivation(commandLineArgs));
         services.AddSingleton<ICommandLineActivation>(sp => sp.GetRequiredService<CommandLineActivation>());
         services.AddSingleton<IFileActivationPublisher>(sp => sp.GetRequiredService<CommandLineActivation>());
+
+        // Канал повторных запусков создаётся в Program.Main до контейнера: решение
+        // «этот процесс первый или пересылает файл» принимается раньше старта Avalonia.
+        services.AddSingleton(instanceActivation ?? NullInstanceActivation.Instance);
         services.AddSingleton(static _ =>
         {
             var client = new HttpClient();
@@ -55,6 +61,16 @@ public static class DependencyInjection
         services.AddSingleton<IUpdateService, GitHubReleaseUpdateService>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Замер старта должен быть честным холодным запуском, а не пересылкой файла
+    /// в уже открытое окно.
+    /// </summary>
+    public static bool IsStartupSmokeTestRun(string[] commandLineArgs)
+    {
+        ArgumentNullException.ThrowIfNull(commandLineArgs);
+        return CreateStartupSmokeTestOptions(commandLineArgs).IsEnabled;
     }
 
     private static StartupSmokeTestOptions CreateStartupSmokeTestOptions(string[] commandLineArgs)

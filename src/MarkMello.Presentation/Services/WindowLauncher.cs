@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -21,6 +22,18 @@ public interface IWindowLauncher
 
     /// <summary>Открывает новое окно и показывает в нём указанную папку.</summary>
     void OpenFolderInNewWindow(string folderPath);
+
+    /// <summary>
+    /// Запоминает окно как кандидата для <see cref="BringActivationTargetToFront"/>:
+    /// документы из повторного запуска уходят в окно, с которым работали последним.
+    /// </summary>
+    void TrackWindow(Window window);
+
+    /// <summary>
+    /// Выводит вперёд окно-получатель повторного запуска (последнее активное),
+    /// разворачивая его из свёрнутого, и возвращает его shell.
+    /// </summary>
+    ShellViewModel? BringActivationTargetToFront();
 }
 
 public sealed class WindowLauncher : IWindowLauncher
@@ -29,6 +42,11 @@ public sealed class WindowLauncher : IWindowLauncher
     private const int CascadeOffset = 32;
 
     private readonly IServiceProvider _services;
+
+    /// <summary>Состояние до сворачивания: развёрнутое окно должно вернуться развёрнутым.</summary>
+    private readonly ConditionalWeakTable<Window, StrongBox<WindowState>> _restoreStates = new();
+
+    private WeakReference<Window>? _lastActiveWindow;
 
     public WindowLauncher(IServiceProvider services)
     {
@@ -78,10 +96,64 @@ public sealed class WindowLauncher : IWindowLauncher
         var window = ActivatorUtilities.CreateInstance<MainWindow>(_services, shell);
         var previous = lifetime.Windows.Count > 0 ? lifetime.Windows[^1] : null;
         ApplyCascade(window, previous);
+        TrackWindow(window);
         window.Show();
 
         // Папка открывается уже в новом окне: его view-model — своя, вкладки не общие.
         _ = shell.OpenFolderPathAsync(folderPath);
+    }
+
+    public void TrackWindow(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        // Новое окно считается последним, пока пользователь не переключился на другое.
+        _lastActiveWindow = new WeakReference<Window>(window);
+        window.Activated += (_, _) => _lastActiveWindow = new WeakReference<Window>(window);
+        window.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Window.WindowStateProperty
+                && e.GetNewValue<WindowState>() is var state and not WindowState.Minimized)
+            {
+                _restoreStates.AddOrUpdate(window, new StrongBox<WindowState>(state));
+            }
+        };
+    }
+
+    public ShellViewModel? BringActivationTargetToFront()
+    {
+        if (GetLifetime() is not { } lifetime)
+        {
+            return null;
+        }
+
+        var window = GetLastActiveWindow(lifetime)
+            ?? (lifetime.Windows.Count > 0 ? lifetime.Windows[^1] : null);
+        if (window?.DataContext is not ShellViewModel shell)
+        {
+            return null;
+        }
+
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = _restoreStates.TryGetValue(window, out var restore)
+                ? restore.Value
+                : WindowState.Normal;
+        }
+
+        window.Activate();
+        return shell;
+    }
+
+    /// <summary>Закрытое окно может ещё жить в слабой ссылке — берём только из открытых.</summary>
+    private Window? GetLastActiveWindow(IClassicDesktopStyleApplicationLifetime lifetime)
+    {
+        if (_lastActiveWindow is null || !_lastActiveWindow.TryGetTarget(out var window))
+        {
+            return null;
+        }
+
+        return lifetime.Windows.Contains(window) ? window : null;
     }
 
     /// <summary>
