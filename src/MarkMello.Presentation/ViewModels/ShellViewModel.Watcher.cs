@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MarkMello.Application.Abstractions;
+using MarkMello.Application.UseCases;
 using MarkMello.Domain.Workspace;
 
 namespace MarkMello.Presentation.ViewModels;
@@ -60,23 +61,7 @@ public partial class ShellViewModel
             return;
         }
 
-        foreach (var change in changes)
-        {
-            switch (change.Kind)
-            {
-                case WorkspaceChangeKind.Renamed when change.PreviousPath is { } previous:
-                    RetargetTabsUnderPath(previous, change.Path);
-                    break;
-
-                case WorkspaceChangeKind.Deleted:
-                    await HandleExternalDeleteAsync(change.Path).ConfigureAwait(true);
-                    break;
-
-                case WorkspaceChangeKind.Changed:
-                    await HandleExternalContentChangeAsync(change.Path).ConfigureAwait(true);
-                    break;
-            }
-        }
+        await ApplyTabChangesAsync(changes).ConfigureAwait(true);
 
         // Каталоги перечитываем по одному разу, даже если в пачке двадцать событий из одного места.
         foreach (var directory in changes.Select(static change => change.AffectedDirectory).Distinct(PathComparer))
@@ -85,6 +70,48 @@ public partial class ShellViewModel
         }
 
         SyncWorkspaceActiveDocument();
+    }
+
+    /// <summary>
+    /// Реакция открытых вкладок на внешние изменения — общая для папки и для файлов,
+    /// открытых без неё (<see cref="ApplyDocumentChangesAsync"/>).
+    /// </summary>
+    private async Task ApplyTabChangesAsync(IReadOnlyList<WorkspaceChange> changes)
+    {
+        // В одной пачке бывает несколько событий об одном файле: перечитываем его один раз.
+        var reloaded = new HashSet<string>(PathComparer);
+
+        foreach (var change in changes)
+        {
+            switch (change.Kind)
+            {
+                case WorkspaceChangeKind.Renamed when change.PreviousPath is { } previous:
+                    // Атомарное сохранение (так пишут многие редакторы и агенты): временный файл
+                    // переименовывается поверх открытого. Для вкладки это новое содержимое, а не переезд.
+                    var replacesOpenTab = OpenDocuments.FindByPath(change.Path) is not null;
+                    RetargetTabsUnderPath(previous, change.Path);
+                    if (replacesOpenTab && reloaded.Add(change.Path))
+                    {
+                        await HandleExternalContentChangeAsync(change.Path).ConfigureAwait(true);
+                    }
+
+                    break;
+
+                // Удалили и сразу записали заново — тоже сохранение: файл на месте, значит изменился.
+                case WorkspaceChangeKind.Deleted when _fileExists(change.Path):
+                case WorkspaceChangeKind.Changed:
+                    if (reloaded.Add(change.Path))
+                    {
+                        await HandleExternalContentChangeAsync(change.Path).ConfigureAwait(true);
+                    }
+
+                    break;
+
+                case WorkspaceChangeKind.Deleted:
+                    await HandleExternalDeleteAsync(change.Path).ConfigureAwait(true);
+                    break;
+            }
+        }
     }
 
     /// <summary>
@@ -118,6 +145,14 @@ public partial class ShellViewModel
     {
         var tab = OpenDocuments.FindByPath(path);
         if (tab is null)
+        {
+            return;
+        }
+
+        // Своё же сохранение из редактора watcher тоже видит. Перечитывать нечего,
+        // а перезагрузка выкинула бы пользователя из режима правки.
+        if (tab.EditorSession is { IsDirty: false } session
+            && await IsDiskContentAsync(path, session.SourceText).ConfigureAwait(true))
         {
             return;
         }
@@ -180,6 +215,16 @@ public partial class ShellViewModel
         }
 
         ShowsExternalChangeBanner = false;
+    }
+
+    private async Task<bool> IsDiskContentAsync(string path, string expected)
+    {
+        var result = await _openDocument.ExecuteAsync(path).ConfigureAwait(true);
+        return result is OpenDocumentResult.Success success
+            && string.Equals(
+                success.Source.Content.ReplaceLineEndings("\n"),
+                expected.ReplaceLineEndings("\n"),
+                StringComparison.Ordinal);
     }
 
     private void SyncExternalChangeBanner()

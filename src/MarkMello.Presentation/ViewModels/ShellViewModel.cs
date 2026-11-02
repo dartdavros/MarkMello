@@ -33,6 +33,7 @@ public partial class ShellViewModel : ObservableObject
     private readonly WorkspaceFileOperationsUseCase _fileOperations;
     private readonly IPlatformServices _platform;
     private readonly Func<IWorkspaceWatcher> _watcherFactory;
+    private readonly Func<IDocumentWatcher>? _documentWatcherFactory;
     private readonly IWindowLauncher _windowLauncher;
 
     /// <summary>
@@ -79,7 +80,8 @@ public partial class ShellViewModel : ObservableObject
         Func<string, bool>? fileExists = null,
         IImageSourceResolver? imageSourceResolver = null,
         Func<IEditorPreviewScheduler>? previewSchedulerFactory = null,
-        DeferredUpdateCheck? deferredUpdateCheck = null)
+        DeferredUpdateCheck? deferredUpdateCheck = null,
+        Func<IDocumentWatcher>? documentWatcherFactory = null)
     {
         _openDocument = openDocument;
         _saveDocument = saveDocument;
@@ -98,6 +100,7 @@ public partial class ShellViewModel : ObservableObject
         _fileOperations = fileOperations;
         _platform = platform;
         _watcherFactory = watcherFactory;
+        _documentWatcherFactory = documentWatcherFactory;
         _windowLauncher = windowLauncher;
         _fileExists = fileExists ?? (static path => File.Exists(path) || Directory.Exists(path));
         _imageSourceResolver = imageSourceResolver;

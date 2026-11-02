@@ -39,6 +39,10 @@ public static class DependencyInjection
         // Фабрика, а не singleton: watcher создаётся только при открытии папки,
         // в startup path его быть не должно (ADR-0007 Rule 9).
         services.AddSingleton<Func<IWorkspaceWatcher>>(static _ => static () => new FileSystemWorkspaceWatcher());
+
+        // Отдельные открытые файлы вне папки (#47): тоже фабрика, watcher появляется
+        // с первой вкладкой, а не на старте.
+        services.AddSingleton<Func<IDocumentWatcher>>(static _ => static () => new FileSystemDocumentWatcher());
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
         services.AddSingleton<IPlatformServices, DefaultPlatformServices>();
         services.AddSingleton(_ => new CommandLineActivation(commandLineArgs));

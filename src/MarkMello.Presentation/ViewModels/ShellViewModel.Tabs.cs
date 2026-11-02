@@ -321,7 +321,8 @@ public partial class ShellViewModel
         OnPropertyChanged(nameof(IsEmptyDocumentSurface));
         UpdateTabCommandStates();
 
-        // Состав вкладок изменился — снимок сессии устарел.
+        // Состав вкладок изменился — снимок сессии устарел, набор отслеживаемых файлов тоже.
+        SyncDocumentWatch();
         _ = PersistSessionAsync();
     }
 

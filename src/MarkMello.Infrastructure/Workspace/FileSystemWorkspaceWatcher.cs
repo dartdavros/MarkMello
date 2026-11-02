@@ -4,22 +4,20 @@ using MarkMello.Domain.Workspace;
 namespace MarkMello.Infrastructure.Workspace;
 
 /// <summary>
-/// Слежение за папкой через <see cref="FileSystemWatcher"/> с дебаунсом.
-///
-/// Сырые события приходят пачками: одно сохранение файла редактором даёт три-четыре
-/// уведомления, а распаковка архива — сотни. Поэтому события копятся 250 мс и уходят
-/// подписчику одним списком; без этого дерево перечитывалось бы на каждый чих.
+/// Слежение за папкой через <see cref="FileSystemWatcher"/> с дебаунсом
+/// (<see cref="ChangeBatcher"/>): дерево перечитывается пачкой, а не на каждое событие.
 /// </summary>
 public sealed class FileSystemWorkspaceWatcher : IWorkspaceWatcher
 {
-    private static readonly TimeSpan DebounceInterval = TimeSpan.FromMilliseconds(250);
-
-    private readonly Lock _gate = new();
-    private readonly List<WorkspaceChange> _pending = [];
+    private readonly ChangeBatcher _batcher;
 
     private FileSystemWatcher? _watcher;
-    private Timer? _debounce;
     private bool _isDisposed;
+
+    public FileSystemWorkspaceWatcher()
+    {
+        _batcher = new ChangeBatcher(batch => Changed?.Invoke(this, batch));
+    }
 
     public event EventHandler<IReadOnlyList<WorkspaceChange>>? Changed;
 
@@ -66,13 +64,7 @@ public sealed class FileSystemWorkspaceWatcher : IWorkspaceWatcher
 
     public void StopWatching()
     {
-        lock (_gate)
-        {
-            _pending.Clear();
-        }
-
-        _debounce?.Dispose();
-        _debounce = null;
+        _batcher.Clear();
 
         if (_watcher is null)
         {
@@ -90,16 +82,16 @@ public sealed class FileSystemWorkspaceWatcher : IWorkspaceWatcher
     }
 
     private void OnCreated(object sender, FileSystemEventArgs e)
-        => Enqueue(new WorkspaceChange(WorkspaceChangeKind.Created, e.FullPath));
+        => _batcher.Add(new WorkspaceChange(WorkspaceChangeKind.Created, e.FullPath));
 
     private void OnChanged(object sender, FileSystemEventArgs e)
-        => Enqueue(new WorkspaceChange(WorkspaceChangeKind.Changed, e.FullPath));
+        => _batcher.Add(new WorkspaceChange(WorkspaceChangeKind.Changed, e.FullPath));
 
     private void OnDeleted(object sender, FileSystemEventArgs e)
-        => Enqueue(new WorkspaceChange(WorkspaceChangeKind.Deleted, e.FullPath));
+        => _batcher.Add(new WorkspaceChange(WorkspaceChangeKind.Deleted, e.FullPath));
 
     private void OnRenamed(object sender, RenamedEventArgs e)
-        => Enqueue(new WorkspaceChange(WorkspaceChangeKind.Renamed, e.FullPath, e.OldFullPath));
+        => _batcher.Add(new WorkspaceChange(WorkspaceChangeKind.Renamed, e.FullPath, e.OldFullPath));
 
     private void OnError(object sender, ErrorEventArgs e)
     {
@@ -107,36 +99,8 @@ public sealed class FileSystemWorkspaceWatcher : IWorkspaceWatcher
         // чем делать вид, что ничего не было.
         if (_watcher is { Path: { Length: > 0 } root })
         {
-            Enqueue(new WorkspaceChange(WorkspaceChangeKind.Changed, root));
+            _batcher.Add(new WorkspaceChange(WorkspaceChangeKind.Changed, root));
         }
-    }
-
-    private void Enqueue(WorkspaceChange change)
-    {
-        lock (_gate)
-        {
-            _pending.Add(change);
-            _debounce ??= new Timer(Flush, state: null, DebounceInterval, Timeout.InfiniteTimeSpan);
-            _debounce.Change(DebounceInterval, Timeout.InfiniteTimeSpan);
-        }
-    }
-
-    private void Flush(object? state)
-    {
-        List<WorkspaceChange> batch;
-
-        lock (_gate)
-        {
-            if (_pending.Count == 0)
-            {
-                return;
-            }
-
-            batch = [.. _pending];
-            _pending.Clear();
-        }
-
-        Changed?.Invoke(this, batch);
     }
 
     public void Dispose()
@@ -148,5 +112,6 @@ public sealed class FileSystemWorkspaceWatcher : IWorkspaceWatcher
 
         _isDisposed = true;
         StopWatching();
+        _batcher.Dispose();
     }
 }

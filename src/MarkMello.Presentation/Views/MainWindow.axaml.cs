@@ -340,6 +340,7 @@ public partial class MainWindow : Window
         PropertyChanged -= OnWindowAvaloniaPropertyChanged;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _viewModel.CloseRequested -= OnViewModelCloseRequested;
+        _viewModel.StopWatchingFiles();
         base.OnClosed(e);
     }
 
