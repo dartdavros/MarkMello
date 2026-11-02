@@ -16,6 +16,7 @@ using MarkMello.Presentation.Clipboard;
 using MarkMello.Presentation.Localization;
 using MarkMello.Presentation.Views.Markdown;
 using MarkMello.Presentation.Views.Markdown.Minimap;
+using MarkMello.Presentation.Views.Markdown.Syntax;
 using System.Globalization;
 using System.Text;
 using System.Threading;
@@ -53,7 +54,8 @@ public sealed partial class MarkdownDocumentView
             fontStyle: FontStyle.Normal,
             fallbackClassName: "mm-md-codeblock-text",
             baseFontFamily: ResolveMonoFontFamily(),
-            textWrapping: TextWrapping.NoWrap);
+            textWrapping: TextWrapping.NoWrap,
+            styledText: MarkdownStyledText.FromCode(block.Code, CodeSyntaxHighlighter.Tokenize(block.Code, block.Info)));
 
         body.Children.Add(new ScrollViewer
         {

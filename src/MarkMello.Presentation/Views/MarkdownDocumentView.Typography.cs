@@ -37,13 +37,14 @@ public sealed partial class MarkdownDocumentView
         FontFamily? baseFontFamily = null,
         TextWrapping textWrapping = TextWrapping.Wrap,
         IBrush? baseForeground = null,
-        double letterSpacing = 0)
+        double letterSpacing = 0,
+        MarkdownStyledText? styledText = null)
     {
         if (fallbackClassName != "mm-md-codeblock-text")
         {
             letterSpacing += ReadingPreferences.LetterSpacing;
         }
-        var styled = MarkdownStyledText.FromInlines(inlines);
+        var styled = styledText ?? MarkdownStyledText.FromInlines(inlines);
         if (styled.Text.Length == 0)
         {
             return new Border
