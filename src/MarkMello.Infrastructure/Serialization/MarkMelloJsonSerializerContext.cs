@@ -19,6 +19,8 @@ namespace MarkMello.Infrastructure.Serialization;
 [JsonSerializable(typeof(ReadingPreferences))]
 [JsonSerializable(typeof(WindowPlacement))]
 [JsonSerializable(typeof(WorkspaceSessionState))]
+[JsonSerializable(typeof(OutlinePreferences))]
+[JsonSerializable(typeof(OutlinePanelSide))]
 [JsonSerializable(typeof(ThemeMode))]
 [JsonSerializable(typeof(AppLanguage))]
 [JsonSerializable(typeof(FontFamilyMode))]

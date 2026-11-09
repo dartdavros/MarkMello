@@ -107,6 +107,7 @@ public partial class ShellViewModel : ObservableObject
         _localization.PropertyChanged += OnLocalizationChanged;
         _commandLine.FileActivated += OnFileActivated;
         RefreshUpdateStatusTexts();
+        InitializeOutline();
     }
 
     /// <summary>
@@ -472,6 +473,7 @@ public partial class ShellViewModel : ObservableObject
     public async Task InitializeAsync()
     {
         ReadingPreferences = await _settings.LoadPreferencesAsync().ConfigureAwait(true);
+        await LoadOutlinePreferencesAsync().ConfigureAwait(true);
 
         var savedLanguage = await _settings.LoadLanguageAsync().ConfigureAwait(true);
         ApplyLanguageSelection(savedLanguage, persist: false);

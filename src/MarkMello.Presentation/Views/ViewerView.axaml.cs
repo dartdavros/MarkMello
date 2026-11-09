@@ -11,7 +11,7 @@ using System.ComponentModel;
 
 namespace MarkMello.Presentation.Views;
 
-public partial class ViewerView : UserControl, IFindHost
+public partial class ViewerView : UserControl, IFindHost, IOutlineNavigationHost
 {
     private const double WheelStepMultiplier = 6.0;
     private const double KeyboardPageOverlap = 48.0;
@@ -256,6 +256,7 @@ public partial class ViewerView : UserControl, IFindHost
         _hasRenderedDocument = true;
         FocusDocumentViewAsync();
         QueueMinimapBuild();
+        UpdateOutlineCurrentLine();
 
         // Keep the active search match in view after a document re-render.
         if (_documentView?.MatchIndex >= 0)
@@ -352,6 +353,7 @@ public partial class ViewerView : UserControl, IFindHost
 
         UpdateMinimapScrollState();
         UpdateMinimapVisibility();
+        UpdateOutlineCurrentLine();
     }
 
     private void OnViewerSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -416,6 +418,18 @@ public partial class ViewerView : UserControl, IFindHost
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ShellViewModel.HidesMinimapForOutline))
+        {
+            UpdateMinimapVisibility();
+            if (_hasRenderedDocument)
+            {
+                // Перестройка либо уберёт миникарту (панель справа), либо вернёт её, если её успели снять.
+                QueueMinimapBuild();
+            }
+
+            return;
+        }
+
         if (e.PropertyName != nameof(ShellViewModel.ReadingPreferences))
         {
             return;
@@ -570,6 +584,11 @@ public partial class ViewerView : UserControl, IFindHost
     private bool ShouldShowMinimap()
     {
         if (_scroll is null)
+        {
+            return false;
+        }
+
+        if (DataContext is ShellViewModel { HidesMinimapForOutline: true })
         {
             return false;
         }

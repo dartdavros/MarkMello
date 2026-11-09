@@ -1,0 +1,148 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             xmlns:views="using:MarkMello.Presentation.Views"
+             x:Class="MarkMello.Presentation.Views.OutlinePanelView"
+             x:DataType="vm:ShellViewModel">
+
+  <!-- Стили живут здесь, как и у сайдбара папки: панель создаётся только по требованию.
+       Визуальный язык тот же: шеврон 12px, отступ уровней, hover, планка активного пункта. -->
+  <UserControl.Styles>
+    <Style Selector="TextBlock.mm-outline-header">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="{DynamicResource MmUiFontSize12}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextSoftBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.mm-outline-empty">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="FontSize" Value="{DynamicResource MmUiFontSize12_5}" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextFaintBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <Style Selector="TreeView.mm-outline-tree">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="8,2,8,12" />
+      <Setter Property="ItemsPanel">
+        <ItemsPanelTemplate>
+          <VirtualizingStackPanel />
+        </ItemsPanelTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem">
+      <!-- Без двусторонней связки шеврон раскрывает только контейнер, а модель не узнаёт об этом
+           и сворачивание теряется при следующем обновлении оглавления. -->
+      <Setter Property="IsExpanded"
+              Value="{CompiledBinding IsExpanded, Mode=TwoWay, DataType=vm:OutlineItemViewModel}" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="ItemsPanel">
+        <ItemsPanelTemplate>
+          <VirtualizingStackPanel />
+        </ItemsPanelTemplate>
+      </Setter>
+    </Style>
+
+    <!-- Шеврон занимает место только у пунктов с потомками, отступ по уровню как в сайдбаре. -->
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
+      <Setter Property="Width"
+              Value="{CompiledBinding HasChildren, DataType=vm:OutlineItemViewModel, Converter={x:Static views:TreeChevronWidthConverter.Instance}}" />
+      <Setter Property="Margin"
+              Value="{Binding $parent[TreeViewItem].Level, Converter={x:Static views:TreeLevelIndentConverter.Instance}}" />
+    </Style>
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Height" Value="12" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+
+    <!-- Выделения нет: подсвечивается только наведение, активный пункт отмечен планкой. -->
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="{DynamicResource MmSurfaceHoverBrush}" />
+    </Style>
+    <Style Selector="TreeView.mm-outline-tree TreeViewItem:selected /template/ ContentPresenter#PART_HeaderPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="TextBlock.mm-outline-label">
+      <Setter Property="FontFamily" Value="{DynamicResource MmDocumentSansFontFamily}" />
+      <Setter Property="Foreground" Value="{DynamicResource MmTextBrush}" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="TextWrapping" Value="NoWrap" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.mm-outline-label.top">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.mm-outline-label.active">
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="TextBlock.mm-outline-label.top.active">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border.mm-outline-active-bar">
+      <Setter Property="Width" Value="2" />
+      <Setter Property="Margin" Value="-6,4,0,4" />
+      <Setter Property="CornerRadius" Value="1" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Height="44" Padding="16,0">
+      <TextBlock Name="OutlineHeaderText"
+                 Classes="mm-outline-header"
+                 Text="{Binding OutlineHeader}" />
+    </Border>
+
+    <TextBlock Name="OutlineEmptyText"
+               DockPanel.Dock="Top"
+               Classes="mm-outline-empty"
+               Margin="16,4,16,0"
+               IsVisible="{Binding Outline.IsEmpty, FallbackValue=False}"
+               Text="{Binding OutlineEmpty}" />
+
+    <!-- Нажатие на строку TreeViewItem помечает обработанным, поэтому Tapped до подписи
+         не доходит: отпускание кнопки слушает code-behind (как сайдбар). -->
+    <TreeView Name="OutlineTree"
+              Classes="mm-outline-tree"
+              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+              ItemsSource="{Binding Outline.Items}">
+      <TreeView.ItemTemplate>
+        <TreeDataTemplate x:DataType="vm:OutlineItemViewModel"
+                          ItemsSource="{Binding Children}">
+          <Panel Background="Transparent" MinHeight="{Binding LineBoxHeight}">
+            <Border Classes="mm-outline-active-bar" IsVisible="{Binding IsActive}" />
+            <TextBlock Classes="mm-outline-label"
+                       Classes.top="{Binding IsTopLevel}"
+                       Classes.active="{Binding IsActive}"
+                       FontSize="{Binding FontSize}"
+                       Text="{Binding Text}"
+                       ToolTip.Tip="{Binding Text}" />
+          </Panel>
+        </TreeDataTemplate>
+      </TreeView.ItemTemplate>
+    </TreeView>
+  </DockPanel>
+</UserControl>

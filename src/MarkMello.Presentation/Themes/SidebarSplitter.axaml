@@ -17,6 +17,11 @@
       </ControlTemplate>
     </Setter>
   </Style>
+  <!-- Splitter на левой границе правой панели: 1px подсветка ложится на её рамку,
+       то есть сразу справа от границы колонок, а не слева от неё. -->
+  <Style Selector="GridSplitter.mm-sidebar-splitter.mm-splitter-right /template/ Border">
+    <Setter Property="Margin" Value="4,0,0,0" />
+  </Style>
   <Style Selector="GridSplitter.mm-sidebar-splitter:pointerover /template/ Border">
     <Setter Property="Background" Value="{DynamicResource MmAccentBrush}" />
   </Style>

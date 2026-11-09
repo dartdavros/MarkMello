@@ -1,3 +1,4 @@
+using MarkMello.Application.Abstractions;
 using MarkMello.Application.UseCases;
 using MarkMello.Application.Updates;
 using MarkMello.Domain;
@@ -648,7 +649,7 @@ public sealed partial class ShellViewModelTests
             ArchitectureName: "x64",
             InstallAction: AppUpdateInstallAction.LaunchInstaller);
 
-    private static TestHarness CreateHarness(FakeWorkspaceFileSystem? workspaceFileSystem = null, TimeSpan? updateDelay = null)
+    private static TestHarness CreateHarness(FakeWorkspaceFileSystem? workspaceFileSystem = null, TimeSpan? updateDelay = null, IMarkdownDocumentRenderer? renderer = null)
     {
         var loader = new StubDocumentLoader();
         var saver = new RecordingDocumentSaver();
@@ -669,7 +670,7 @@ public sealed partial class ShellViewModelTests
             settings,
             themeService,
             startupMetrics,
-            new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
+            new RenderMarkdownDocumentUseCase(renderer ?? new TestMarkdownRenderer(), new FakeDiagramRenderService()),
             updateService,
             new OpenFolderUseCase(fileSystem),
             new ExpandFolderNodeUseCase(fileSystem),
