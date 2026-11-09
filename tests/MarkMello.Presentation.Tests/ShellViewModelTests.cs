@@ -498,6 +498,58 @@ public sealed partial class ShellViewModelTests
     }
 
     [Fact]
+    public async Task SaveAsCommandInReadingModeWithoutEditorSessionPromptsPickerAndSaves()
+    {
+        var harness = CreateHarness();
+        var originalPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "reading.md");
+        var savedAsPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "saved_as.md");
+        harness.Loader.Sources[originalPath] = CreateSource(originalPath, "# Hello World\n\nReading mode content.");
+        harness.FilePicker.SavePath = savedAsPath;
+
+        await harness.ViewModel.OpenPathAsync(originalPath);
+
+        Assert.Null(harness.ViewModel.EditorSession);
+        Assert.True(harness.ViewModel.IsViewer);
+        Assert.False(harness.ViewModel.IsEditMode);
+        Assert.True(harness.ViewModel.SaveAsCommand.CanExecute(null));
+
+        await harness.ViewModel.SaveAsCommand.ExecuteAsync(null);
+
+        Assert.Equal(["reading.md"], harness.FilePicker.SuggestedSaveFileNames);
+
+        var save = Assert.Single(harness.DocumentSaver.Saves);
+        Assert.Equal(savedAsPath, save.Path);
+        Assert.Equal("# Hello World\n\nReading mode content.", save.Content);
+        Assert.Equal(savedAsPath, harness.ViewModel.Document!.Path);
+        Assert.Equal("saved_as.md", harness.ViewModel.FileName);
+        Assert.False(harness.ViewModel.IsDirty);
+    }
+
+    [Fact]
+    public async Task SaveCommandInReadingModeAfterQuickEditSavesToOriginalPath()
+    {
+        var harness = CreateHarness();
+        var originalPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "quick_edit.md");
+        harness.Loader.Sources[originalPath] = CreateSource(originalPath, "Original text");
+
+        await harness.ViewModel.OpenPathAsync(originalPath);
+
+        harness.ViewModel.ApplyQuickDocumentEdit("Edited text");
+
+        Assert.True(harness.ViewModel.IsDirty);
+        Assert.True(harness.ViewModel.IsViewer);
+        Assert.False(harness.ViewModel.IsEditMode);
+        Assert.True(harness.ViewModel.SaveCommand.CanExecute(null));
+
+        await harness.ViewModel.SaveCommand.ExecuteAsync(null);
+
+        var save = Assert.Single(harness.DocumentSaver.Saves);
+        Assert.Equal(originalPath, save.Path);
+        Assert.Equal("Edited text", save.Content);
+        Assert.False(harness.ViewModel.IsDirty);
+    }
+
+    [Fact]
     public async Task InitializeAsyncLoadsSavedLanguageAndLocalizesShellLabels()
     {
         var harness = CreateHarness();

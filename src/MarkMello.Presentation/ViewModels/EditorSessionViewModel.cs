@@ -251,6 +251,16 @@ public sealed class EditorSessionViewModel : ObservableObject, IDisposable
         RaiseDocumentMetricsChanged();
     }
 
+    public void ApplyQuickEdit(string newContent)
+    {
+        ArgumentNullException.ThrowIfNull(newContent);
+
+        SourceText = newContent;
+        StatusMessage = string.Empty;
+        RefreshPreviewNow();
+        RaiseDocumentMetricsChanged();
+    }
+
     public void DiscardChanges()
     {
         SourceText = LastPersistedSource;
