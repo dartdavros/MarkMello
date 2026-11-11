@@ -36,6 +36,9 @@ public sealed partial class MarkdownDocumentView
     /// </summary>
     private void Rebuild()
     {
+        CancelPendingQuickEditTimer();
+        _quickInlineEditingController.CommitQuickEditor();
+
         DocumentRenderInvalidated?.Invoke(this, EventArgs.Empty);
         ResetPointerState();
 

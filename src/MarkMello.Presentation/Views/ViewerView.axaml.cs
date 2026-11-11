@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using MarkMello.Domain;
 using MarkMello.Presentation.ViewModels;
 using MarkMello.Presentation.Views.Markdown.Minimap;
@@ -10,7 +11,7 @@ using System.ComponentModel;
 
 namespace MarkMello.Presentation.Views;
 
-public partial class ViewerView : UserControl, IFindHost
+public partial class ViewerView : UserControl, IFindHost, IOutlineNavigationHost
 {
     private const double WheelStepMultiplier = 6.0;
     private const double KeyboardPageOverlap = 48.0;
@@ -79,6 +80,7 @@ public partial class ViewerView : UserControl, IFindHost
             _documentView.DocumentRenderInvalidated += OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested += OnMarkdownFileLinkRequested;
             _documentView.SearchStateChanged += OnDocumentSearchStateChanged;
+            _documentView.DocumentContentEdited += OnDocumentContentEdited;
         }
 
         SizeChanged += OnViewerSizeChanged;
@@ -116,10 +118,16 @@ public partial class ViewerView : UserControl, IFindHost
             _documentView.DocumentRenderInvalidated -= OnDocumentRenderInvalidated;
             _documentView.MarkdownFileLinkRequested -= OnMarkdownFileLinkRequested;
             _documentView.SearchStateChanged -= OnDocumentSearchStateChanged;
+            _documentView.DocumentContentEdited -= OnDocumentContentEdited;
             _documentView = null;
         }
 
         base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnDocumentContentEdited(object? sender, MarkdownDocumentContentEditedEventArgs e)
+    {
+        _viewModel?.ApplyQuickDocumentEdit(e.NewContent, e.BaseContent);
     }
 
     private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
@@ -159,6 +167,12 @@ public partial class ViewerView : UserControl, IFindHost
     private void OnViewerKeyDown(object? sender, KeyEventArgs e)
     {
         if (_scroll is null || e.Handled || DataContext is not ShellViewModel { IsViewer: true, IsEditMode: false })
+        {
+            return;
+        }
+
+        var focused = TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() as Visual;
+        if (focused is Markdown.MarkdownQuickEditorControl || IsVisualDescendantOf(focused, typeof(Markdown.MarkdownQuickEditorControl)))
         {
             return;
         }
@@ -217,6 +231,20 @@ public partial class ViewerView : UserControl, IFindHost
     private static bool HasCommandModifier(KeyModifiers modifiers)
         => modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Meta);
 
+    private static bool IsVisualDescendantOf(Visual? child, Type parentType)
+    {
+        var current = child;
+        while (current is not null)
+        {
+            if (parentType.IsInstanceOfType(current))
+            {
+                return true;
+            }
+            current = current.GetVisualParent();
+        }
+        return false;
+    }
+
     private void OnDocumentRendered(object? sender, EventArgs e)
     {
         if (DataContext is ShellViewModel vm)
@@ -228,6 +256,7 @@ public partial class ViewerView : UserControl, IFindHost
         _hasRenderedDocument = true;
         FocusDocumentViewAsync();
         QueueMinimapBuild();
+        UpdateOutlineCurrentLine();
 
         // Keep the active search match in view after a document re-render.
         if (_documentView?.MatchIndex >= 0)
@@ -324,6 +353,7 @@ public partial class ViewerView : UserControl, IFindHost
 
         UpdateMinimapScrollState();
         UpdateMinimapVisibility();
+        UpdateOutlineCurrentLine();
     }
 
     private void OnViewerSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -366,6 +396,10 @@ public partial class ViewerView : UserControl, IFindHost
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            if (_viewModel.CommitActiveInlineEditor == CommitActiveInlineEditor)
+            {
+                _viewModel.CommitActiveInlineEditor = null;
+            }
         }
 
         _viewModel = viewModel;
@@ -373,11 +407,29 @@ public partial class ViewerView : UserControl, IFindHost
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _viewModel.CommitActiveInlineEditor = CommitActiveInlineEditor;
         }
+    }
+
+    private void CommitActiveInlineEditor()
+    {
+        _documentView?.CommitQuickEditor();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ShellViewModel.HidesMinimapForOutline))
+        {
+            UpdateMinimapVisibility();
+            if (_hasRenderedDocument)
+            {
+                // Перестройка либо уберёт миникарту (панель справа), либо вернёт её, если её успели снять.
+                QueueMinimapBuild();
+            }
+
+            return;
+        }
+
         if (e.PropertyName != nameof(ShellViewModel.ReadingPreferences))
         {
             return;
@@ -532,6 +584,11 @@ public partial class ViewerView : UserControl, IFindHost
     private bool ShouldShowMinimap()
     {
         if (_scroll is null)
+        {
+            return false;
+        }
+
+        if (DataContext is ShellViewModel { HidesMinimapForOutline: true })
         {
             return false;
         }

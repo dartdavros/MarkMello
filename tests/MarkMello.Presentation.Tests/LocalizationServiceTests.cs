@@ -17,6 +17,28 @@ public sealed class LocalizationServiceTests
     }
 
 
+    [Theory]
+    [InlineData(AppLanguage.English)]
+    [InlineData(AppLanguage.Russian)]
+    public void OutlineStringsResolveInBothLanguages(AppLanguage language)
+    {
+        var localization = new LocalizationService(language);
+        string[] keys =
+        [
+            "OutlineHeader", "OutlineEmpty", "OutlineToggleTooltip", "OutlineSettingsHeader",
+            "OutlineSideLabel", "OutlineSideHint", "OutlineSideLeft", "OutlineSideRight",
+            "OutlineMaxLevelLabel", "OutlineMaxLevelHint", "OutlineLineHeightLabel",
+            "OutlineLineHeightHint", "OutlineLevelSizesLabel", "OutlineLevelSizesHint"
+        ];
+
+        foreach (var key in keys)
+        {
+            var value = localization[key];
+            Assert.NotEqual($"[[{key}]]", value);
+            Assert.False(string.IsNullOrWhiteSpace(value), key);
+        }
+    }
+
     [Fact]
     public void SetLanguageRaisesIndexerNotificationsForActiveBindings()
     {

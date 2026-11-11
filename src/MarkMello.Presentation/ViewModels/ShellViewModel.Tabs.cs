@@ -96,6 +96,8 @@ public partial class ShellViewModel
             return;
         }
 
+        CommitPendingInlineEdit();
+
         // Диалог тут не нужен: правки остаются в своей вкладке и никуда не деваются,
         // спросим о них при закрытии вкладки или окна.
         await RestoreTabAsync(tab).ConfigureAwait(true);
@@ -151,6 +153,10 @@ public partial class ShellViewModel
     /// </summary>
     private async Task CloseTabAsync(DocumentTabViewModel tab)
     {
+        // Инлайн-редактор всегда принадлежит активной вкладке: сначала фиксируем ввод,
+        // чтобы закрытие увидело правки и спросило о них.
+        CommitPendingInlineEdit();
+
         if (tab.EditorSession?.IsDirty == true)
         {
             // Диалог работает с активной сессией, поэтому сначала показываем пользователю

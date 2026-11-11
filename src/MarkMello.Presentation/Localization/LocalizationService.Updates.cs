@@ -6,6 +6,7 @@ public sealed partial class LocalizationService
     {
         AddWelcomeStrings();
         AddAdvancedReadingStrings();
+        AddOutlineStrings();
 
         foreach (var entry in EnglishUpdates)
         {
