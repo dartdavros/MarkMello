@@ -51,6 +51,15 @@ public sealed partial class MarkdigMarkdownDocumentRenderer
                     target.Add(WithSourceSpan(standaloneImage, paragraph, source));
                     return;
                 }
+
+                // A display formula standing on its own line is promoted to a
+                // block: Markdig reports $$...$$ as MathInline, and as a text run
+                // it occupies one line while painting a much taller fraction.
+                if (TrySplitDisplayMathParagraph(paragraph, source, target))
+                {
+                    return;
+                }
+
                 target.Add(WithSourceSpan(
                     new MarkdownParagraphBlock(ConvertInlines(paragraph.Inline)),
                     paragraph,
