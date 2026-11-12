@@ -36,6 +36,10 @@ internal sealed partial class MarkdownBlockStructuralComparer
                 case MarkdownCodeInline code:
                     hash.Add(code.Code, StringComparer.Ordinal);
                     break;
+                case MarkdownMathInline math:
+                    hash.Add(math.Content, StringComparer.Ordinal);
+                    hash.Add(math.IsDisplay);
+                    break;
                 case MarkdownStrongInline strong:
                     AddInlines(ref hash, strong.Inlines);
                     break;

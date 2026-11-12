@@ -50,13 +50,16 @@ internal sealed class MarkdownFormattedTextLayout : IDisposable
             baseFontStyle,
             lineHeight,
             foreground);
+        var mathMetrics = MarkdownMathMetrics.Create(baseFontFamily, baseFontSize, foreground, lineHeight);
         var source = new MarkdownTextSource(
             _displayModel,
             styledText.Images,
+            styledText.Math,
             inlineImages ?? EmptyInlineImages,
             textProperties,
             padMetrics,
             imageMetrics,
+            mathMetrics,
             maxWidth);
         var paragraphProperties = new GenericTextParagraphProperties(
             new GenericTextRunProperties(
@@ -303,26 +306,32 @@ internal sealed class MarkdownTextSource : ITextSource
 {
     private readonly MarkdownDisplayLayoutModel _displayModel;
     private readonly IReadOnlyList<MarkdownInlineImageSpan> _images;
+    private readonly IReadOnlyList<MarkdownMathSpan> _math;
     private readonly IReadOnlyDictionary<int, MarkdownInlineImageState> _imageStates;
     private readonly MarkdownTextRunPropertiesFactory _propertiesFactory;
     private readonly MarkdownInlineCodePadMetrics _padMetrics;
     private readonly MarkdownInlineImageMetrics _imageMetrics;
+    private readonly MarkdownMathMetrics _mathMetrics;
 
     public MarkdownTextSource(
         MarkdownDisplayLayoutModel displayModel,
         IReadOnlyList<MarkdownInlineImageSpan> images,
+        IReadOnlyList<MarkdownMathSpan> math,
         IReadOnlyDictionary<int, MarkdownInlineImageState> imageStates,
         MarkdownTextRunPropertiesFactory propertiesFactory,
         MarkdownInlineCodePadMetrics padMetrics,
         MarkdownInlineImageMetrics imageMetrics,
+        MarkdownMathMetrics mathMetrics,
         double maxWidth = 100_000)
     {
         _displayModel = displayModel;
         _images = images;
+        _math = math;
         _imageStates = imageStates;
         _propertiesFactory = propertiesFactory;
         _padMetrics = padMetrics;
         _imageMetrics = imageMetrics;
+        _mathMetrics = mathMetrics;
         MaxWidth = maxWidth;
     }
 
@@ -351,10 +360,22 @@ internal sealed class MarkdownTextSource : ITextSource
                 _propertiesFactory.Get(segment.Style)),
             MarkdownDisplaySegmentKind.LineBreak => new TextEndOfLine(1),
             MarkdownDisplaySegmentKind.Image => CreateImageRun(segment),
+            MarkdownDisplaySegmentKind.Math => CreateMathRun(segment),
             MarkdownDisplaySegmentKind.CodePaddingLeft => MarkdownSpacerTextRun.Left(_padMetrics),
             MarkdownDisplaySegmentKind.CodePaddingRight => MarkdownSpacerTextRun.Right(_padMetrics),
             _ => new TextEndOfParagraph(1)
         };
+    }
+
+    private MarkdownMathTextRun CreateMathRun(MarkdownDisplaySegment segment)
+    {
+        if ((uint)segment.MathIndex >= (uint)_math.Count)
+        {
+            return MarkdownMathTextRun.Fallback(segment.Text, _mathMetrics);
+        }
+
+        var formula = _math[segment.MathIndex];
+        return MarkdownMathTextRun.Create(formula, _mathMetrics);
     }
 
     private MarkdownInlineImageTextRun CreateImageRun(MarkdownDisplaySegment segment)
@@ -650,8 +671,192 @@ internal sealed class MarkdownInlineImageTextRun : DrawableTextRun
     }
 }
 
-internal sealed class MarkdownSpacerTextRun : DrawableTextRun
+internal readonly record struct MarkdownMathMetrics(double FontSize, IBrush Foreground, double FallbackFontSize, double LineHeight, double Descent)
 {
+    public static MarkdownMathMetrics Create(FontFamily fontFamily, double baseFontSize, IBrush foreground, double lineHeight)
+    {
+        var descent = MeasureBodyDescent(fontFamily, baseFontSize);
+        return new(
+            Math.Max(10, baseFontSize),
+            foreground,
+            Math.Max(9, baseFontSize * 0.85),
+            double.IsNaN(lineHeight) || lineHeight <= 0 ? baseFontSize * 1.5 : lineHeight,
+            descent);
+    }
+
+    /// <summary>
+    /// Body text descent for the current font size. An inline formula box does
+    /// not carry a descent of its own, so the real value is measured from the
+    /// same font the paragraph uses; guessing a ratio would mis-seat formulas
+    /// whenever the reading font or size changes.
+    /// </summary>
+    private static double MeasureBodyDescent(FontFamily fontFamily, double fontSize)
+    {
+        using var probe = new TextLayout(
+            "np",
+            new Typeface(fontFamily),
+            Math.Max(1, fontSize),
+            Brushes.Black,
+            TextAlignment.Left,
+            TextWrapping.NoWrap,
+            textTrimming: null,
+            textDecorations: null,
+            flowDirection: FlowDirection.LeftToRight,
+            maxWidth: double.PositiveInfinity,
+            maxHeight: double.PositiveInfinity,
+            lineHeight: double.NaN,
+            letterSpacing: 0,
+            maxLines: 1,
+            textStyleOverrides: null);
+
+        return Math.Max(0, probe.Height - probe.Baseline);
+    }
+}
+
+/// <summary>
+/// A single text run that paints a LaTeX formula. Occupies one canonical
+/// character (see <see cref="MarkdownMathSpan"/>), so the text layout, caret
+/// mapping and selection stay unchanged — only the glyph at that position is
+/// replaced by the rendered formula.
+/// </summary>
+internal sealed class MarkdownMathTextRun : DrawableTextRun
+{
+    private readonly string _latex;
+    private readonly MarkdownMathMetrics _metrics;
+    private readonly Size _size;
+    private readonly double _baseline;
+    private readonly MarkdownMathLayout? _layout;
+
+    private MarkdownMathTextRun(string latex, MarkdownMathMetrics metrics)
+    {
+        _latex = latex;
+        _metrics = metrics;
+        _layout = MarkdownMathRenderer.Measure(latex, metrics.FontSize, metrics.Foreground, isDisplay: false);
+
+        if (_layout is { IsValid: true } layout)
+        {
+            // Avalonia seats a drawable run with offsetY = (line baseline - run
+            // baseline), so reporting the engine ascent as the run baseline lands
+            // the math baseline exactly on the text baseline. Pad the box by the
+            // text descent only so the formula's own below-baseline part (a
+            // subscript, a fraction denominator) cannot be clipped by layout.
+            var descender = _metrics.Descent;
+            var boxHeight = Math.Max(layout.Size.Height, _metrics.FontSize) + descender;
+            _size = new Size(layout.Size.Width, boxHeight);
+            _baseline = Math.Clamp(layout.Baseline, 0, boxHeight);
+        }
+        else
+        {
+            // Unparseable formula: show the raw LaTeX so nothing is lost
+            // (owner decision: fall back to source, not a hard error).
+            _size = ResolveFallbackSize(latex, metrics);
+            _baseline = _metrics.FontSize;
+        }
+    }
+
+    public static MarkdownMathTextRun Create(MarkdownMathSpan formula, MarkdownMathMetrics metrics)
+        => new(formula.Latex, metrics);
+
+    public static MarkdownMathTextRun Fallback(string latex, MarkdownMathMetrics metrics)
+        => new(latex, metrics);
+
+    public override int Length => 1;
+
+    public override ReadOnlyMemory<char> Text => " ".AsMemory();
+
+    public override TextRunProperties Properties => EmptyTextRunProperties.Instance;
+
+    public override Size Size => _size;
+
+    public override double Baseline => _baseline;
+
+    public override void Draw(DrawingContext drawingContext, Point origin)
+    {
+        if (_layout is { IsValid: true } layout)
+        {
+            // origin is the top-left of the run's box; Draw expects the same,
+            // and places the formula's top at that point. The run box is
+            // taller than a text line for fractions, so Avalonia positions its
+            // top relative to the run Baseline (see MarkdownMathTextRun.Baseline).
+            MarkdownMathRenderer.Draw(
+                drawingContext,
+                _latex,
+                layout.Size,
+                origin,
+                _metrics.FontSize,
+                _metrics.Foreground,
+                isDisplay: false);
+            return;
+        }
+
+        DrawSourceFallback(drawingContext, origin);
+    }
+
+    private void DrawSourceFallback(DrawingContext drawingContext, Point origin)
+    {
+        using var textLayout = new TextLayout(
+            _latex,
+            new Typeface(new FontFamily("Consolas, Menlo, monospace")),
+            _metrics.FallbackFontSize,
+            _metrics.Foreground,
+            TextAlignment.Left,
+            TextWrapping.NoWrap,
+            textTrimming: null,
+            textDecorations: null,
+            flowDirection: FlowDirection.LeftToRight,
+            maxWidth: Math.Max(1, _size.Width),
+            maxHeight: Math.Max(1, _size.Height),
+            lineHeight: double.NaN,
+            letterSpacing: 0,
+            maxLines: 1,
+            textStyleOverrides: null);
+
+        textLayout.Draw(drawingContext, origin);
+    }
+
+    private static Size ResolveFallbackSize(string latex, MarkdownMathMetrics metrics)
+    {
+        using var probe = new TextLayout(
+            latex.Length == 0 ? " " : latex,
+            new Typeface(new FontFamily("Consolas, Menlo, monospace")),
+            metrics.FallbackFontSize,
+            metrics.Foreground,
+            TextAlignment.Left,
+            TextWrapping.NoWrap,
+            textTrimming: null,
+            textDecorations: null,
+            flowDirection: FlowDirection.LeftToRight,
+            maxWidth: double.PositiveInfinity,
+            maxHeight: double.PositiveInfinity,
+            lineHeight: double.NaN,
+            letterSpacing: 0,
+            maxLines: 1,
+            textStyleOverrides: null);
+
+        return new Size(Math.Max(1, probe.Width), Math.Max(1, probe.Height));
+    }
+
+    private sealed class EmptyTextRunProperties : TextRunProperties
+    {
+        public static EmptyTextRunProperties Instance { get; } = new();
+
+        public override Typeface Typeface { get; } = new(Typeface.Default.FontFamily);
+
+        public override double FontRenderingEmSize => 1;
+
+        public override TextDecorationCollection? TextDecorations => null;
+
+        public override IBrush? ForegroundBrush => null;
+
+        public override IBrush? BackgroundBrush => null;
+
+        public override BaselineAlignment BaselineAlignment => BaselineAlignment.Baseline;
+
+        public override CultureInfo CultureInfo => CultureInfo.InvariantCulture;
+    }
+}
+
+internal sealed class MarkdownSpacerTextRun : DrawableTextRun{
     private readonly double _width;
     private readonly double _height;
     private readonly double _baseline;

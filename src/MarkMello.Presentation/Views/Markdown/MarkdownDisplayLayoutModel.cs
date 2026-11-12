@@ -102,8 +102,10 @@ internal sealed class MarkdownDisplayLayoutModel
             var text = _styledText.Text;
             var spans = _styledText.Spans;
             var images = _styledText.Images;
+            var math = _styledText.Math;
             var spanIndex = 0;
             var imageIndex = 0;
+            var mathIndex = 0;
             var index = 0;
 
             while (index < text.Length)
@@ -118,11 +120,24 @@ internal sealed class MarkdownDisplayLayoutModel
                     imageIndex++;
                 }
 
+                while (mathIndex < math.Count && math[mathIndex].Range.End <= index)
+                {
+                    mathIndex++;
+                }
+
                 if (imageIndex < images.Count && images[imageIndex].Range.Start == index)
                 {
                     var image = images[imageIndex];
                     AppendImageSegment(image);
                     index = image.Range.End;
+                    continue;
+                }
+
+                if (mathIndex < math.Count && math[mathIndex].Range.Start == index)
+                {
+                    var formula = math[mathIndex];
+                    AppendMathSegment(formula);
+                    index = formula.Range.End;
                     continue;
                 }
 
@@ -145,6 +160,11 @@ internal sealed class MarkdownDisplayLayoutModel
                 else
                 {
                     style = MarkdownInlineStyleState.Default;
+                }
+
+                if (mathIndex < math.Count && math[mathIndex].Range.Start > index)
+                {
+                    end = Math.Min(end, math[mathIndex].Range.Start);
                 }
 
                 if (imageIndex < images.Count && images[imageIndex].Range.Start > index)
@@ -238,6 +258,22 @@ internal sealed class MarkdownDisplayLayoutModel
 
             _displayOffset++;
             _canonicalOffset = image.Range.End;
+            _displayCaretToCanonicalCaret.Add(_canonicalOffset);
+        }
+
+        private void AppendMathSegment(MarkdownMathSpan math)
+        {
+            _segments.Add(new MarkdownDisplaySegment(
+                MarkdownDisplaySegmentKind.Math,
+                _displayOffset,
+                1,
+                math.Range,
+                math.Latex,
+                math.Style,
+                MathIndex: math.Index));
+
+            _displayOffset++;
+            _canonicalOffset = math.Range.End;
             _displayCaretToCanonicalCaret.Add(_canonicalOffset);
         }
 
@@ -345,7 +381,8 @@ internal readonly record struct MarkdownDisplaySegment(
     DocumentTextRange CanonicalRange,
     string Text,
     MarkdownInlineStyleState Style,
-    int ImageIndex = -1)
+    int ImageIndex = -1,
+    int MathIndex = -1)
 {
     public int DisplayEnd => DisplayStart + DisplayLength;
 }
@@ -355,6 +392,7 @@ internal enum MarkdownDisplaySegmentKind
     Text,
     LineBreak,
     Image,
+    Math,
     CodePaddingLeft,
     CodePaddingRight
 }

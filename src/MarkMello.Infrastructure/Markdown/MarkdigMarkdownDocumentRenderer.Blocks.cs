@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Markdig;
 using MarkdigMarkdown = Markdig.Markdown;
+using Markdig.Extensions.Mathematics;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -69,6 +70,20 @@ public sealed partial class MarkdigMarkdownDocumentRenderer
 
             case ThematicBreakBlock thematicBreak:
                 target.Add(WithSourceSpan(new MarkdownHorizontalRuleBlock(), thematicBreak, source));
+                return;
+
+            case MathBlock mathBlock:
+                // $$ ... $$ display-math block: rendered as a centered
+                // formula, never silently dropped (see math diagnosis).
+                // Must come before FencedCodeBlock: MathBlock derives from it.
+                var mathSource = mathBlock.Lines.ToString().Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n');
+                if (!string.IsNullOrWhiteSpace(mathSource))
+                {
+                    target.Add(WithSourceSpan(
+                        new MarkdownMathBlock(mathSource),
+                        mathBlock,
+                        source));
+                }
                 return;
 
             case FencedCodeBlock fencedCode:

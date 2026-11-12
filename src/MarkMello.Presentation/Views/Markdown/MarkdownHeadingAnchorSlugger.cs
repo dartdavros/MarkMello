@@ -107,6 +107,9 @@ internal static class MarkdownHeadingAnchorSlugger
             case MarkdownCodeInline code:
                 builder.Append(code.Code);
                 break;
+            case MarkdownMathInline math:
+                builder.Append(math.Content);
+                break;
             case MarkdownImageInline image:
                 builder.Append(GetImagePlainText(image));
                 break;
