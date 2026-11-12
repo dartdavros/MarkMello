@@ -1,9 +1,15 @@
+using Avalonia.Media;
 using MarkMello.Presentation.Views.Markdown;
 
 namespace MarkMello.Presentation.Tests;
 
+[Collection(AvaloniaHeadlessTestGroup.Name)]
 public sealed class MarkdownMathTexNormalizerTests
 {
+    private readonly AvaloniaHeadlessFixture _fixture;
+
+    public MarkdownMathTexNormalizerTests(AvaloniaHeadlessFixture fixture) => _fixture = fixture;
+
     [Fact]
     public void DfracBecomesDisplayStyleFraction()
     {
@@ -42,6 +48,39 @@ public sealed class MarkdownMathTexNormalizerTests
         Assert.Equal("a + b", MarkdownMathTexNormalizer.Normalize("a + b"));
         Assert.Equal("x - y", MarkdownMathTexNormalizer.Normalize("x - y"));
     }
+
+    [Fact]
+    public void NormBarsBecomeEngineAlias()
+    {
+        // \lVert / \rVert are standard amsmath, but the engine only knows
+        // \Vert; without the alias the whole sample.md matrix block fell back
+        // to raw source.
+        var normalized = MarkdownMathTexNormalizer.Normalize(@"\lVert v \rVert");
+
+        Assert.Equal(@"\Vert v \Vert", normalized);
+    }
+
+    [Fact]
+    public void AbsoluteValueBarsBecomeEngineAlias()
+    {
+        var normalized = MarkdownMathTexNormalizer.Normalize(@"\lvert x \rvert");
+
+        Assert.Equal(@"\vert x \vert", normalized);
+    }
+
+    [Fact]
+    public Task SampleMatrixAndNormFormulaRenders()
+        => _fixture.Session.Dispatch(() =>
+        {
+            var layout = MarkdownMathRenderer.Measure(
+                @"M = \begin{pmatrix} a & b \\ c & d \end{pmatrix}, \quad \lVert v \rVert = \sqrt{x^2 + y^2}",
+                16,
+                Brushes.Black,
+                isDisplay: true);
+
+            Assert.NotNull(layout);
+            Assert.True(layout!.IsValid, layout.ErrorMessage);
+        }, CancellationToken.None);
 
     [Fact]
     public void UnaryMinusInExponentIsNotTouched()
