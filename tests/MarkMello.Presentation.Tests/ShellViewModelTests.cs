@@ -243,9 +243,14 @@ public sealed partial class ShellViewModelTests
     {
         // Reproduces the macOS bug: while MarkMello is already running,
         // double-clicking another .md file in Finder fires an Apple Event
-        // that Avalonia surfaces as FileActivated. The view-model must
-        // route it through OpenPathAsync just like a command-line argument.
+        // that Avalonia surfaces as FileActivated. The router must hand it
+        // to the target window's OpenPathAsync and bring that window forward.
         var harness = CreateHarness();
+        var launcher = new RecordingWindowLauncher { ActivationTarget = harness.ViewModel };
+        using var router = new InstanceActivationRouter(
+            harness.CommandLine,
+            MarkMello.Infrastructure.Platform.SingleInstance.NullInstanceActivation.Instance,
+            launcher);
         var firstPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "first.md");
         var secondPath = Path.Combine(Path.GetTempPath(), "MarkMello.Tests", "second.md");
         harness.Loader.Sources[firstPath] = CreateSource(firstPath, "first");
@@ -260,6 +265,10 @@ public sealed partial class ShellViewModelTests
 
         Assert.Equal("second.md", harness.ViewModel.FileName);
         Assert.Equal("second", harness.ViewModel.Document!.Content);
+        Assert.Equal(1, launcher.BringToFrontCount);
+
+        // Документ из повторного запуска не подменяет открытый, а встаёт рядом вкладкой.
+        Assert.Equal(2, harness.ViewModel.OpenDocuments.Tabs.Count);
     }
 
     private static Task WaitForDocumentChangeAsync(ShellViewModel viewModel, string expectedFileName)

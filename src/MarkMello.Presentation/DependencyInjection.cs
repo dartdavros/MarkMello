@@ -47,6 +47,7 @@ public static class DependencyInjection
         services.AddTransient<ShellViewModel>();
         services.AddTransient<MainWindow>();
         services.AddSingleton<IWindowLauncher, WindowLauncher>();
+        services.AddSingleton<InstanceActivationRouter>();
 
         return services;
     }

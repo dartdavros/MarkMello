@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -19,8 +20,29 @@ public interface IWindowLauncher
     /// </summary>
     bool TryFocusWindowWithFolder(string folderPath);
 
-    /// <summary>Открывает новое окно и показывает в нём указанную папку.</summary>
-    void OpenFolderInNewWindow(string folderPath);
+    /// <summary>
+    /// Открывает новое окно и показывает в нём указанную папку. Задача завершается, когда
+    /// папка открыта: после этого в окно можно отправлять файлы из неё.
+    /// </summary>
+    Task OpenFolderInNewWindowAsync(string folderPath);
+
+    /// <summary>
+    /// Выводит вперёд окно, в чьей открытой папке лежит файл, и возвращает его shell.
+    /// Null — файл не принадлежит ни одной открытой папке.
+    /// </summary>
+    ShellViewModel? FocusWindowForDocument(string documentPath);
+
+    /// <summary>
+    /// Запоминает окно как кандидата для <see cref="BringActivationTargetToFront"/>:
+    /// документы из повторного запуска уходят в окно, с которым работали последним.
+    /// </summary>
+    void TrackWindow(Window window);
+
+    /// <summary>
+    /// Выводит вперёд окно-получатель повторного запуска (последнее активное),
+    /// разворачивая его из свёрнутого, и возвращает его shell.
+    /// </summary>
+    ShellViewModel? BringActivationTargetToFront();
 }
 
 public sealed class WindowLauncher : IWindowLauncher
@@ -29,6 +51,11 @@ public sealed class WindowLauncher : IWindowLauncher
     private const int CascadeOffset = 32;
 
     private readonly IServiceProvider _services;
+
+    /// <summary>Состояние до сворачивания: развёрнутое окно должно вернуться развёрнутым.</summary>
+    private readonly ConditionalWeakTable<Window, StrongBox<WindowState>> _restoreStates = new();
+
+    private WeakReference<Window>? _lastActiveWindow;
 
     public WindowLauncher(IServiceProvider services)
     {
@@ -55,18 +82,18 @@ public sealed class WindowLauncher : IWindowLauncher
                 continue;
             }
 
-            window.Activate();
+            BringToFront(window);
             return true;
         }
 
         return false;
     }
 
-    public void OpenFolderInNewWindow(string folderPath)
+    public Task OpenFolderInNewWindowAsync(string folderPath)
     {
         if (string.IsNullOrWhiteSpace(folderPath) || GetLifetime() is not { } lifetime)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         // View-model создаётся до окна, чтобы успеть погасить стартовую активацию:
@@ -78,10 +105,93 @@ public sealed class WindowLauncher : IWindowLauncher
         var window = ActivatorUtilities.CreateInstance<MainWindow>(_services, shell);
         var previous = lifetime.Windows.Count > 0 ? lifetime.Windows[^1] : null;
         ApplyCascade(window, previous);
+        TrackWindow(window);
         window.Show();
 
         // Папка открывается уже в новом окне: его view-model — своя, вкладки не общие.
-        _ = shell.OpenFolderPathAsync(folderPath);
+        return shell.OpenFolderPathAsync(folderPath);
+    }
+
+    public ShellViewModel? FocusWindowForDocument(string documentPath)
+    {
+        if (string.IsNullOrWhiteSpace(documentPath) || GetLifetime() is not { } lifetime)
+        {
+            return null;
+        }
+
+        // Вложенные папки в разных окнах: файл уходит в окно самой глубокой из них.
+        var window = lifetime.Windows
+            .Where(candidate => candidate.DataContext is ShellViewModel { Workspace: { } workspace }
+                && IsUnder(documentPath, workspace.Folder.RootPath))
+            .OrderByDescending(static candidate => ((ShellViewModel)candidate.DataContext!).Workspace!.Folder.RootPath.Length)
+            .FirstOrDefault();
+
+        if (window?.DataContext is not ShellViewModel shell)
+        {
+            return null;
+        }
+
+        BringToFront(window);
+        return shell;
+    }
+
+    public void TrackWindow(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        // Новое окно считается последним, пока пользователь не переключился на другое.
+        _lastActiveWindow = new WeakReference<Window>(window);
+        window.Activated += (_, _) => _lastActiveWindow = new WeakReference<Window>(window);
+        window.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Window.WindowStateProperty
+                && e.GetNewValue<WindowState>() is var state and not WindowState.Minimized)
+            {
+                _restoreStates.AddOrUpdate(window, new StrongBox<WindowState>(state));
+            }
+        };
+    }
+
+    public ShellViewModel? BringActivationTargetToFront()
+    {
+        if (GetLifetime() is not { } lifetime)
+        {
+            return null;
+        }
+
+        var window = GetLastActiveWindow(lifetime)
+            ?? (lifetime.Windows.Count > 0 ? lifetime.Windows[^1] : null);
+        if (window?.DataContext is not ShellViewModel shell)
+        {
+            return null;
+        }
+
+        BringToFront(window);
+        return shell;
+    }
+
+    /// <summary>Свёрнутое окно разворачивается в прежнее состояние, а не в «обычное».</summary>
+    private void BringToFront(Window window)
+    {
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = _restoreStates.TryGetValue(window, out var restore)
+                ? restore.Value
+                : WindowState.Normal;
+        }
+
+        window.Activate();
+    }
+
+    /// <summary>Закрытое окно может ещё жить в слабой ссылке — берём только из открытых.</summary>
+    private Window? GetLastActiveWindow(IClassicDesktopStyleApplicationLifetime lifetime)
+    {
+        if (_lastActiveWindow is null || !_lastActiveWindow.TryGetTarget(out var window))
+        {
+            return null;
+        }
+
+        return lifetime.Windows.Contains(window) ? window : null;
     }
 
     /// <summary>
@@ -116,6 +226,11 @@ public sealed class WindowLauncher : IWindowLauncher
 
     private static IClassicDesktopStyleApplicationLifetime? GetLifetime()
         => global::Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+
+    private static bool IsUnder(string path, string root)
+        => path.StartsWith(
+            Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar,
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     private static bool PathsMatch(string left, string right)
         => string.Equals(

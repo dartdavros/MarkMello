@@ -54,6 +54,13 @@ public partial class App : global::Avalonia.Application
             // а не просто инстанцировано.
             window.Opened += (_, _) => metrics.Mark(StartupStage.FirstWindow);
 
+            // Маршрутизатор подписывается сразу, чтобы не пропустить Apple Event,
+            // а файлы из повторных запусков принимает только после показа окна:
+            // до этого их некуда открыть, и канал держит их в очереди.
+            var activationRouter = Services.GetRequiredService<InstanceActivationRouter>();
+            Services.GetRequiredService<IWindowLauncher>().TrackWindow(window);
+            window.Opened += (_, _) => activationRouter.StartListening();
+
             desktop.MainWindow = window;
         }
 
