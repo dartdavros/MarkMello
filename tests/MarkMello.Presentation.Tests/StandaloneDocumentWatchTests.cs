@@ -134,6 +134,29 @@ public sealed class StandaloneDocumentWatchTests
     }
 
     [Fact]
+    public async Task TypingWhileReloadReadsTheFileKeepsTheEdits()
+    {
+        // Повторное ревью #52: правки, начатые во время чтения файла, не затираются.
+        var harness = Create();
+        await harness.ViewModel.OpenPathAsync(NotePath);
+        harness.ViewModel.ToggleEditModeCommand.Execute(null);
+        harness.Loader.Sources[NotePath] = new MarkdownSource(NotePath, "note.md", "# changed outside");
+        var slowRead = new TaskCompletionSource();
+        harness.Loader.Delays.Enqueue(Task.CompletedTask); // сверка со своим сохранением
+        harness.Loader.Delays.Enqueue(slowRead.Task);      // само перечитывание
+
+        var reload = harness.ViewModel.ApplyDocumentChangesAsync(
+            [new WorkspaceChange(WorkspaceChangeKind.Changed, NotePath)]);
+        harness.ViewModel.EditorSession!.SourceText = "# typed meanwhile";
+        slowRead.SetResult();
+        await reload;
+
+        Assert.Equal("# typed meanwhile", harness.ViewModel.EditorSession!.SourceText);
+        Assert.True(harness.ViewModel.IsDirty);
+        Assert.True(harness.ViewModel.ShowsExternalChangeBanner);
+    }
+
+    [Fact]
     public async Task ChangesQueuedBeforeWindowCloseAreIgnored()
     {
         // Ревью #52, п.3: обработчик из UI-очереди после закрытия окна не трогает вкладки

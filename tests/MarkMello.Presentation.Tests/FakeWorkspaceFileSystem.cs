@@ -228,13 +228,23 @@ internal sealed class CountingDocumentLoader : IDocumentLoader
 
     public int LoadCount { get; private set; }
 
-    public Task<MarkMello.Domain.MarkdownSource> LoadAsync(string path, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Задержки следующих чтений по очереди: тест держит чтение «на диске», пока
+    /// не завершит задачу. Содержимое берётся в момент завершения чтения.
+    /// </summary>
+    public Queue<Task> Delays { get; } = new();
+
+    public async Task<MarkMello.Domain.MarkdownSource> LoadAsync(string path, CancellationToken cancellationToken = default)
     {
         LoadCount++;
 
+        if (Delays.TryDequeue(out var delay))
+        {
+            await delay.ConfigureAwait(true);
+        }
+
         return Sources.TryGetValue(path, out var source)
-            ? Task.FromResult(source)
-            : Task.FromException<MarkMello.Domain.MarkdownSource>(
-                new FileNotFoundException("Document was not found.", path));
+            ? source
+            : throw new FileNotFoundException("Document was not found.", path);
     }
 }
