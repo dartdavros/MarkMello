@@ -33,6 +33,12 @@ public partial class ShellViewModel
     /// <summary>Watcher создаётся вместе с папкой — в startup path его нет.</summary>
     private void StartWatching(string rootPath)
     {
+        // Папка могла дооткрыться уже после закрытия окна (await в ApplyOpenedFolderAsync).
+        if (_isWatchingStopped)
+        {
+            return;
+        }
+
         _watcher ??= _watcherFactory();
         _watcher.Changed -= OnWorkspaceFilesChanged;
         _watcher.Changed += OnWorkspaceFilesChanged;
@@ -56,12 +62,16 @@ public partial class ShellViewModel
 
     internal async Task ApplyWorkspaceChangesAsync(IReadOnlyList<WorkspaceChange> changes)
     {
-        if (Workspace is not { } workspace)
+        if (_isWatchingStopped || Workspace is not { } workspace)
         {
             return;
         }
 
         await ApplyTabChangesAsync(changes).ConfigureAwait(true);
+        if (_isWatchingStopped)
+        {
+            return;
+        }
 
         // Каталоги перечитываем по одному разу, даже если в пачке двадцать событий из одного места.
         foreach (var directory in changes.Select(static change => change.AffectedDirectory).Distinct(PathComparer))
@@ -83,6 +93,12 @@ public partial class ShellViewModel
 
         foreach (var change in changes)
         {
+            // Окно могло закрыться, пока предыдущее изменение ждало загрузки файла.
+            if (_isWatchingStopped)
+            {
+                return;
+            }
+
             switch (change.Kind)
             {
                 case WorkspaceChangeKind.Renamed when change.PreviousPath is { } previous:
@@ -176,10 +192,40 @@ public partial class ShellViewModel
             return;
         }
 
-        var offset = tab.ScrollOffset;
-        await LoadDocumentAsync(path, preserveEditModeAfterLoad: false).ConfigureAwait(true);
+        await ReloadCleanTabAsync(tab, path).ConfigureAwait(true);
+    }
 
-        // Позиция чтения не должна прыгать в начало из-за чужого сохранения.
+    /// <summary>
+    /// Перечитывает вкладку без несохранённых правок. Позиция чтения не прыгает в начало
+    /// из-за чужого сохранения, а открытый редактор остаётся открытым — с новым текстом.
+    /// </summary>
+    private async Task ReloadCleanTabAsync(DocumentTabViewModel tab, string path)
+    {
+        var keepEditMode = tab.IsEditMode && tab.EditorSession is not null;
+        var offset = tab.ScrollOffset;
+        tab.NeedsReload = false;
+
+        _isRestoringTab = true;
+        try
+        {
+            OpenDocuments.Activate(tab);
+
+            // Загрузка обновляет сессию, подключённую к shell. Это должна быть сессия этой
+            // вкладки, а не той, с которой пользователь пришёл.
+            EditorSession = keepEditMode ? tab.EditorSession : null;
+        }
+        finally
+        {
+            _isRestoringTab = false;
+        }
+
+        if (!keepEditMode && tab.EditorSession is { } stale)
+        {
+            tab.EditorSession = null;
+            stale.Dispose();
+        }
+
+        await LoadDocumentAsync(path, preserveEditModeAfterLoad: keepEditMode).ConfigureAwait(true);
         _pendingScrollOffset = offset;
     }
 

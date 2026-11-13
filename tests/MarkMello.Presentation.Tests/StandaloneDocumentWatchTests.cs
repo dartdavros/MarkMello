@@ -90,6 +90,70 @@ public sealed class StandaloneDocumentWatchTests
     }
 
     [Fact]
+    public async Task RenamedBackgroundTabSavesUnderTheNewName()
+    {
+        // Ревью #52, п.1: путь редактора фоновой вкладки должен следовать за переименованием.
+        const string renamedPath = @"C:\notes\renamed.md";
+        var harness = Create();
+        await harness.ViewModel.OpenPathAsync(NotePath);
+        harness.ViewModel.ToggleEditModeCommand.Execute(null);
+        harness.ViewModel.EditorSession!.SourceText = "# edited";
+        await harness.ViewModel.OpenPathAsync(OtherPath);
+
+        await harness.ViewModel.ApplyDocumentChangesAsync(
+            [new WorkspaceChange(WorkspaceChangeKind.Renamed, renamedPath, NotePath)]);
+
+        var renamed = harness.ViewModel.OpenDocuments.FindByPath(renamedPath)!;
+        Assert.Equal(renamedPath, renamed.EditorSession!.CurrentPath);
+        Assert.Equal(renamedPath, renamed.Document!.Path);
+
+        await harness.ViewModel.OpenDocuments.ActivateCommand.ExecuteAsync(renamed);
+        await harness.ViewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(renamedPath, harness.Saver.Saves.Single().Path);
+    }
+
+    [Fact]
+    public async Task BackgroundTabWithCleanEditorIsRereadOnReturn()
+    {
+        // Ревью #52, п.2: чистый редактор в фоне тоже получает новый текст, режим правки остаётся.
+        var harness = Create();
+        await harness.ViewModel.OpenPathAsync(NotePath);
+        harness.ViewModel.ToggleEditModeCommand.Execute(null);
+        await harness.ViewModel.OpenPathAsync(OtherPath);
+        harness.Loader.Sources[NotePath] = new MarkdownSource(NotePath, "note.md", "# changed outside");
+
+        await harness.ViewModel.ApplyDocumentChangesAsync(
+            [new WorkspaceChange(WorkspaceChangeKind.Changed, NotePath)]);
+        await harness.ViewModel.OpenDocuments.ActivateCommand.ExecuteAsync(
+            harness.ViewModel.OpenDocuments.FindByPath(NotePath)!);
+
+        Assert.True(harness.ViewModel.IsEditMode);
+        Assert.Equal("# changed outside", harness.ViewModel.EditorSession!.SourceText);
+        Assert.False(harness.ViewModel.IsDirty);
+    }
+
+    [Fact]
+    public async Task ChangesQueuedBeforeWindowCloseAreIgnored()
+    {
+        // Ревью #52, п.3: обработчик из UI-очереди после закрытия окна не трогает вкладки
+        // и не создаёт watcher заново.
+        var harness = Create();
+        await harness.ViewModel.OpenPathAsync(NotePath);
+        Assert.Equal(1, harness.WatcherCreations);
+        harness.Loader.Sources[NotePath] = new MarkdownSource(NotePath, "note.md", "# after close");
+
+        harness.ViewModel.StopWatchingFiles();
+        await harness.ViewModel.ApplyDocumentChangesAsync(
+            [new WorkspaceChange(WorkspaceChangeKind.Changed, NotePath)]);
+        await harness.ViewModel.OpenPathAsync(OtherPath);
+
+        Assert.Equal("# other", harness.ViewModel.Document!.Content);
+        Assert.Equal("# note", harness.ViewModel.OpenDocuments.FindByPath(NotePath)!.Document!.Content);
+        Assert.Equal(1, harness.WatcherCreations);
+    }
+
+    [Fact]
     public async Task FileSystemWatcherReportsAtomicReplaceOfWatchedFile()
     {
         var directory = Directory.CreateTempSubdirectory("markmello-watch-").FullName;
@@ -127,11 +191,13 @@ public sealed class StandaloneDocumentWatchTests
         loader.Sources[OtherPath] = new MarkdownSource(OtherPath, "other.md", "# other");
 
         var watcher = new RecordingDocumentWatcher();
+        var saver = new RecordingDocumentSaver();
         var platform = new FakePlatformServices(fileSystem);
+        var harness = default(Harness);
 
         var viewModel = new ShellViewModel(
             new OpenDocumentUseCase(loader),
-            new SaveDocumentUseCase(new RecordingDocumentSaver()),
+            new SaveDocumentUseCase(saver),
             new StubFilePicker(),
             new StubCommandLineActivation(),
             new LocalizationService(AppLanguage.English),
@@ -148,15 +214,24 @@ public sealed class StandaloneDocumentWatchTests
             static () => new FakeWorkspaceWatcher(),
             new RecordingWindowLauncher(),
             fileExists: fileExists ?? (static _ => false),
-            documentWatcherFactory: () => watcher);
+            documentWatcherFactory: () =>
+            {
+                harness!.WatcherCreations++;
+                return watcher;
+            });
 
-        return new Harness(loader, watcher, viewModel);
+        harness = new Harness(loader, watcher, saver, viewModel);
+        return harness;
     }
 
     private sealed record Harness(
         CountingDocumentLoader Loader,
         RecordingDocumentWatcher Watcher,
-        ShellViewModel ViewModel);
+        RecordingDocumentSaver Saver,
+        ShellViewModel ViewModel)
+    {
+        public int WatcherCreations { get; set; }
+    }
 }
 
 /// <summary>Watcher без файловой системы: тест видит только набор отслеживаемых файлов.</summary>
