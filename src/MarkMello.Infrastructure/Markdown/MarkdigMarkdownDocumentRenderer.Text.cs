@@ -39,6 +39,7 @@ public sealed partial class MarkdigMarkdownDocumentRenderer
         MarkdownParagraphBlock paragraph => ExtractPlainText(paragraph.Inlines),
         MarkdownHeadingBlock heading => ExtractPlainText(heading.Inlines),
         MarkdownCodeBlock code => code.Code,
+        MarkdownMathBlock math => math.Source,
         MarkdownQuoteBlock quote => string.Join(Environment.NewLine, quote.Blocks.Select(ExtractPlainText)),
         MarkdownListBlock list => string.Join(Environment.NewLine, list.Items.Select(item => string.Join(" ", item.Blocks.Select(ExtractPlainText)))),
         MarkdownTableBlock table => string.Join(Environment.NewLine, table.Rows.Select(row => string.Join(" | ", row.Select(cell => ExtractPlainText(cell.Inlines))))),
@@ -75,6 +76,11 @@ public sealed partial class MarkdigMarkdownDocumentRenderer
                 break;
             case MarkdownCodeInline code:
                 builder.Append(code.Code);
+                break;
+            case MarkdownMathInline math:
+                // Keep the TeX source in plain-text views (search, copy,
+                // outline): the rendered glyphs are not text.
+                builder.Append(math.Content);
                 break;
             case MarkdownImageInline image:
                 builder.Append(GetImageInlinePlainText(image));

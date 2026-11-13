@@ -24,6 +24,9 @@ public static class MarkdownInlinePlainText
                 case MarkdownCodeInline code:
                     builder.Append(code.Code);
                     break;
+                case MarkdownMathInline math:
+                    builder.Append(math.Content);
+                    break;
                 case MarkdownStrongInline strong:
                     Append(builder, strong.Inlines);
                     break;

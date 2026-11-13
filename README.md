@@ -133,3 +133,7 @@ Diagram support in MarkMello is built on open-source projects:
 
 - [Naiad](https://github.com/NaiadDiagrams/Naiad) — a .NET library that renders Mermaid diagrams to SVG in-process, without a browser or external runtime. MIT License.
 - [Mermaid](https://github.com/mermaid-js/mermaid) — diagram syntax and specification.
+
+Math rendering is built on open-source projects:
+
+- [CSharpMath](https://github.com/verybadcat/CSharpMath) and its Avalonia fork [Sylinko/CSharpMath.Avalonia](https://github.com/Sylinko/CSharpMath.Avalonia) — a .NET LaTeX typesetting engine that renders formulas in-process, without a browser or JavaScript runtime. MIT License.

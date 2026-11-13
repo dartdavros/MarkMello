@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Markdig;
 using MarkdigMarkdown = Markdig.Markdown;
+using Markdig.Extensions.Mathematics;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -58,6 +59,14 @@ public sealed partial class MarkdigMarkdownDocumentRenderer
 
             case CodeInline code:
                 target.Add(new MarkdownCodeInline(code.Content.ToString()));
+                return;
+
+            case MathInline math:
+                var mathContent = math.Content.ToString().Trim();
+                if (!string.IsNullOrEmpty(mathContent))
+                {
+                    target.Add(new MarkdownMathInline(mathContent, math.DelimiterCount >= 2));
+                }
                 return;
 
             case AutolinkInline autolink:

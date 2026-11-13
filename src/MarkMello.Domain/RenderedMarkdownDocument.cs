@@ -77,6 +77,14 @@ public sealed record MarkdownHorizontalRuleBlock() : MarkdownBlock;
 
 public sealed record MarkdownCodeBlock(string? Info, string Code) : MarkdownBlock;
 
+/// <summary>
+/// Block-level math formula parsed from a <c>$$</c> fenced block (Markdig
+/// <c>MathBlock</c>). <see cref="Source"/> is the raw LaTeX source.
+/// Rendered as a centered display formula; on parse failure the source is
+/// shown as a code fallback so no content is silently lost.
+/// </summary>
+public sealed record MarkdownMathBlock(string Source) : MarkdownBlock;
+
 public sealed record MarkdownTableBlock(
     IReadOnlyList<MarkdownTableCell> Header,
     IReadOnlyList<IReadOnlyList<MarkdownTableCell>> Rows) : MarkdownBlock;
@@ -162,6 +170,14 @@ public sealed record MarkdownStrongInline(IReadOnlyList<MarkdownInline> Inlines)
 public sealed record MarkdownEmphasisInline(IReadOnlyList<MarkdownInline> Inlines) : MarkdownInline;
 
 public sealed record MarkdownCodeInline(string Code) : MarkdownInline;
+
+/// <summary>
+/// Inline math formula parsed from <c>$...$</c> (or <c>$$...$$</c> inside a
+/// paragraph). <see cref="Content"/> is the raw LaTeX source without the
+/// dollar delimiters; <see cref="IsDisplay"/> is true for the double-dollar
+/// form, which renders larger and centered within the text flow.
+/// </summary>
+public sealed record MarkdownMathInline(string Content, bool IsDisplay) : MarkdownInline;
 
 public sealed record MarkdownImageInline(string Url, string? AltText, string? Title) : MarkdownInline;
 

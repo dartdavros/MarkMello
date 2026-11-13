@@ -7,13 +7,15 @@ internal sealed record MarkdownStyledText(
     string Text,
     IReadOnlyList<MarkdownTextStyleSpan> Spans,
     IReadOnlyList<MarkdownLinkSpan> Links,
-    IReadOnlyList<MarkdownInlineImageSpan> Images)
+    IReadOnlyList<MarkdownInlineImageSpan> Images,
+    IReadOnlyList<MarkdownMathSpan> Math)
 {
     public static MarkdownStyledText Empty { get; } = new(
         string.Empty,
         Array.Empty<MarkdownTextStyleSpan>(),
         Array.Empty<MarkdownLinkSpan>(),
-        Array.Empty<MarkdownInlineImageSpan>());
+        Array.Empty<MarkdownInlineImageSpan>(),
+        Array.Empty<MarkdownMathSpan>());
 
     public static MarkdownStyledText FromInlines(IReadOnlyList<MarkdownInline> inlines)
     {
@@ -28,10 +30,11 @@ internal sealed record MarkdownStyledText(
         var spans = new List<MarkdownTextStyleSpan>();
         var links = new List<MarkdownLinkSpan>();
         var images = new List<MarkdownInlineImageSpan>();
-        AppendInlines(inlines, builder, spans, links, images, MarkdownInlineStyleState.Default);
+        var math = new List<MarkdownMathSpan>();
+        AppendInlines(inlines, builder, spans, links, images, math, MarkdownInlineStyleState.Default);
         return builder.Length == 0
             ? Empty
-            : new MarkdownStyledText(builder.ToString(), spans, links, images);
+            : new MarkdownStyledText(builder.ToString(), spans, links, images, math);
     }
 
     private static void AppendInlines(
@@ -40,11 +43,12 @@ internal sealed record MarkdownStyledText(
         List<MarkdownTextStyleSpan> spans,
         List<MarkdownLinkSpan> links,
         List<MarkdownInlineImageSpan> images,
+        List<MarkdownMathSpan> math,
         MarkdownInlineStyleState style)
     {
         foreach (var inline in inlines)
         {
-            AppendInline(inline, builder, spans, links, images, style);
+            AppendInline(inline, builder, spans, links, images, math, style);
         }
     }
 
@@ -54,6 +58,7 @@ internal sealed record MarkdownStyledText(
         List<MarkdownTextStyleSpan> spans,
         List<MarkdownLinkSpan> links,
         List<MarkdownInlineImageSpan> images,
+        List<MarkdownMathSpan> math,
         MarkdownInlineStyleState style)
     {
         switch (inline)
@@ -63,15 +68,19 @@ internal sealed record MarkdownStyledText(
                 return;
 
             case MarkdownStrongInline strong:
-                AppendInlines(strong.Inlines, builder, spans, links, images, style with { IsBold = true });
+                AppendInlines(strong.Inlines, builder, spans, links, images, math, style with { IsBold = true });
                 return;
 
             case MarkdownEmphasisInline emphasis:
-                AppendInlines(emphasis.Inlines, builder, spans, links, images, style with { IsItalic = true });
+                AppendInlines(emphasis.Inlines, builder, spans, links, images, math, style with { IsItalic = true });
                 return;
 
             case MarkdownCodeInline code:
                 AppendStyledText(code.Code, builder, spans, style with { IsCode = true });
+                return;
+
+            case MarkdownMathInline mathInline:
+                AppendMath(mathInline, builder, spans, math, style);
                 return;
 
             case MarkdownImageInline image:
@@ -79,7 +88,7 @@ internal sealed record MarkdownStyledText(
                 return;
 
             case MarkdownLinkInline link:
-                AppendLink(link, builder, spans, links, images, style with { IsLink = true });
+                AppendLink(link, builder, spans, links, images, math, style with { IsLink = true });
                 return;
 
             case MarkdownLineBreakInline:
@@ -87,6 +96,37 @@ internal sealed record MarkdownStyledText(
                 return;
         }
     }
+
+    /// <summary>
+    /// Formulas occupy a single canonical character in the text stream (the
+    /// placeholder glyph is never drawn by the text layer — the math run
+    /// paints the real formula), so selection/copy/search keep a stable,
+    /// contiguous offset model.
+    /// </summary>
+    private static void AppendMath(
+        MarkdownMathInline mathInline,
+        StringBuilder builder,
+        List<MarkdownTextStyleSpan> spans,
+        List<MarkdownMathSpan> math,
+        MarkdownInlineStyleState style)
+    {
+        if (string.IsNullOrWhiteSpace(mathInline.Content))
+        {
+            return;
+        }
+
+        var start = builder.Length;
+        builder.Append(MathPlaceholder);
+        var end = builder.Length;
+        math.Add(new MarkdownMathSpan(
+            math.Count,
+            new DocumentTextRange(start, end),
+            mathInline.Content,
+            mathInline.IsDisplay,
+            style));
+    }
+
+    private const char MathPlaceholder = '\uE002';
 
     private static string GetImageInlinePlainText(MarkdownImageInline image)
     {
@@ -142,13 +182,14 @@ internal sealed record MarkdownStyledText(
         List<MarkdownTextStyleSpan> spans,
         List<MarkdownLinkSpan> links,
         List<MarkdownInlineImageSpan> images,
+        List<MarkdownMathSpan> math,
         MarkdownInlineStyleState style)
     {
         var start = builder.Length;
 
         if (link.Inlines.Count > 0)
         {
-            AppendInlines(link.Inlines, builder, spans, links, images, style);
+            AppendInlines(link.Inlines, builder, spans, links, images, math, style);
         }
         else if (!string.IsNullOrWhiteSpace(link.Url))
         {
@@ -222,6 +263,17 @@ internal readonly record struct MarkdownInlineImageSpan(
     string? AltText,
     string? Title,
     string PlaceholderText,
+    MarkdownInlineStyleState Style);
+
+/// <summary>
+/// A parsed formula inside a styled text run. The canonical range covers the
+/// single placeholder character; the renderer paints the LaTeX there.
+/// </summary>
+internal readonly record struct MarkdownMathSpan(
+    int Index,
+    DocumentTextRange Range,
+    string Latex,
+    bool IsDisplay,
     MarkdownInlineStyleState Style);
 
 internal readonly record struct MarkdownInlineStyleState(bool IsBold, bool IsItalic, bool IsCode, bool IsLink)

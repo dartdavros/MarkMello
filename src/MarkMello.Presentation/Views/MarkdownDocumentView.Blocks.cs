@@ -38,6 +38,7 @@ public sealed partial class MarkdownDocumentView
             MarkdownTableBlock table => BuildTable(table, path),
             MarkdownImageBlock image => BuildImageBlock(image),
             MarkdownDiagramBlock diagram => BuildDiagramBlock(diagram),
+            MarkdownMathBlock math => BuildMathBlock(math),
             _ => BuildFallback(block)
         };
 

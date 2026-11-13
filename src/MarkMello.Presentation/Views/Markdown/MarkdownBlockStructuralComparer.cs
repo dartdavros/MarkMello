@@ -52,6 +52,8 @@ internal sealed partial class MarkdownBlockStructuralComparer : IEqualityCompare
             MarkdownCodeBlock code => y is MarkdownCodeBlock other
                 && string.Equals(code.Info, other.Info, StringComparison.Ordinal)
                 && string.Equals(code.Code, other.Code, StringComparison.Ordinal),
+            MarkdownMathBlock math => y is MarkdownMathBlock other
+                && string.Equals(math.Source, other.Source, StringComparison.Ordinal),
             MarkdownTableBlock table => y is MarkdownTableBlock other
                 && CellsEqual(table.Header, other.Header)
                 && RowsEqual(table.Rows, other.Rows),
@@ -106,6 +108,9 @@ internal sealed partial class MarkdownBlockStructuralComparer : IEqualityCompare
             case MarkdownCodeBlock code:
                 hash.Add(code.Info, StringComparer.Ordinal);
                 hash.Add(code.Code, StringComparer.Ordinal);
+                break;
+            case MarkdownMathBlock math:
+                hash.Add(math.Source, StringComparer.Ordinal);
                 break;
             case MarkdownTableBlock table:
                 AddCells(ref hash, table.Header);
@@ -239,6 +244,8 @@ internal sealed partial class MarkdownBlockStructuralComparer : IEqualityCompare
         {
             (MarkdownTextInline a, MarkdownTextInline b) => string.Equals(a.Text, b.Text, StringComparison.Ordinal),
             (MarkdownCodeInline a, MarkdownCodeInline b) => string.Equals(a.Code, b.Code, StringComparison.Ordinal),
+            (MarkdownMathInline a, MarkdownMathInline b) => a.IsDisplay == b.IsDisplay
+                && string.Equals(a.Content, b.Content, StringComparison.Ordinal),
             (MarkdownStrongInline a, MarkdownStrongInline b) => InlinesEqual(a.Inlines, b.Inlines),
             (MarkdownEmphasisInline a, MarkdownEmphasisInline b) => InlinesEqual(a.Inlines, b.Inlines),
             (MarkdownLineBreakInline, MarkdownLineBreakInline) => true,

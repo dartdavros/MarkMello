@@ -109,6 +109,26 @@ stateDiagram-v2
     Reading --> [*]
 ```
 
+## Math
+
+Inline formulas render in place: the energy relation $E = mc^2$ and a small sum
+$\sum_{i=1}^{n} i^2$ stay inside the paragraph.
+
+Display formulas get their own centered block:
+
+$$
+R_{SRH} = \frac{n p - n_i^2}{\tau_p (n + n_1) + \tau_n (p + p_1)}
+$$
+
+Matrices and radicals work too:
+
+$$
+M = \begin{pmatrix} a & b \\ c & d \end{pmatrix}, \quad
+\lVert v \rVert = \sqrt{x^2 + y^2}
+$$
+
+Formulas are rendered in-process; no WebView, JavaScript runtime, or network call is involved.
+
 ## Keyboard shortcuts
 
 - `Ctrl+O` — open file
