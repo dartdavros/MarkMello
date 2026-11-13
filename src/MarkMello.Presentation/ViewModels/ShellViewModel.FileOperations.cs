@@ -135,14 +135,11 @@ public partial class ShellViewModel
 
             if (PathsMatch(path, oldPath))
             {
-                tab.Retarget(newPath, Path.GetFileName(newPath));
-                tab.Tooltip = BuildTabTooltip(newPath);
+                RetargetTab(tab, newPath);
             }
             else if (IsUnderDirectory(path, oldPath))
             {
-                var moved = newPath + path[oldPath.Length..];
-                tab.Retarget(moved, Path.GetFileName(moved));
-                tab.Tooltip = BuildTabTooltip(moved);
+                RetargetTab(tab, newPath + path[oldPath.Length..]);
             }
         }
 
@@ -153,6 +150,24 @@ public partial class ShellViewModel
         }
 
         OpenDocuments.Refresh();
+    }
+
+    /// <summary>
+    /// Путь вкладки живёт в трёх местах: в самой вкладке, в её editor-сессии и в модели
+    /// документа. Обновляются все три — иначе фоновая вкладка после возврата сохранила бы
+    /// файл под прежним именем.
+    /// </summary>
+    private void RetargetTab(DocumentTabViewModel tab, string newPath)
+    {
+        var fileName = Path.GetFileName(newPath);
+        tab.Retarget(newPath, fileName);
+        tab.Tooltip = BuildTabTooltip(newPath);
+        tab.EditorSession?.Rename(newPath, fileName);
+
+        if (tab.Document is { } document)
+        {
+            tab.ApplyDocument(document with { Path = newPath, FileName = fileName }, tab.RenderedDocument);
+        }
     }
 
     /// <summary>

@@ -1,7 +1,6 @@
 using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using MarkMello.Application.Abstractions;
+using MarkMello.Application.UseCases;
 using MarkMello.Domain.Workspace;
 
 namespace MarkMello.Presentation.ViewModels;
@@ -15,23 +14,15 @@ public partial class ShellViewModel
 {
     private IWorkspaceWatcher? _watcher;
 
-    /// <summary>Активная вкладка изменилась на диске, а в ней есть несохранённые правки.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ExternalChangeContent))]
-    private bool _showsExternalChangeBanner;
-
-    /// <summary>Плашка внешнего изменения появляется по событию, а не с запуска приложения.</summary>
-    public object? ExternalChangeContent => ShowsExternalChangeBanner ? this : null;
-
-    public string ExternalChangeTitle => _localization["ExternalChangeTitle"];
-
-    public string ExternalChangeReload => _localization["ExternalChangeReload"];
-
-    public string ExternalChangeKeep => _localization["ExternalChangeKeep"];
-
     /// <summary>Watcher создаётся вместе с папкой — в startup path его нет.</summary>
     private void StartWatching(string rootPath)
     {
+        // Папка могла дооткрыться уже после закрытия окна (await в ApplyOpenedFolderAsync).
+        if (_isWatchingStopped)
+        {
+            return;
+        }
+
         _watcher ??= _watcherFactory();
         _watcher.Changed -= OnWorkspaceFilesChanged;
         _watcher.Changed += OnWorkspaceFilesChanged;
@@ -55,27 +46,15 @@ public partial class ShellViewModel
 
     internal async Task ApplyWorkspaceChangesAsync(IReadOnlyList<WorkspaceChange> changes)
     {
-        if (Workspace is not { } workspace)
+        if (_isWatchingStopped || Workspace is not { } workspace)
         {
             return;
         }
 
-        foreach (var change in changes)
+        await ApplyTabChangesAsync(changes).ConfigureAwait(true);
+        if (_isWatchingStopped)
         {
-            switch (change.Kind)
-            {
-                case WorkspaceChangeKind.Renamed when change.PreviousPath is { } previous:
-                    RetargetTabsUnderPath(previous, change.Path);
-                    break;
-
-                case WorkspaceChangeKind.Deleted:
-                    await HandleExternalDeleteAsync(change.Path).ConfigureAwait(true);
-                    break;
-
-                case WorkspaceChangeKind.Changed:
-                    await HandleExternalContentChangeAsync(change.Path).ConfigureAwait(true);
-                    break;
-            }
+            return;
         }
 
         // Каталоги перечитываем по одному разу, даже если в пачке двадцать событий из одного места.
@@ -85,6 +64,54 @@ public partial class ShellViewModel
         }
 
         SyncWorkspaceActiveDocument();
+    }
+
+    /// <summary>
+    /// Реакция открытых вкладок на внешние изменения — общая для папки и для файлов,
+    /// открытых без неё (<see cref="ApplyDocumentChangesAsync"/>).
+    /// </summary>
+    private async Task ApplyTabChangesAsync(IReadOnlyList<WorkspaceChange> changes)
+    {
+        // В одной пачке бывает несколько событий об одном файле: перечитываем его один раз.
+        var reloaded = new HashSet<string>(PathComparer);
+
+        foreach (var change in changes)
+        {
+            // Окно могло закрыться, пока предыдущее изменение ждало загрузки файла.
+            if (_isWatchingStopped)
+            {
+                return;
+            }
+
+            switch (change.Kind)
+            {
+                case WorkspaceChangeKind.Renamed when change.PreviousPath is { } previous:
+                    // Атомарное сохранение (так пишут многие редакторы и агенты): временный файл
+                    // переименовывается поверх открытого. Для вкладки это новое содержимое, а не переезд.
+                    var replacesOpenTab = OpenDocuments.FindByPath(change.Path) is not null;
+                    RetargetTabsUnderPath(previous, change.Path);
+                    if (replacesOpenTab && reloaded.Add(change.Path))
+                    {
+                        await HandleExternalContentChangeAsync(change.Path).ConfigureAwait(true);
+                    }
+
+                    break;
+
+                // Удалили и сразу записали заново — тоже сохранение: файл на месте, значит изменился.
+                case WorkspaceChangeKind.Deleted when _fileExists(change.Path):
+                case WorkspaceChangeKind.Changed:
+                    if (reloaded.Add(change.Path))
+                    {
+                        await HandleExternalContentChangeAsync(change.Path).ConfigureAwait(true);
+                    }
+
+                    break;
+
+                case WorkspaceChangeKind.Deleted:
+                    await HandleExternalDeleteAsync(change.Path).ConfigureAwait(true);
+                    break;
+            }
+        }
     }
 
     /// <summary>
@@ -122,15 +149,17 @@ public partial class ShellViewModel
             return;
         }
 
+        // Своё же сохранение из редактора watcher тоже видит. Перечитывать нечего,
+        // а перезагрузка выкинула бы пользователя из режима правки.
+        if (tab.EditorSession is { IsDirty: false } session
+            && await IsDiskContentAsync(path, session.SourceText).ConfigureAwait(true))
+        {
+            return;
+        }
+
         if (tab.EditorSession?.IsDirty == true)
         {
-            tab.HasExternalChange = true;
-
-            if (ReferenceEquals(tab, OpenDocuments.ActiveTab))
-            {
-                ShowsExternalChangeBanner = true;
-            }
-
+            MarkExternalChange(tab);
             return;
         }
 
@@ -141,49 +170,80 @@ public partial class ShellViewModel
             return;
         }
 
-        var offset = tab.ScrollOffset;
-        await LoadDocumentAsync(path, preserveEditModeAfterLoad: false).ConfigureAwait(true);
-
-        // Позиция чтения не должна прыгать в начало из-за чужого сохранения.
-        _pendingScrollOffset = offset;
+        await ReloadCleanTabAsync(tab, path).ConfigureAwait(true);
     }
 
-    [RelayCommand]
-    private async Task ReloadExternalChangeAsync()
+    /// <summary>
+    /// Перечитывает вкладку без несохранённых правок. Позиция чтения не прыгает в начало
+    /// из-за чужого сохранения, а открытый редактор остаётся открытым — с новым текстом.
+    /// </summary>
+    private async Task ReloadCleanTabAsync(DocumentTabViewModel tab, string path)
     {
-        if (OpenDocuments.ActiveTab is not { Path: { } path } tab)
+        var keepEditMode = tab.IsEditMode && tab.EditorSession is not null;
+        var offset = tab.ScrollOffset;
+        tab.NeedsReload = false;
+
+        ActivateTabForReload(tab, keepEditMode);
+
+        // Чтение и применение разделены: пока файл читается, пользователь может начать
+        // печатать или уйти на другую вкладку, и прочитанный текст уже нельзя применять вслепую.
+        var result = await _openDocument.ExecuteAsync(path).ConfigureAwait(true);
+        if (_isWatchingStopped || !ReferenceEquals(OpenDocuments.FindByPath(path), tab))
         {
             return;
         }
 
-        tab.HasExternalChange = false;
-        ShowsExternalChangeBanner = false;
+        if (tab.EditorSession?.IsDirty == true)
+        {
+            // Появились правки: текст не трогаем, показываем обычную плашку конфликта.
+            MarkExternalChange(tab);
+            return;
+        }
 
-        var offset = tab.ScrollOffset;
-        tab.EditorSession?.Dispose();
-        tab.EditorSession = null;
-        tab.IsEditMode = false;
-        EditorSession = null;
-        IsEditMode = false;
+        if (!ReferenceEquals(tab, OpenDocuments.ActiveTab))
+        {
+            tab.NeedsReload = true;
+            return;
+        }
 
-        await LoadDocumentAsync(path, preserveEditModeAfterLoad: false).ConfigureAwait(true);
+        ApplyOpenResult(result, preserveEditModeAfterLoad: IsEditMode && EditorSession is not null);
         _pendingScrollOffset = offset;
     }
 
-    /// <summary>«Оставить мои правки»: плашка уходит, файл на диске трогать не надо.</summary>
-    [RelayCommand]
-    private void KeepExternalChange()
+    private void ActivateTabForReload(DocumentTabViewModel tab, bool keepEditMode)
     {
-        if (OpenDocuments.ActiveTab is { } tab)
+        _isRestoringTab = true;
+        try
         {
-            tab.HasExternalChange = false;
+            OpenDocuments.Activate(tab);
+
+            // Загрузка обновляет сессию, подключённую к shell. Это должна быть сессия этой
+            // вкладки, а не той, с которой пользователь пришёл.
+            EditorSession = keepEditMode ? tab.EditorSession : null;
+            IsEditMode = keepEditMode;
+        }
+        finally
+        {
+            _isRestoringTab = false;
         }
 
-        ShowsExternalChangeBanner = false;
+        if (!keepEditMode && tab.EditorSession is { } stale)
+        {
+            tab.EditorSession = null;
+            stale.Dispose();
+        }
     }
 
-    private void SyncExternalChangeBanner()
-        => ShowsExternalChangeBanner = OpenDocuments.ActiveTab?.HasExternalChange == true;
+    private async Task<bool> IsDiskContentAsync(string path, string expected)
+    {
+        var result = await _openDocument.ExecuteAsync(path).ConfigureAwait(true);
+        return result is OpenDocumentResult.Success success
+            && string.Equals(
+                success.Source.Content.ReplaceLineEndings("\n"),
+                expected.ReplaceLineEndings("\n"),
+                StringComparison.Ordinal);
+    }
+
 
     private static IEqualityComparer<string> PathComparer => OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase

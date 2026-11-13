@@ -218,6 +218,9 @@ public partial class ShellViewModel
 
         StartWatching(success.Folder.RootPath);
 
+        // Вкладки внутри папки теперь видит watcher папки — отдельно за ними следить не нужно.
+        SyncDocumentWatch();
+
         // Та же папка, что в прошлый раз: возвращаем её вкладки и раскрытые узлы.
         await TryRestoreSessionAsync(workspace).ConfigureAwait(true);
         if (OpenDocuments.HasTabs)

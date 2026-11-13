@@ -106,13 +106,10 @@ public partial class ShellViewModel
     private async Task RestoreTabAsync(DocumentTabViewModel tab)
     {
         // Файл поменялся, пока вкладка была в фоне: показываем актуальное содержимое, а не снимок.
-        if (tab is { NeedsReload: true, Path: { } stalePath, EditorSession: null })
+        // Чистый редактор тоже перечитывается; вкладку с правками защищает плашка внешнего изменения.
+        if (tab is { NeedsReload: true, Path: { } stalePath } && tab.EditorSession?.IsDirty != true)
         {
-            tab.NeedsReload = false;
-            OpenDocuments.Activate(tab);
-            var offset = tab.ScrollOffset;
-            await LoadDocumentAsync(stalePath, preserveEditModeAfterLoad: false).ConfigureAwait(true);
-            _pendingScrollOffset = offset;
+            await ReloadCleanTabAsync(tab, stalePath).ConfigureAwait(true);
             SyncExternalChangeBanner();
             return;
         }
@@ -327,7 +324,8 @@ public partial class ShellViewModel
         OnPropertyChanged(nameof(IsEmptyDocumentSurface));
         UpdateTabCommandStates();
 
-        // Состав вкладок изменился — снимок сессии устарел.
+        // Состав вкладок изменился — снимок сессии устарел, набор отслеживаемых файлов тоже.
+        SyncDocumentWatch();
         _ = PersistSessionAsync();
     }
 
