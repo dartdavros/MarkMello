@@ -89,9 +89,11 @@ internal sealed partial class SyntaxTokenizer
         }
         else
         {
-            // Verbatim-строка C# (@"…") и «сырые» одинарные кавычки не знают экранирования.
+            // Verbatim-строка C# (@"…"), «сырые» одинарные кавычки и raw-строки Go не знают экранирования.
             var verbatim = _code.AsSpan(start, quoteAt - start).Contains('@');
-            var raw = verbatim || (quote == '\'' && _language.RawSingleQuotes);
+            var raw = verbatim
+                || (quote == '\'' && _language.RawSingleQuotes)
+                || (quote == '`' && _language.RawBackticks);
             var escape = raw ? null : _language.EscapeChar;
             var doubled = verbatim || _language.DoubledQuoteEscapes;
             var multiline = verbatim || (quote == '`' && _language.MultilineBacktick);

@@ -51,6 +51,9 @@ internal sealed class SyntaxLanguage
     /// <summary>Кавычка-обратный апостроф допускает перевод строки (шаблоны JS, Go raw strings).</summary>
     public bool MultilineBacktick { get; init; }
 
+    /// <summary>Строки в обратных апострофах без экранирования (raw strings в Go).</summary>
+    public bool RawBackticks { get; init; }
+
     public bool CaseInsensitive { get; init; }
 
     /// <summary>Слово с заглавной буквы — тип (классы в C#, Java, TS, Python).</summary>

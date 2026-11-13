@@ -114,7 +114,8 @@ internal static partial class SyntaxLanguages
         LineComments = CLikeComments,
         BlockComments = CLikeBlockComments,
         Quotes = "\"'`",
-        MultilineBacktick = true
+        MultilineBacktick = true,
+        RawBackticks = true
     };
 
     private static readonly SyntaxLanguage Rust = new()

@@ -113,6 +113,17 @@ public sealed class CodeSyntaxHighlighterTests
     }
 
     [Fact]
+    public void GoRawStringsHaveNoEscapesButQuotedStringsDo()
+    {
+        // Пример из ревью #53: в raw-строке Go обратный слеш — обычный символ.
+        var roles = Roles("path := `C:\\`\nreturn path, \"a\\\"b\"", "go");
+
+        Assert.Contains(("`C:\\`", SyntaxTokenKind.String), roles);
+        Assert.Contains(("return", SyntaxTokenKind.Keyword), roles);
+        Assert.Contains(("\"a\\\"b\"", SyntaxTokenKind.String), roles);
+    }
+
+    [Fact]
     public void PythonCommentMayFollowCodeWithoutSpace()
     {
         // Пример из ревью #53: разделитель перед «#» нужен оболочкам и YAML, но не Python.
