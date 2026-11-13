@@ -1,5 +1,6 @@
 using System.Text;
 using MarkMello.Domain;
+using MarkMello.Presentation.Views.Markdown.Syntax;
 
 namespace MarkMello.Presentation.Views.Markdown;
 
@@ -32,6 +33,40 @@ internal sealed record MarkdownStyledText(
         return builder.Length == 0
             ? Empty
             : new MarkdownStyledText(builder.ToString(), spans, links, images);
+    }
+
+    /// <summary>
+    /// Code block text with syntax roles. Tokens arrive sorted and non-overlapping;
+    /// the text itself is unchanged, so selection and find map onto it as before.
+    /// </summary>
+    public static MarkdownStyledText FromCode(string code, IReadOnlyList<SyntaxToken> tokens)
+    {
+        ArgumentNullException.ThrowIfNull(code);
+        ArgumentNullException.ThrowIfNull(tokens);
+
+        if (code.Length == 0)
+        {
+            return Empty;
+        }
+
+        var spans = new List<MarkdownTextStyleSpan>(tokens.Count);
+        foreach (var token in tokens)
+        {
+            if (token.Kind == SyntaxTokenKind.None || token.Length <= 0 || token.Start + token.Length > code.Length)
+            {
+                continue;
+            }
+
+            spans.Add(new MarkdownTextStyleSpan(
+                new DocumentTextRange(token.Start, token.Start + token.Length),
+                MarkdownInlineStyleState.Default with { Syntax = token.Kind }));
+        }
+
+        return new MarkdownStyledText(
+            code,
+            spans,
+            Array.Empty<MarkdownLinkSpan>(),
+            Array.Empty<MarkdownInlineImageSpan>());
     }
 
     private static void AppendInlines(
@@ -224,7 +259,12 @@ internal readonly record struct MarkdownInlineImageSpan(
     string PlaceholderText,
     MarkdownInlineStyleState Style);
 
-internal readonly record struct MarkdownInlineStyleState(bool IsBold, bool IsItalic, bool IsCode, bool IsLink)
+internal readonly record struct MarkdownInlineStyleState(
+    bool IsBold,
+    bool IsItalic,
+    bool IsCode,
+    bool IsLink,
+    SyntaxTokenKind Syntax = SyntaxTokenKind.None)
 {
     public static MarkdownInlineStyleState Default { get; } = new(false, false, false, false);
 }

@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using MarkMello.Domain;
+using MarkMello.Presentation.Views.Markdown.Syntax;
 
 namespace MarkMello.Presentation.Views.Markdown;
 
@@ -25,7 +26,8 @@ internal sealed class MarkdownFormattedTextLayout : IDisposable
         TextWrapping textWrapping,
         double maxWidth,
         IBrush foreground,
-        TextDecorationCollection? linkDecorations)
+        TextDecorationCollection? linkDecorations,
+        Func<SyntaxTokenKind, IBrush?>? syntaxBrushes = null)
     {
         _displayModel = MarkdownDisplayLayoutModel.Create(styledText);
         var textProperties = new MarkdownTextRunPropertiesFactory(
@@ -35,7 +37,8 @@ internal sealed class MarkdownFormattedTextLayout : IDisposable
             baseFontWeight,
             baseFontStyle,
             foreground,
-            linkDecorations);
+            linkDecorations,
+            syntaxBrushes);
         var padMetrics = MarkdownInlineCodePadMetrics.Create(
             inlineCodeFontFamily,
             baseFontSize * MarkdownTextRunPropertiesFactory.InlineCodeFontScale,
@@ -382,6 +385,7 @@ internal sealed class MarkdownTextRunPropertiesFactory
     private readonly FontStyle _fontStyle;
     private readonly IBrush _foreground;
     private readonly TextDecorationCollection? _linkDecorations;
+    private readonly Func<SyntaxTokenKind, IBrush?>? _syntaxBrushes;
 
     public MarkdownTextRunPropertiesFactory(
         FontFamily baseFontFamily,
@@ -390,7 +394,8 @@ internal sealed class MarkdownTextRunPropertiesFactory
         FontWeight fontWeight,
         FontStyle fontStyle,
         IBrush foreground,
-        TextDecorationCollection? linkDecorations)
+        TextDecorationCollection? linkDecorations,
+        Func<SyntaxTokenKind, IBrush?>? syntaxBrushes)
     {
         _baseFontFamily = baseFontFamily;
         _inlineCodeFontFamily = inlineCodeFontFamily;
@@ -399,6 +404,7 @@ internal sealed class MarkdownTextRunPropertiesFactory
         _fontStyle = fontStyle;
         _foreground = foreground;
         _linkDecorations = linkDecorations;
+        _syntaxBrushes = syntaxBrushes;
     }
 
     public TextRunProperties Get(MarkdownInlineStyleState style)
@@ -411,12 +417,16 @@ internal sealed class MarkdownTextRunPropertiesFactory
         var family = style.IsCode ? _inlineCodeFontFamily : _baseFontFamily;
         var fontSize = style.IsCode ? _fontSize * InlineCodeFontScale : _fontSize;
         var weight = style.IsBold ? FontWeight.Bold : _fontWeight;
-        var fontStyle = style.IsItalic ? FontStyle.Italic : _fontStyle;
+        // Comments are set in italic so they stay distinguishable without relying on colour alone.
+        var fontStyle = style.IsItalic || style.Syntax == SyntaxTokenKind.Comment ? FontStyle.Italic : _fontStyle;
+        var foreground = style.Syntax == SyntaxTokenKind.None
+            ? _foreground
+            : _syntaxBrushes?.Invoke(style.Syntax) ?? _foreground;
         properties = new GenericTextRunProperties(
             new Typeface(family, fontStyle, weight),
             fontSize,
             style.IsLink ? _linkDecorations : null,
-            _foreground,
+            foreground,
             backgroundBrush: null,
             BaselineAlignment.Baseline,
             CultureInfo.CurrentUICulture);

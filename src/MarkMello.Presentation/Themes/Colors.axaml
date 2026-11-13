@@ -51,6 +51,13 @@
       <SolidColorBrush x:Key="MmCodeBackgroundBrush">#F2EEE9</SolidColorBrush>
       <!-- oklch(0.90 0.008 75) -->
       <SolidColorBrush x:Key="MmCodeBorderBrush">#E1DDD8</SolidColorBrush>
+      <!-- Подсветка синтаксиса (#46): тона акцента и alert-цветов, контраст к фону кода ≥ 4.5:1 -->
+      <SolidColorBrush x:Key="MmSyntaxKeywordBrush">#B04F28</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxStringBrush">#4F6B3E</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxCommentBrush">#6B655F</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxNumberBrush">#3E6487</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxTypeBrush">#6F5687</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxFunctionBrush">#87601A</SolidColorBrush>
       <!-- oklch(0.80 0.012 60) -->
       <SolidColorBrush x:Key="MmQuoteBarBrush">#C4BCB6</SolidColorBrush>
       <!-- Selection: warm highlight aligned with accent-soft -->
@@ -100,6 +107,13 @@
       <SolidColorBrush x:Key="MmCodeBackgroundBrush">#1E1A16</SolidColorBrush>
       <!-- oklch(0.28 0.010 60) -->
       <SolidColorBrush x:Key="MmCodeBorderBrush">#2D2824</SolidColorBrush>
+      <!-- Подсветка синтаксиса (#46): тона акцента и alert-цветов, контраст к фону кода ≥ 4.5:1 -->
+      <SolidColorBrush x:Key="MmSyntaxKeywordBrush">#E38A67</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxStringBrush">#A1B696</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxCommentBrush">#8C8780</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxNumberBrush">#92AEC5</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxTypeBrush">#B9A7CA</SolidColorBrush>
+      <SolidColorBrush x:Key="MmSyntaxFunctionBrush">#D4B270</SolidColorBrush>
       <!-- oklch(0.40 0.012 60) -->
       <SolidColorBrush x:Key="MmQuoteBarBrush">#4D4641</SolidColorBrush>
       <!-- Selection: warm highlight, aligned with dark accent-soft -->
