@@ -1,0 +1,4 @@
+[submodule "external/Naiad"]
+	path = external/Naiad
+	url = https://github.com/dartdavros/Naiad.git
+	branch = codex/subgraph-directions-net10

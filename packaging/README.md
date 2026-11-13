@@ -12,18 +12,32 @@ This folder captures the first release baseline from `ADR-0004`.
 
 ## Windows
 
+Local packaging requires the .NET SDK, Inno Setup 6 and Python 3.9+ on PATH.
+The metadata normalization step uses only Python's standard library. CI sets
+up Python 3.13 explicitly.
+
 - `windows/MarkMello.iss` is the per-user Inno Setup installer.
 - `windows/build-installer.ps1` compiles the installer from a published app folder.
-- `windows/sign-files.ps1` signs published binaries and installers when a PFX certificate is provided.
+- `signpath/README.md` describes SignPath CI signing for the app and Windows installers.
+- `windows/sign-files.ps1` remains available for explicit local PFX signing.
 - `windows/markmello-installer.ico` is the installer icon generated from the shared master icon.
 - The installer registers MarkMello as an available `.md` handler and adds `Open with MarkMello`-style shell integration without forcing a system-wide default.
-- `.github/workflows/release-windows.yml` is the desktop GitHub Releases pipeline for Windows and macOS assets.
+- `.github/workflows/release-windows.yml` coordinates desktop releases through separate platform build workflows.
 
 GitHub Actions flow:
 
 - pushing a `v*` tag runs verify -> draft release creation -> Windows installers + macOS DMGs -> asset upload -> publish
 - tags with prerelease suffixes like `v0.6.0-beta.1` stay GitHub prereleases and are not marked as latest
 - `workflow_dispatch` can create or refresh a release manually and optionally keep it as a draft after upload
+
+Release descriptions use the Skaro format: a short summary, a Windows/macOS/Linux
+download table, accurate signing information, and the source commit. Add a summary
+to `packaging/release-notes/<version>.md` before releasing. The pure-Python
+`release-notes.py` generates the description; `release_assets.py` checks the full
+five-installer matrix and its SHA256 sidecars before a draft becomes public.
+Downloaded checksum files must match GitHub's own SHA256 digests, and each payload's
+GitHub digest must match its sidecar. Missing, unexpected or mismatched assets keep
+the release private as a draft. Linux arm64 is not part of the current matrix.
 
 Example:
 
@@ -85,12 +99,21 @@ Those values default in `src/MarkMello.Desktop/MarkMello.Desktop.csproj`, and ca
 
 This baseline prepares the repository for signed distribution, but actual signing credentials stay out of source control:
 
-- Windows signing should be injected into the release pipeline when calling `signtool`.
+- Windows CI signing uses SignPath before packaging and before uploading the installer.
 - macOS signing and notarization should be added later, once Apple Developer ID credentials are available.
 
-### GitHub Actions secrets for Windows signing
+### GitHub Actions configuration for Windows signing
 
-If you want the Windows workflow to sign artifacts, configure:
+- `SIGNPATH_API_TOKEN` — Actions secret containing the existing CI builds user's token.
+- `SIGNPATH_ORGANIZATION_ID` — Actions variable containing the SignPath organization ID.
+- `packaging/signpath/README.md` — artifact XML, initial test, and production setup.
 
-- `WINDOWS_SIGNING_CERT_BASE64` — base64-encoded `.pfx`
-- `WINDOWS_SIGNING_CERT_PASSWORD` — password for that certificate
+The `Test SignPath Windows` workflow signs both Windows architectures without
+creating or updating a GitHub Release. Normal releases require `release-signing`.
+The manual release workflow also supports an explicit `unsigned_windows=true`
+choice while a production certificate is unavailable. This skips Windows signing
+and signature validation, retains metadata, build and checksum checks, and clearly
+labels the installers as unsigned in the release description. Signing failures
+never activate this option automatically.
+The old `WINDOWS_SIGNING_CERT_BASE64` / `WINDOWS_SIGNING_CERT_PASSWORD` secrets
+are no longer used by CI.

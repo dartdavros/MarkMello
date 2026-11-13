@@ -22,6 +22,10 @@ public sealed partial class LocalizationService
     private static readonly Dictionary<string, string> EnglishUpdates = new(StringComparer.Ordinal)
     {
         ["UpdatesLabel"] = "Updates",
+        ["AutomaticUpdatesLabel"] = "Automatic checks",
+        ["AutomaticUpdatesHint"] = "Contacts GitHub after startup",
+        ["AutomaticUpdatesOn"] = "On",
+        ["AutomaticUpdatesOff"] = "Off",
         ["UpdatesHint"] = "GitHub release checks",
         ["UpdateCheckNow"] = "Check now",
         ["UpdateChecking"] = "Checking...",
@@ -37,7 +41,7 @@ public sealed partial class LocalizationService
         ["UpdateBadgeChecking"] = "Checking",
         ["UpdateBadgeDownloading"] = "Downloading",
         ["UpdateDefaultTitle"] = "Updates",
-        ["UpdateDefaultMessage"] = "GitHub Releases are checked 30 seconds after launch or manually.",
+        ["UpdateDefaultMessage"] = "Automatic checks, when enabled, run 30 seconds after launch. You can also check manually.",
         ["UpdateCheckingTitle"] = "Checking GitHub Releases",
         ["UpdateCheckingMessage"] = "Looking for a newer packaged build for this device.",
         ["UpdateUnavailableTitle"] = "Updates unavailable",
@@ -68,6 +72,10 @@ public sealed partial class LocalizationService
     private static readonly Dictionary<string, string> RussianUpdates = new(StringComparer.Ordinal)
     {
         ["UpdatesLabel"] = "Обновления",
+        ["AutomaticUpdatesLabel"] = "Автопроверка",
+        ["AutomaticUpdatesHint"] = "Обращение к GitHub после запуска",
+        ["AutomaticUpdatesOn"] = "Вкл",
+        ["AutomaticUpdatesOff"] = "Выкл",
         ["UpdatesHint"] = "Проверка GitHub Releases",
         ["UpdateCheckNow"] = "Проверить",
         ["UpdateChecking"] = "Проверка...",
@@ -83,7 +91,7 @@ public sealed partial class LocalizationService
         ["UpdateBadgeChecking"] = "Проверка",
         ["UpdateBadgeDownloading"] = "Загрузка",
         ["UpdateDefaultTitle"] = "Обновления",
-        ["UpdateDefaultMessage"] = "Проверка GitHub Releases выполняется через 30 секунд после запуска или вручную.",
+        ["UpdateDefaultMessage"] = "Если автопроверка включена, она выполняется через 30 секунд после запуска. Можно проверить вручную.",
         ["UpdateCheckingTitle"] = "Проверка GitHub Releases",
         ["UpdateCheckingMessage"] = "Ищем более новую сборку для этого устройства.",
         ["UpdateUnavailableTitle"] = "Обновления недоступны",

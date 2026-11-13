@@ -66,7 +66,7 @@ public sealed partial class ShellViewModelTests
     }
 
     [Fact]
-    public async Task FloatingChromeGroupFollowsMenuAndOutlineButtons()
+    public async Task FloatingChromeGroupFollowsSidebarAndOutlineButtons()
     {
         var harness = CreateHarness();
         var shell = harness.ViewModel;
@@ -77,7 +77,7 @@ public sealed partial class ShellViewModelTests
 
         await shell.OpenPathAsync(path);
 
-        Assert.True(shell.ShowsFloatingAppMenuButton);
+        Assert.True(shell.ShowsAppMenuControl);
         Assert.True(shell.ShowsFloatingOutlineButton);
         Assert.True(shell.ShowsFloatingChromeGroup);
         Assert.Contains(nameof(ShellViewModel.ShowsFloatingChromeGroup), raised);
@@ -85,7 +85,7 @@ public sealed partial class ShellViewModelTests
         raised.Clear();
         shell.ToggleEditModeCommand.Execute(null);
 
-        Assert.False(shell.ShowsFloatingAppMenuButton);
+        Assert.False(shell.ShowsAppMenuControl);
         Assert.False(shell.ShowsFloatingOutlineButton);
         Assert.False(shell.ShowsFloatingChromeGroup);
         Assert.Contains(nameof(ShellViewModel.ShowsFloatingChromeGroup), raised);

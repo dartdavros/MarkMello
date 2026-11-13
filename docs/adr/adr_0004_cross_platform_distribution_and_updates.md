@@ -130,6 +130,15 @@ Platform-specific completion:
 
 The app performs one background discovery check 30 seconds after the first window opens. This delay keeps network work outside the startup fast path. All windows share that check; closing a window detaches its observer, and application shutdown cancels the pending check. Manual checks remain available in app settings and their results take precedence over delayed discovery in that window.
 
+Automatic discovery is enabled by default and can be disabled in Settings >
+Updates on every platform. Windows Setup displays the offline privacy policy
+and a checked automatic-update option; it preserves the current per-user
+preference on upgrades. Disabling cancels pending discovery across windows;
+re-enabling starts a fresh shared 30-second delay. Manual checks, downloads and
+installation remain available independently. Silent Windows Setup supports
+`/AUTOUPDATES=on|off`. The setting is shared with Setup through preference-only
+commands that run under the original user's identity before Avalonia starts.
+
 When a newer suitable release exists, a circular 28px blue button appears immediately to the left of the theme selector, with the Lucide `arrow-down-to-line` icon. Its blue matches Codex's accent token (`#339CFF`); hovering mutes the background to 80% opacity and shows the localized tooltip `Обновить` / `Update`. Clicking opens the existing app settings update section, including from editing mode, without starting a download or installing anything. No update, network failure, or an unsupported target leaves the button hidden. The existing chrome visibility behavior is preserved.
 
 Download and installation remain user-initiated through the existing update section.

@@ -887,7 +887,6 @@ public partial class ShellViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowsReadEyeIcon));
         OnPropertyChanged(nameof(ShowsReadingStatus));
         OnPropertyChanged(nameof(ShowsAppMenuControl));
-        OnPropertyChanged(nameof(ShowsFloatingAppMenuButton));
         OnPropertyChanged(nameof(IsAppMenuOpen));
         OnPropertyChanged(nameof(IsAppSettingsOpen));
         OnPropertyChanged(nameof(IsAppAboutOpen));
@@ -1422,6 +1421,7 @@ public partial class ShellViewModel : ObservableObject
     private void RefreshDocumentSummary()
     {
         OnPropertyChanged(nameof(FileName));
+        OnPropertyChanged(nameof(IsCurrentDocumentSaved));
         OnPropertyChanged(nameof(TitleFileDisplayName));
         OnPropertyChanged(nameof(HasDocumentTitle));
         OnPropertyChanged(nameof(WordCount));

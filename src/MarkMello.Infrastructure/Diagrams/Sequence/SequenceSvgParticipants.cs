@@ -16,7 +16,7 @@ internal static class SequenceSvgParticipants
                 continue;
             }
 
-            // Naiad 0.1.2 emits a box + label, or a stick figure + label, in this order.
+            // Naiad emits a box + label, or a stick figure + label, in this order.
             var actor = kind == "circle";
             var oldCenter = actor ? SequenceSvgGeometry.Number(element, "cx")
                 : SequenceSvgGeometry.Number(element, "x") + SequenceLayoutPlan.OriginalParticipantWidth / 2;

@@ -57,6 +57,19 @@
 
   <Window.Styles>
     <StyleInclude Source="/Themes/SidebarSplitter.axaml" />
+    <Style Selector="ToggleButton.mm-titlebar-menu:not(:checked)">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ToggleButton.mm-titlebar-menu:not(:checked) /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Ellipse.mm-document-save-state">
+      <Setter Property="Fill" Value="{DynamicResource MmDocumentSavedBrush}" />
+    </Style>
+    <Style Selector="Ellipse.mm-document-save-state.unsaved">
+      <Setter Property="Fill" Value="{DynamicResource MmAlertWarningBrush}" />
+    </Style>
     <Style Selector="Border.mm-top-chrome">
       <Setter Property="Opacity" Value="0" />
       <Setter Property="RenderTransform" Value="translate(0px,-4px)" />
@@ -165,32 +178,62 @@
            handlers still run: Avalonia redirects that input to the client. -->
       <Border Grid.Row="0"
               Height="36"
+              Grid.IsSharedSizeScope="True"
               Background="{DynamicResource MmTitleBarBrush}">
-        <Grid ColumnDefinitions="*,Auto">
-          <Border Grid.Column="0"
-                  Background="Transparent"
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" SharedSizeGroup="TitleBarSide" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" SharedSizeGroup="TitleBarSide" />
+          </Grid.ColumnDefinitions>
+          <Border Grid.ColumnSpan="3" Background="Transparent"
                   WindowDecorationProperties.ElementRole="{OnPlatform Default=None, Windows=TitleBar}"
-                  PointerPressed="OnTitleBarPointerPressed">
-            <DockPanel Name="TitleBarContent"
-                     LastChildFill="True"
-                     Margin="14,0,0,0"
-                     VerticalAlignment="Center">
-            <Ellipse DockPanel.Dock="Left"
-                       Width="5" Height="5"
-                       VerticalAlignment="Center"
-                       Margin="0,0,8,0"
-                       Fill="{DynamicResource MmAccentBrush}"
-                       IsVisible="{Binding HasDocumentTitle}" />
-              <TextBlock Text="{Binding WindowTitle}"
-                         FontSize="{DynamicResource MmUiFontSize12}"
-                         FontWeight="Medium"
-                         VerticalAlignment="Center"
-                         TextTrimming="CharacterEllipsis"
-                         Foreground="{DynamicResource MmTitleBarTextBrush}" />
-            </DockPanel>
-          </Border>
+                  PointerPressed="OnTitleBarPointerPressed" />
 
-          <StackPanel Grid.Column="1"
+          <DockPanel Grid.Column="0" Name="TitleBarContent"
+                     LastChildFill="False" Margin="16,0">
+            <ToggleButton DockPanel.Dock="Left" Name="AppMenuTriggerButton"
+                          Classes="topbar-ghost mm-titlebar-menu" VerticalAlignment="Center"
+                          WindowDecorationProperties.ElementRole="User"
+                          Margin="-9,0,0,0"
+                          IsVisible="{Binding ShowsAppMenuControl}"
+                          IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
+                          Command="{Binding ToggleAppMenuCommand}"
+                          ToolTip.Tip="{Binding AppMenuTooltip}">
+              <!-- Same 14px viewport as Reading Settings. The visible stroke starts
+                   about 9px inside the 28px hit target; offset that target so the
+                   stroke aligns with the shared 16px content edge. -->
+              <Viewbox Width="14" Height="14" Stretch="Uniform">
+                <Grid Width="24" Height="24">
+                  <Path Data="M4 5h16 M4 12h16 M4 19h16"
+                        Stroke="{DynamicResource MmTextSoftBrush}"
+                        StrokeThickness="2"
+                        StrokeLineCap="Round" StrokeJoin="Round"
+                        Fill="Transparent" />
+                </Grid>
+              </Viewbox>
+            </ToggleButton>
+          </DockPanel>
+
+          <DockPanel Grid.Column="1" Name="TitleBarTitle"
+                     LastChildFill="True" HorizontalAlignment="Center"
+                     VerticalAlignment="Center" IsHitTestVisible="False">
+            <Ellipse DockPanel.Dock="Left" Name="DocumentSaveIndicator"
+                     Classes="mm-document-save-state"
+                     Classes.unsaved="{Binding !IsCurrentDocumentSaved}"
+                     Width="6" Height="6"
+                     VerticalAlignment="Center"
+                     Margin="0,2,8,0"
+                     IsVisible="{Binding HasDocumentTitle}" />
+            <TextBlock Name="TitleBarTitleText" Text="{Binding FileName}"
+                       FontSize="{DynamicResource MmUiFontSize12}"
+                       FontWeight="Medium"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource MmTitleBarTextBrush}" />
+          </DockPanel>
+
+          <StackPanel Grid.Column="2" Name="TitleBarCaptionButtons"
                       Orientation="Horizontal"
                       IsVisible="{Binding ShowCustomTitleBar}">
             <Button Classes="titlebar"
@@ -329,23 +372,6 @@
                 Margin="16,12,0,0"
                 IsVisible="{Binding ShowsFloatingChromeGroup}">
           <StackPanel Orientation="Horizontal" Spacing="6">
-            <ToggleButton Name="AppMenuTriggerButton"
-                          Classes="topbar-ghost"
-                          IsVisible="{Binding ShowsFloatingAppMenuButton}"
-                          IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
-                          Command="{Binding ToggleAppMenuCommand}"
-                          ToolTip.Tip="{Binding AppMenuTooltip}">
-              <Grid Width="14"
-                    Height="14">
-                <Path Data="M2.5 4H11.5 M2.5 7H11.5 M2.5 10H11.5"
-                      Stroke="{DynamicResource MmTextSoftBrush}"
-                      StrokeThickness="1.5"
-                      StrokeLineCap="Round"
-                      StrokeJoin="Round"
-                      Fill="Transparent" />
-              </Grid>
-            </ToggleButton>
-
             <!-- Зеркало шеврона из шапки сайдбара: свернуть дерево есть чем,
                  развернуть обратно — тоже. -->
             <Button Classes="topbar-ghost"
@@ -480,42 +506,6 @@
             </ToggleButton>
           </StackPanel>
         </Border>
-
-        <ContentControl Name="AppMenuPanel"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Margin="16,54,0,0"
-                        Content="{Binding AppMenuOverlayContent}">
-          <ContentControl.ContentTemplate>
-            <DataTemplate x:DataType="vm:ShellViewModel">
-              <views:AppMenuPanelView />
-            </DataTemplate>
-          </ContentControl.ContentTemplate>
-        </ContentControl>
-
-        <ContentControl Name="AppSettingsPanel"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Margin="16,54,0,0"
-                        Content="{Binding AppSettingsOverlayContent}">
-          <ContentControl.ContentTemplate>
-            <DataTemplate x:DataType="vm:ShellViewModel">
-              <views:AppSettingsPanelView />
-            </DataTemplate>
-          </ContentControl.ContentTemplate>
-        </ContentControl>
-
-        <ContentControl Name="AppAboutPanel"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Margin="16,54,0,0"
-                        Content="{Binding AppAboutOverlayContent}">
-          <ContentControl.ContentTemplate>
-            <DataTemplate x:DataType="vm:ShellViewModel">
-              <views:AppAboutPanelView />
-            </DataTemplate>
-          </ContentControl.ContentTemplate>
-        </ContentControl>
 
         <ContentControl Name="SettingsPanel"
                         HorizontalAlignment="Right"
@@ -789,6 +779,38 @@
 
       </Grid>
 
+      <ContentControl Grid.Row="1" Name="AppMenuPanel"
+                      HorizontalAlignment="Left" VerticalAlignment="Top"
+                      Margin="{Binding #TitleBarContent.Margin}"
+                      Content="{Binding AppMenuOverlayContent}">
+        <ContentControl.ContentTemplate>
+          <DataTemplate x:DataType="vm:ShellViewModel">
+            <views:AppMenuPanelView />
+          </DataTemplate>
+        </ContentControl.ContentTemplate>
+      </ContentControl>
+
+      <ContentControl Grid.Row="1" Name="AppSettingsPanel"
+                      HorizontalAlignment="Left" VerticalAlignment="Top"
+                      Margin="{Binding #TitleBarContent.Margin}"
+                      Content="{Binding AppSettingsOverlayContent}">
+        <ContentControl.ContentTemplate>
+          <DataTemplate x:DataType="vm:ShellViewModel">
+            <views:AppSettingsPanelView />
+          </DataTemplate>
+        </ContentControl.ContentTemplate>
+      </ContentControl>
+
+      <ContentControl Grid.Row="1" Name="AppAboutPanel"
+                      HorizontalAlignment="Left" VerticalAlignment="Top"
+                      Margin="{Binding #TitleBarContent.Margin}"
+                      Content="{Binding AppAboutOverlayContent}">
+        <ContentControl.ContentTemplate>
+          <DataTemplate x:DataType="vm:ShellViewModel">
+            <views:AppAboutPanelView />
+          </DataTemplate>
+        </ContentControl.ContentTemplate>
+      </ContentControl>
     </Grid>
   </Border>
 

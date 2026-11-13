@@ -5,6 +5,7 @@ using MarkMello.Domain.Diagnostics;
 using MarkMello.Infrastructure;
 using MarkMello.Infrastructure.Diagnostics;
 using MarkMello.Infrastructure.Platform.SingleInstance;
+using MarkMello.Infrastructure.Settings;
 using MarkMello.Presentation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,6 +25,11 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (InstallerUpdatePreferencesCommand.TryRun(args, out var installerExitCode))
+        {
+            return installerExitCode;
+        }
+
         var metrics = new StopwatchStartupMetrics();
         metrics.Mark(StartupStage.AppBootstrap);
 

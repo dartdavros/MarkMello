@@ -1,13 +1,13 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using MarkMello.Application.Abstractions;
-using MermaidSharp;
-using MermaidSharp.Diagrams.Sequence;
+using Naiad;
+using Naiad.Diagrams.Sequence;
 
 namespace MarkMello.Infrastructure.Diagrams.Sequence;
 
 /// <summary>
-/// Corrects Naiad 0.1.2's fixed sequence geometry while retaining its parser and SVG primitives.
+/// Fits Naiad's sequence geometry to native text measurements while retaining its parser and SVG primitives.
 /// Labels are measured by the same native font engine that displays the resulting SVG.
 /// </summary>
 internal static partial class SequenceSvgLayout

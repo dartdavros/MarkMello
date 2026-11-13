@@ -26,7 +26,7 @@ public sealed class WorkspaceSidebarTests
 
         Assert.Null(harness.ViewModel.Workspace);
         Assert.False(harness.ViewModel.ShowsSidebar);
-        Assert.True(harness.ViewModel.ShowsFloatingAppMenuButton);
+        Assert.True(harness.ViewModel.ShowsAppMenuControl);
         Assert.Empty(fileSystem.EnumeratedPaths);
     }
 
@@ -40,7 +40,7 @@ public sealed class WorkspaceSidebarTests
 
         var workspace = Assert.IsType<WorkspaceViewModel>(harness.ViewModel.Workspace);
         Assert.True(harness.ViewModel.ShowsSidebar);
-        Assert.False(harness.ViewModel.ShowsFloatingAppMenuButton);
+        Assert.True(harness.ViewModel.ShowsAppMenuControl);
         Assert.Equal("docs", workspace.RootDisplayName);
         Assert.Equal(["adr", "README.md", "pack.bat"], workspace.Roots.Select(node => node.Name));
         Assert.Equal([Root], fileSystem.EnumeratedPaths);
