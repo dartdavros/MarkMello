@@ -20,7 +20,6 @@ public partial class ShellViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsSidebar))]
     [NotifyPropertyChangedFor(nameof(SidebarContent))]
-    [NotifyPropertyChangedFor(nameof(ShowsFloatingAppMenuButton))]
     [NotifyPropertyChangedFor(nameof(ShowsFloatingSidebarButton))]
     // Пустой экран зависит от того, открыта ли папка: без папки это welcome,
     // с папкой — «выберите файл в дереве» (макет 07).
@@ -41,7 +40,6 @@ public partial class ShellViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowsSidebar))]
     [NotifyPropertyChangedFor(nameof(SidebarContent))]
-    [NotifyPropertyChangedFor(nameof(ShowsFloatingAppMenuButton))]
     [NotifyPropertyChangedFor(nameof(ShowsFloatingSidebarButton))]
     [NotifyPropertyChangedFor(nameof(CanToggleSidebar))]
     [NotifyPropertyChangedFor(nameof(IsWelcome))]
@@ -78,14 +76,7 @@ public partial class ShellViewModel
     public object? SidebarContent => ShowsSidebar ? this : null;
 
     /// <summary>
-    /// Плавающий гамбургер живёт только без сайдбара: при открытой папке его роль
-    /// исполняет кнопка в шапке сайдбара (макет 03).
-    /// </summary>
-    public bool ShowsFloatingAppMenuButton => ShowsAppMenuControl && !ShowsSidebar && !IsEditMode;
-
-    /// <summary>
-    /// Кнопка возврата свёрнутого дерева. В макете возврат был только через меню
-    /// плавающего гамбургера, но без видимой кнопки дерево кажется потерянным.
+    /// Кнопка возврата свёрнутого дерева, отдельная от меню приложения в хедере.
     /// </summary>
     public bool ShowsFloatingSidebarButton => Workspace is not null && IsSidebarCollapsed;
 

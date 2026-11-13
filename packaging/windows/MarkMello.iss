@@ -6,6 +6,10 @@
   #define MyAppVersion "0.0.0-dev"
 #endif
 
+#ifndef MyWindowsVersion
+  #define MyWindowsVersion "0.0.0.0"
+#endif
+
 #ifndef MyPublishDir
   #define MyPublishDir "..\..\publish\win-x64"
 #endif
@@ -50,6 +54,12 @@
 AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoProductName={#MyAppName}
+VersionInfoProductTextVersion={#MyAppVersion}
+VersionInfoProductVersion={#MyWindowsVersion}
+VersionInfoVersion={#MyWindowsVersion}
+VersionInfoTextVersion={#MyWindowsVersion}
+InfoBeforeFile=..\PRIVACY.txt
 AppPublisher=MarkMello contributors
 AppPublisherURL=https://github.com/{#MyReleaseOwner}/{#MyReleaseRepo}
 AppUpdatesURL=https://github.com/{#MyReleaseOwner}/{#MyReleaseRepo}/releases/latest
@@ -79,8 +89,13 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[Messages]
+WizardInfoBefore=Privacy Policy
+InfoBeforeLabel=Please review how MarkMello handles local documents and network requests.
+
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
+Name: "autoupdates"; Description: "Automatically check for updates (contacts GitHub)"
 
 [Files]
 ; Native AOT publish drops a *.pdb next to the binary (the linker's
@@ -112,3 +127,6 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\com
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+#include "update-preferences.iss"

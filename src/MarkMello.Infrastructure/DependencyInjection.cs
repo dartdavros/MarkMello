@@ -40,6 +40,7 @@ public static class DependencyInjection
         // в startup path его быть не должно (ADR-0007 Rule 9).
         services.AddSingleton<Func<IWorkspaceWatcher>>(static _ => static () => new FileSystemWorkspaceWatcher());
         services.AddSingleton<ISettingsStore, JsonSettingsStore>();
+        services.AddSingleton<IAutomaticUpdatePreferences, AutomaticUpdatePreferences>();
         services.AddSingleton<IPlatformServices, DefaultPlatformServices>();
         services.AddSingleton(_ => new CommandLineActivation(commandLineArgs));
         services.AddSingleton<ICommandLineActivation>(sp => sp.GetRequiredService<CommandLineActivation>());

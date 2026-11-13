@@ -31,7 +31,7 @@ public partial class ShellViewModel
     public bool ShowsFloatingOutlineButton => IsViewer && !IsEditMode;
 
     /// <summary>Плавающая группа кнопок видна, если нужна хотя бы одна из её кнопок.</summary>
-    public bool ShowsFloatingChromeGroup => ShowsFloatingAppMenuButton || ShowsFloatingOutlineButton;
+    public bool ShowsFloatingChromeGroup => !IsEditMode && (ShowsFloatingSidebarButton || ShowsFloatingOutlineButton);
 
     public bool IsOutlineToggleChecked => OutlinePreferences.IsVisible;
 
@@ -54,7 +54,7 @@ public partial class ShellViewModel
     // слушаем их здесь, а не размазываем NotifyPropertyChangedFor по чужим файлам.
     private void RaiseFloatingChromeGroupIfNeeded(string? propertyName)
     {
-        if (propertyName is nameof(ShowsFloatingAppMenuButton) or nameof(ShowsFloatingOutlineButton))
+        if (propertyName is nameof(ShowsFloatingSidebarButton) or nameof(ShowsFloatingOutlineButton))
         {
             OnPropertyChanged(nameof(ShowsFloatingChromeGroup));
         }

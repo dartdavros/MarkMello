@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             xmlns:views="using:MarkMello.Presentation.Views"
              mc:Ignorable="d"
              x:Class="MarkMello.Presentation.Views.AppSettingsPanelView"
              x:DataType="vm:ShellViewModel">
@@ -17,12 +18,16 @@
                       Classes="mm-settings-close"
                       Command="{Binding ReturnToAppMenuCommand}"
                       ToolTip.Tip="{Binding OverlayBackToMenu}">
-                <Path Data="M9.5,1.5 L2.5,5.5 L9.5,9.5"
-                      Stroke="{DynamicResource MmTextFaintBrush}"
-                      StrokeThickness="1.4"
-                      StrokeLineCap="Round"
-                      StrokeJoin="Round"
-                      Fill="Transparent" />
+                <Viewbox Width="16" Height="16" Stretch="Uniform">
+                  <Grid Width="24" Height="24">
+                    <Path Data="m15 18-6-6 6-6"
+                          Stroke="{DynamicResource MmTextFaintBrush}"
+                          StrokeThickness="2"
+                          StrokeLineCap="Round"
+                          StrokeJoin="Round"
+                          Fill="Transparent" />
+                  </Grid>
+                </Viewbox>
               </Button>
               <TextBlock Classes="mm-settings-title"
                          Grid.Column="1"
@@ -108,50 +113,7 @@
                     StartPoint="0,0.5"
                     EndPoint="1,0.5" />
 
-              <Border Classes="mm-setting-row">
-                <StackPanel Spacing="12">
-                  <Grid ColumnDefinitions="*,Auto"
-                        ColumnSpacing="12">
-                    <StackPanel Grid.Column="0"
-                                Spacing="2">
-                      <TextBlock Classes="mm-setting-label"
-                                 Text="{Binding UpdatesLabel}" />
-                      <TextBlock Classes="mm-setting-hint"
-                                 Text="{Binding UpdatesHint}" />
-                    </StackPanel>
-                    <TextBlock Grid.Column="1"
-                               Classes="mm-setting-meta"
-                               Text="{Binding UpdateStateBadge}" />
-                  </Grid>
-
-                  <StackPanel Spacing="4">
-                    <TextBlock Classes="mm-setting-label"
-                               FontSize="{DynamicResource MmUiFontSize12}"
-                               FontWeight="SemiBold"
-                               Text="{Binding UpdateStatusTitle}"
-                               TextWrapping="Wrap" />
-                    <TextBlock Classes="mm-setting-body"
-                               Text="{Binding UpdateStatusMessage}"
-                               TextWrapping="Wrap" />
-                  </StackPanel>
-
-                  <StackPanel Orientation="Horizontal"
-                              Spacing="8">
-                    <Button Classes="mm-dialog-secondary"
-                            Content="{Binding CheckForUpdatesLabel}"
-                            Command="{Binding CheckForUpdatesCommand}" />
-                    <Button Classes="mm-dialog-primary"
-                            Content="{Binding DownloadUpdateLabel}"
-                            Command="{Binding DownloadUpdateCommand}"
-                            IsVisible="{Binding CanDownloadAvailableUpdate}" />
-                  </StackPanel>
-
-                  <Button Classes="mm-dialog-secondary"
-                                      Content="{Binding DownloadedUpdateActionLabel}"
-                          Command="{Binding OpenDownloadedUpdateCommand}"
-                          IsVisible="{Binding CanOpenDownloadedUpdate}" />
-                </StackPanel>
-              </Border>
+              <views:UpdateSettingsView />
 
               <Line Classes="mm-setting-divider"
                     StartPoint="0,0.5"

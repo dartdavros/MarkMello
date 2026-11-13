@@ -1,6 +1,6 @@
 using MarkMello.Application.Abstractions;
-using MermaidSharp;
-using MermaidSharp.Diagrams.Sequence;
+using Naiad;
+using Naiad.Diagrams.Sequence;
 
 namespace MarkMello.Infrastructure.Diagrams.Sequence;
 

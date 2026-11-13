@@ -88,9 +88,10 @@ open /Applications/MarkMello.app
 
 ## Build from source
 
-.NET SDK 9 is required.
+.NET SDK 10 is required.
 
 ```bash
+git submodule update --init --recursive
 dotnet restore ./MarkMello.sln
 dotnet build ./MarkMello.sln
 ```
@@ -131,5 +132,5 @@ See [LICENSE](LICENSE).
 
 Diagram support in MarkMello is built on open-source projects:
 
-- [Naiad](https://github.com/NaiadDiagrams/Naiad) — a .NET library that renders Mermaid diagrams to SVG in-process, without a browser or external runtime. MIT License.
+- [Naiad](https://github.com/Papyrine/Naiad) — a .NET library that renders Mermaid diagrams to SVG in-process, without a browser or external runtime. Built from MIT-licensed sources using a [pinned MarkMello fork](https://github.com/dartdavros/Naiad/tree/codex/subgraph-directions-net10); see [dependency notes](docs/dependencies/naiad.md).
 - [Mermaid](https://github.com/mermaid-js/mermaid) — diagram syntax and specification.

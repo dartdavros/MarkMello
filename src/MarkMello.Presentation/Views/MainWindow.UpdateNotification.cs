@@ -18,6 +18,7 @@ public partial class MainWindow
 
     private void StopUpdateNotification()
     {
+        _viewModel.ReleaseAutomaticUpdateSettings();
         _updateNotificationLifetime.Cancel();
         _updateNotificationLifetime.Dispose();
         Opened -= OnWindowOpened;

@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             xmlns:controls="using:MarkMello.Presentation.Controls"
+             x:Class="MarkMello.Presentation.Views.AutomaticUpdatePreferenceView"
+             x:DataType="vm:AutomaticUpdateSettingsViewModel">
+  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+    <StackPanel Spacing="2" VerticalAlignment="Center">
+      <TextBlock Classes="mm-setting-label" Text="{Binding Label}" TextWrapping="Wrap" />
+      <TextBlock Classes="mm-setting-hint" Text="{Binding Hint}" TextWrapping="Wrap" />
+    </StackPanel>
+    <Border Grid.Column="1" Classes="mm-segmented" HorizontalAlignment="Right" VerticalAlignment="Center">
+      <StackPanel Orientation="Horizontal" Spacing="1">
+        <controls:SegmentedRadioButton Classes="mm-segmented-item" IsChecked="{Binding IsEnabled}">
+          <TextBlock Text="{Binding OnLabel}" />
+        </controls:SegmentedRadioButton>
+        <controls:SegmentedRadioButton Classes="mm-segmented-item" IsChecked="{Binding IsDisabled}">
+          <TextBlock Text="{Binding OffLabel}" />
+        </controls:SegmentedRadioButton>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

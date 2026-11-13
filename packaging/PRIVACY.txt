@@ -1,0 +1,41 @@
+MarkMello desktop application — Privacy Policy
+Last updated: November 13, 2026
+
+MarkMello is maintained by Andrey Ermolaev (dartdavros).
+Project: https://github.com/dartdavros/MarkMello
+Full policy and contact: https://markmello.ru/privacy
+
+LOCAL DOCUMENTS
+MarkMello opens, renders, edits and saves documents locally on your device.
+It does not upload your Markdown documents to MarkMello servers for processing.
+Reading preferences, application settings and the automatic update preference
+are stored in your user's application configuration directory.
+
+UPDATE CHECKS AND DOWNLOADS
+Automatic update checks are enabled by default. With this option enabled,
+MarkMello checks GitHub Releases 30 seconds after the first window opens.
+You can disable this option on the installer's Additional Tasks page, or later
+under Settings > Updates. Turning it off stops pending automatic checks.
+Your choice is retained across upgrades. Manual checks remain available.
+Downloading and installing an update are separate actions you initiate.
+
+Update requests disclose ordinary connection information, including your IP
+address and request headers, to GitHub and its delivery infrastructure. They
+do not upload your document contents. GitHub's privacy statement:
+https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
+
+REMOTE IMAGES AND LINKS
+Displaying an HTTP(S) image referenced in a Markdown document contacts that
+image's host. The host can receive your IP address, the requested URL and
+request headers. The document author chooses the image URL and its parameters.
+Opening an external link contacts that website. Its own privacy policy applies.
+
+DIAGNOSTICS AND WEBSITE ANALYTICS
+The desktop application does not include product analytics or behavioral
+telemetry by default. Local diagnostics support troubleshooting.
+Yandex Metrica is used on markmello.ru only, subject to the website's analytics
+choice; it is not included in this desktop application or installer.
+
+QUESTIONS
+Contact the maintainer through https://github.com/dartdavros.
+Do not disclose private documents or credentials in public issues.

@@ -8,10 +8,10 @@
   <ItemGroup>
     <PackageReference Include="Markdig" Version="1.1.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
-    <PackageReference Include="Naiad" Version="0.1.2" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\external\Naiad\src\Naiad\Naiad.csproj" />
     <ProjectReference Include="..\MarkMello.Application\MarkMello.Application.csproj" />
     <ProjectReference Include="..\MarkMello.Domain\MarkMello.Domain.csproj" />
   </ItemGroup>
