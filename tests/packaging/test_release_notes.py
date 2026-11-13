@@ -72,6 +72,12 @@ class ReleaseNotesTests(unittest.TestCase):
             with self.subTest(tag=tag, commit=commit), self.assertRaises(ValueError):
                 notes.render_notes(tag, commit, "Summary")
 
+    def test_unsigned_release_notes_do_not_claim_windows_signing(self):
+        rendered = notes.render_notes("v0.7.0", "a" * 40, "Summary", unsigned_windows=True)
+        self.assertIn("Windows installers are unsigned", rendered)
+        self.assertNotIn("signed through SignPath", rendered)
+        self.assertIn("macOS builds use an ad-hoc signature", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

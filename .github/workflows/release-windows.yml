@@ -20,6 +20,11 @@ on:
         required: true
         default: false
         type: boolean
+      unsigned_windows:
+        description: "Explicitly publish unsigned Windows installers"
+        required: true
+        default: false
+        type: boolean
       platforms:
         description: "Which installers to build"
         required: true
@@ -173,6 +178,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          UNSIGNED_WINDOWS: ${{ inputs.unsigned_windows || false }}
         run: |
           tag="${{ steps.vars.outputs.tag }}"
 
@@ -189,7 +195,9 @@ jobs:
             --notes-file "$RUNNER_TEMP/release-notes.md"
           )
 
-          python packaging/release-notes.py --tag "$tag" --source-commit "$GITHUB_SHA" --output "$RUNNER_TEMP/release-notes.md"
+          signing_args=()
+          [[ "$UNSIGNED_WINDOWS" != 'true' ]] || signing_args+=(--unsigned-windows)
+          python packaging/release-notes.py --tag "$tag" --source-commit "$GITHUB_SHA" --output "$RUNNER_TEMP/release-notes.md" "${signing_args[@]}"
 
           if [[ "${{ steps.vars.outputs.prerelease }}" == "true" ]]; then
             args+=(--prerelease)
@@ -207,6 +215,7 @@ jobs:
       version_core: ${{ needs.prepare_release.outputs.version_core }}
       version_windows: ${{ needs.prepare_release.outputs.version_windows }}
       repo_name: ${{ needs.prepare_release.outputs.repo_name }}
+      sign_binaries: ${{ !inputs.unsigned_windows }}
     secrets:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
 
@@ -260,16 +269,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          UNSIGNED_WINDOWS: ${{ inputs.unsigned_windows || false }}
         run: |
           tag="${{ needs.prepare_release.outputs.tag }}"
           gh api "repos/$GH_REPO/releases/tags/$tag" > "$RUNNER_TEMP/release-assets.json"
           mkdir -p "$RUNNER_TEMP/release-checksums"
           gh release download "$tag" --pattern '*.sha256' --dir "$RUNNER_TEMP/release-checksums"
+          signing_args=()
+          [[ "$UNSIGNED_WINDOWS" != 'true' ]] || signing_args+=(--unsigned-windows)
           python packaging/release-notes.py \
             --tag "$tag" --source-commit "$GITHUB_SHA" \
             --release-metadata "$RUNNER_TEMP/release-assets.json" \
             --checksum-directory "$RUNNER_TEMP/release-checksums" \
-            --output "$RUNNER_TEMP/release-notes.md"
+            --output "$RUNNER_TEMP/release-notes.md" "${signing_args[@]}"
           gh release edit "$tag" --title "MarkMello ${tag#v}" --notes-file "$RUNNER_TEMP/release-notes.md"
           args=(release edit "$tag" --draft=false)
 

@@ -110,5 +110,10 @@ This baseline prepares the repository for signed distribution, but actual signin
 
 The `Test SignPath Windows` workflow signs both Windows architectures without
 creating or updating a GitHub Release. Normal releases require `release-signing`.
+The manual release workflow also supports an explicit `unsigned_windows=true`
+choice while a production certificate is unavailable. This skips Windows signing
+and signature validation, retains metadata, build and checksum checks, and clearly
+labels the installers as unsigned in the release description. Signing failures
+never activate this option automatically.
 The old `WINDOWS_SIGNING_CERT_BASE64` / `WINDOWS_SIGNING_CERT_PASSWORD` secrets
 are no longer used by CI.
