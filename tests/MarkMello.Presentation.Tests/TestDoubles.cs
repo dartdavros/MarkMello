@@ -134,6 +134,17 @@ internal sealed class InMemorySettingsStore : ISettingsStore
         return ValueTask.CompletedTask;
     }
 
+    public OutlinePreferences OutlinePreferences { get; set; } = OutlinePreferences.Default;
+
+    public ValueTask<OutlinePreferences> LoadOutlinePreferencesAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(OutlinePreferences);
+
+    public ValueTask SaveOutlinePreferencesAsync(OutlinePreferences preferences, CancellationToken cancellationToken = default)
+    {
+        OutlinePreferences = preferences;
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask SavePreferencesAsync(ReadingPreferences preferences, CancellationToken cancellationToken = default)
     {
         Preferences = preferences;

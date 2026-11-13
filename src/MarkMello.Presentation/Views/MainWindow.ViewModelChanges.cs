@@ -20,6 +20,21 @@ public partial class MainWindow
             return;
         }
 
+        if (e.PropertyName is nameof(ShellViewModel.OutlineLeftContent)
+            or nameof(ShellViewModel.OutlineRightContent)
+            or nameof(ShellViewModel.OutlinePreferences))
+        {
+            SyncOutlineColumns();
+            return;
+        }
+
+        if (e.PropertyName is nameof(ShellViewModel.ActiveDocumentContent)
+            or nameof(ShellViewModel.IsEditMode)
+            or nameof(ShellViewModel.IsViewer))
+        {
+            ScheduleOutlineHostRefresh();
+        }
+
         if (e.PropertyName is nameof(ShellViewModel.ShellOverlay)
             or nameof(ShellViewModel.IsSettingsOpen)
             or nameof(ShellViewModel.IsAppMenuOpen)

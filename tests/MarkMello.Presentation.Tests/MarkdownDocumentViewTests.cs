@@ -504,6 +504,55 @@ public sealed class MarkdownDocumentViewTests
         Assert.Equal(index, view.MatchIndex);
     }
 
+    [Fact]
+    public void MarkdownSourceBlockLocatorExtractsCorrectLinesAndOffsets()
+    {
+        var source = "Line 0\nLine 1\nLine 2";
+        var success = Editing.MarkdownSourceBlockLocator.TryExtractLines(source, 1, 1, out var text, out var start, out var end);
+
+        Assert.True(success);
+        Assert.Equal("Line 1", text);
+        Assert.Equal(7, start);
+        Assert.Equal(13, end);
+    }
+
+    [Fact]
+    public void MarkdownSourceBlockLocatorReplaceRangePreservesLineEndings()
+    {
+        var source = "First\r\nSecond\r\nThird";
+        var success = Editing.MarkdownSourceBlockLocator.TryExtractLines(source, 1, 1, out var text, out var start, out var end);
+        Assert.True(success);
+
+        var replaced = Editing.MarkdownSourceBlockLocator.ReplaceRange(source, start, end, "Replaced");
+        Assert.Equal("First\r\nReplaced\r\nThird", replaced);
+    }
+
+    [Fact]
+    public void MarkdownQuickEditorControlCommitFiresOnlyOnce()
+    {
+        var editor = new MarkdownQuickEditorControl { Text = "Sample text" };
+        var commitCount = 0;
+        editor.CommitRequested += (_, _) => commitCount++;
+
+        editor.Commit();
+        editor.Commit();
+
+        Assert.Equal(1, commitCount);
+    }
+
+    [Fact]
+    public void MarkdownQuickEditorControlCancelFiresOnlyOnce()
+    {
+        var editor = new MarkdownQuickEditorControl { Text = "Sample text" };
+        var cancelCount = 0;
+        editor.CancelRequested += (_, _) => cancelCount++;
+
+        editor.RequestCancel();
+        editor.RequestCancel();
+
+        Assert.Equal(1, cancelCount);
+    }
+
     private static int GetMatchCount(MarkdownDocumentView view, string query)
     {
         var viewport = Assert.IsType<Border>(view.Content);

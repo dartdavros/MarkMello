@@ -1,0 +1,120 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MarkMello.Presentation.ViewModels"
+             x:Class="MarkMello.Presentation.Views.OutlineSettingsView"
+             x:DataType="vm:ShellViewModel">
+  <StackPanel Spacing="0">
+    <Line Classes="mm-setting-divider" StartPoint="0,0.5" EndPoint="1,0.5" />
+    <TextBlock Margin="0,16,0,4"
+               FontSize="11"
+               FontWeight="SemiBold"
+               LetterSpacing="1"
+               Foreground="{DynamicResource MmTextSoftBrush}"
+               Text="{Binding OutlineSettingsHeader}" />
+
+    <Border Classes="mm-setting-row">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Classes="mm-setting-label" TextWrapping="Wrap" Text="{Binding OutlineSideLabel}" />
+          <TextBlock Classes="mm-setting-hint" TextWrapping="Wrap" Text="{Binding OutlineSideHint}" />
+        </StackPanel>
+        <Border Grid.Column="1" Classes="mm-segmented" HorizontalAlignment="Right">
+          <StackPanel Orientation="Horizontal" Spacing="1">
+            <ToggleButton Classes="mm-segmented-item" IsChecked="{Binding IsOutlineLeftSelected}">
+              <TextBlock Text="{Binding OutlineSideLeft}" />
+            </ToggleButton>
+            <ToggleButton Classes="mm-segmented-item" IsChecked="{Binding IsOutlineRightSelected}">
+              <TextBlock Text="{Binding OutlineSideRight}" />
+            </ToggleButton>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <Line Classes="mm-setting-divider" StartPoint="0,0.5" EndPoint="1,0.5" />
+    <Border Classes="mm-setting-row">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Classes="mm-setting-label" TextWrapping="Wrap" Text="{Binding OutlineMaxLevelLabel}" />
+          <TextBlock Classes="mm-setting-hint" TextWrapping="Wrap" Text="{Binding OutlineMaxLevelHint}" />
+        </StackPanel>
+        <Border Grid.Column="1" Classes="mm-segmented" HorizontalAlignment="Right">
+          <ItemsControl ItemsSource="{Binding OutlineLevelSettings}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="1" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:OutlineLevelSetting">
+                <ToggleButton Classes="mm-segmented-item" IsChecked="{Binding IsMaxLevel}">
+                  <TextBlock Text="{Binding LevelLabel}" />
+                </ToggleButton>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Border>
+      </Grid>
+    </Border>
+
+    <Line Classes="mm-setting-divider" StartPoint="0,0.5" EndPoint="1,0.5" />
+    <Border Classes="mm-setting-row">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock Classes="mm-setting-label" TextWrapping="Wrap" Text="{Binding OutlineLineHeightLabel}" />
+          <TextBlock Classes="mm-setting-hint" TextWrapping="Wrap" Text="{Binding OutlineLineHeightHint}" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <Button Classes="mm-stepper" Content="−" Command="{Binding DecreaseOutlineLineHeightCommand}" />
+          <TextBlock Classes="mm-slider-value" MinWidth="40" TextAlignment="Center" VerticalAlignment="Center"
+                     Text="{Binding OutlineLineHeightValueLabel}" />
+          <Button Classes="mm-stepper" Content="+" Command="{Binding IncreaseOutlineLineHeightCommand}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Line Classes="mm-setting-divider" StartPoint="0,0.5" EndPoint="1,0.5" />
+    <Border Classes="mm-setting-row">
+      <StackPanel Spacing="8">
+        <ToggleButton x:Name="LevelSizesToggle" Classes="mm-section-toggle" IsChecked="True">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="mm-setting-label" Text="{Binding OutlineLevelSizesLabel}" />
+              <TextBlock Classes="mm-setting-hint" TextWrapping="Wrap" Text="{Binding OutlineLevelSizesHint}" />
+            </StackPanel>
+            <Path Grid.Column="1"
+                  Classes="mm-section-chevron"
+                  Width="12"
+                  Height="12"
+                  VerticalAlignment="Center"
+                  Data="M3 4.5L6 7.5L9 4.5"
+                  Stroke="{DynamicResource MmTextFaintBrush}"
+                  StrokeThickness="1.4"
+                  StrokeLineCap="Round"
+                  StrokeJoin="Round"
+                  Fill="Transparent" />
+          </Grid>
+        </ToggleButton>
+        <ItemsControl x:Name="LevelSizesList"
+                      IsVisible="{Binding #LevelSizesToggle.IsChecked}"
+                      ItemsSource="{Binding OutlineLevelSettings}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:OutlineLevelSetting">
+              <Grid ColumnDefinitions="*,Auto" Margin="12,4,0,4"
+                    Opacity="{Binding IsWithinMaxLevel, Converter={x:Static vm:OutlineOpacityConverter.Instance}}">
+                <TextBlock Classes="mm-setting-label" VerticalAlignment="Center"
+                           FontSize="{Binding FontSize}" Text="{Binding LevelLabel}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                  <Button Classes="mm-stepper" Content="−" Command="{Binding DecreaseFontSizeCommand}" />
+                  <TextBlock Classes="mm-slider-value" MinWidth="48" TextAlignment="Center" VerticalAlignment="Center"
+                             Text="{Binding FontSizeLabel}" />
+                  <Button Classes="mm-stepper" Content="+" Command="{Binding IncreaseFontSizeCommand}" />
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

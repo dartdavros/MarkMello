@@ -25,6 +25,7 @@
           </Border.Transitions>
           <views:MarkdownDocumentView Name="DocumentView"
                                       Document="{Binding RenderedDocument}"
+                                      SourceText="{Binding SourceText}"
                                       DocumentPadding="72,96,72,160"
                                       ReadingPreferences="{Binding DocumentReadingPreferences}"
                                       ImageSourceResolver="{Binding ImageSourceResolver}"

@@ -24,6 +24,9 @@ public interface ISettingsStore
     ValueTask<double> LoadSidebarWidthAsync(CancellationToken cancellationToken = default);
     ValueTask SaveSidebarWidthAsync(double width, CancellationToken cancellationToken = default);
 
+    ValueTask<OutlinePreferences> LoadOutlinePreferencesAsync(CancellationToken cancellationToken = default);
+    ValueTask SaveOutlinePreferencesAsync(OutlinePreferences preferences, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Состояние последней сессии окна. Читается только по явному запросу пользователя:
     /// в стартовый путь восстановление не входит.

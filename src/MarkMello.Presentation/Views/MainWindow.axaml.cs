@@ -65,6 +65,7 @@ public partial class MainWindow : Window
         ApplyPlatformTitleBarLayout();
         ApplyStartupWindowPlacement();
         SyncSidebarColumn();
+        SyncOutlineColumns();
         SyncOverlayWindowClasses();
         UpdateTitleBarMaximizeVisuals();
         UpdateWindowBorder();

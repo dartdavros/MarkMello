@@ -12,7 +12,7 @@ using MarkMello.Presentation.ViewModels;
 
 namespace MarkMello.Presentation.Views;
 
-public partial class EditWorkspaceView : UserControl, IFindHost
+public partial class EditWorkspaceView : UserControl, IFindHost, IOutlineNavigationHost
 {
     private const double ScrollSyncViewportAnchorRatio = 0.38;
     private const double ScrollSyncMinViewportAnchorY = 24;
@@ -206,6 +206,11 @@ public partial class EditWorkspaceView : UserControl, IFindHost
         DetachScrollSynchronization();
 
         _editorTextBox = this.FindControl<TextBox>("EditorTextBox");
+        if (_editorTextBox is not null)
+        {
+            AttachOutlineCaretTracking(_editorTextBox);
+        }
+
         _previewScrollViewer = this.FindControl<ScrollViewer>("PreviewScrollViewer");
         _previewDocumentView = this.FindControl<MarkdownDocumentView>("PreviewDocumentView");
         var editorVisuals = _editorTextBox?
@@ -270,6 +275,7 @@ public partial class EditWorkspaceView : UserControl, IFindHost
         if (_editorTextBox is not null)
         {
             _editorTextBox.TextChanged -= OnEditorTextChanged;
+            DetachOutlineCaretTracking(_editorTextBox);
         }
 
         _editorTextBox = null;
