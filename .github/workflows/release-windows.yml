@@ -272,7 +272,8 @@ jobs:
           UNSIGNED_WINDOWS: ${{ inputs.unsigned_windows || false }}
         run: |
           tag="${{ needs.prepare_release.outputs.tag }}"
-          gh api "repos/$GH_REPO/releases/tags/$tag" > "$RUNNER_TEMP/release-assets.json"
+          release_id="$(gh release view "$tag" --json databaseId --jq .databaseId)"
+          gh api "repos/$GH_REPO/releases/$release_id" > "$RUNNER_TEMP/release-assets.json"
           mkdir -p "$RUNNER_TEMP/release-checksums"
           gh release download "$tag" --pattern '*.sha256' --dir "$RUNNER_TEMP/release-checksums"
           signing_args=()
