@@ -8,11 +8,11 @@ namespace MarkMello.Presentation.Tests;
 public sealed class MainWindowPlacementTests
 {
     [Fact]
-    public void CalculateTitleBarContentMarginKeepsDefaultInsetOutsideMacOS()
+    public void CalculateTitleBarContentMarginMatchesTheSharedContentInsetOutsideMacOS()
     {
         var margin = MainWindow.CalculateTitleBarContentMargin(isMacOS: false);
 
-        Assert.Equal(new Thickness(14, 0, 0, 0), margin);
+        Assert.Equal(new Thickness(16, 0), margin);
     }
 
     [Fact]
@@ -20,7 +20,7 @@ public sealed class MainWindowPlacementTests
     {
         var margin = MainWindow.CalculateTitleBarContentMargin(isMacOS: true);
 
-        Assert.Equal(new Thickness(82, 0, 14, 0), margin);
+        Assert.Equal(new Thickness(82, 0, 16, 0), margin);
     }
 
     [Fact]

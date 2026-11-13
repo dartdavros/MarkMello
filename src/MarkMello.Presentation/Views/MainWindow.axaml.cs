@@ -21,7 +21,7 @@ public partial class MainWindow : Window
 {
     private const double DefaultWindowWidth = 1280;
     private const double DefaultWindowHeight = 840;
-    private const double TitleBarLeadingInset = 14;
+    private const double TitleBarLeadingInset = 16;
     private const double MacOsTitleBarLeadingInset = 82;
     private const int WindowPlacementMarginPixels = 8;
 
@@ -124,7 +124,7 @@ public partial class MainWindow : Window
     internal static Thickness CalculateTitleBarContentMargin(bool isMacOS)
         => isMacOS
             ? new Thickness(MacOsTitleBarLeadingInset, 0, TitleBarLeadingInset, 0)
-            : new Thickness(TitleBarLeadingInset, 0, 0, 0);
+            : new Thickness(TitleBarLeadingInset, 0);
 
     private async Task InitializeStartupAsync()
     {

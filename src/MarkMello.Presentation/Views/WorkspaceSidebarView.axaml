@@ -335,33 +335,18 @@
   <Border Classes="mm-sidebar">
     <Grid RowDefinitions="44,Auto,*,Auto">
 
-      <!-- Шапка: гамбургер переезжает сюда с плавающей позиции, рядом — имя корня -->
+      <!-- Шапка папки: имя корня и действия с деревом. Меню приложения находится в хедере окна. -->
       <Grid Grid.Row="0"
-            ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+            ColumnDefinitions="*,Auto,Auto,Auto"
             Margin="10,0,8,0"
             VerticalAlignment="Center">
-        <ToggleButton Grid.Column="0"
-                      Classes="mm-sidebar-icon"
-                      IsChecked="{Binding IsAppOverlayOpen, Mode=OneWay}"
-                      Command="{Binding ToggleAppMenuCommand}"
-                      IsVisible="{Binding ShowsAppMenuControl}"
-                      ToolTip.Tip="{Binding AppMenuTooltip}">
-          <Path Data="M2.5 4H11.5 M2.5 7H11.5 M2.5 10H11.5"
-                Width="14"
-                Height="14"
-                Stroke="{DynamicResource MmTextSoftBrush}"
-                StrokeThickness="1.5"
-                StrokeLineCap="Round"
-                StrokeJoin="Round" />
-        </ToggleButton>
-
-        <TextBlock Grid.Column="1"
+        <TextBlock Grid.Column="0"
                    Classes="mm-sidebar-root"
                    Margin="8,0,0,0"
                    Text="{Binding Workspace.RootDisplayName}"
                    ToolTip.Tip="{Binding Workspace.Folder.RootPath}" />
 
-        <Button Grid.Column="2"
+        <Button Grid.Column="1"
                 Classes="mm-sidebar-action"
                 Command="{Binding Workspace.StartNewFileCommand}"
                 ToolTip.Tip="{Binding SidebarNewFile}">
@@ -373,7 +358,7 @@
                 StrokeLineCap="Round" />
         </Button>
 
-        <Button Grid.Column="4"
+        <Button Grid.Column="3"
                 Classes="mm-sidebar-action"
                 Command="{Binding ToggleSidebarCommand}"
                 ToolTip.Tip="{Binding SidebarCollapse}">
@@ -386,7 +371,7 @@
                 StrokeJoin="Round" />
         </Button>
 
-        <Button Grid.Column="3"
+        <Button Grid.Column="2"
                 Classes="mm-sidebar-action"
                 Command="{Binding Workspace.StartNewFolderCommand}"
                 ToolTip.Tip="{Binding SidebarNewFolder}">

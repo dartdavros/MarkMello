@@ -15,7 +15,7 @@ public sealed class SidebarChromeTests
     private const string Root = @"C:\docs";
 
     [Fact]
-    public async Task CollapsingKeepsTheFolderOpenAndBringsBackTheFloatingButton()
+    public async Task CollapsingKeepsTheFolderOpenAndTheHeaderMenuAvailable()
     {
         var harness = await CreateAsync();
 
@@ -23,7 +23,7 @@ public sealed class SidebarChromeTests
 
         Assert.False(harness.ViewModel.ShowsSidebar);
         Assert.Null(harness.ViewModel.SidebarContent);
-        Assert.True(harness.ViewModel.ShowsFloatingAppMenuButton);
+        Assert.True(harness.ViewModel.ShowsAppMenuControl);
 
         // Папка остаётся открытой: сворачивание — про место на экране, а не про выход из режима.
         Assert.NotNull(harness.ViewModel.Workspace);
@@ -31,8 +31,7 @@ public sealed class SidebarChromeTests
     }
 
     /// <summary>
-    /// Свёрнутое дерево возвращает отдельная кнопка рядом с гамбургером: в макете
-    /// возврат был только пунктом меню, и найти его не получалось.
+    /// Свёрнутое дерево возвращает отдельная кнопка у документа.
     /// </summary>
     [Fact]
     public async Task CollapsedSidebarGetsItsOwnButtonBack()
@@ -60,7 +59,7 @@ public sealed class SidebarChromeTests
 
         Assert.True(harness.ViewModel.ShowsSidebar);
         Assert.NotNull(harness.ViewModel.SidebarContent);
-        Assert.False(harness.ViewModel.ShowsFloatingAppMenuButton);
+        Assert.True(harness.ViewModel.ShowsAppMenuControl);
     }
 
     [Fact]

@@ -43,6 +43,7 @@
       <!-- GitHub alerts: approved in the light/dark HTML preview. -->
       <SolidColorBrush x:Key="MmAlertNoteBrush">#536F87</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertTipBrush">#5D7457</SolidColorBrush>
+      <SolidColorBrush x:Key="MmDocumentSavedBrush">#83B86F</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertImportantBrush">#796788</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertWarningBrush">#956C23</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertCautionBrush">#BD592F</SolidColorBrush>
@@ -91,6 +92,7 @@
       <SolidColorBrush x:Key="MmAccentSoftBrush">#432519</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertNoteBrush">#92AEC5</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertTipBrush">#A1B696</SolidColorBrush>
+      <SolidColorBrush x:Key="MmDocumentSavedBrush">#83B86F</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertImportantBrush">#B9A7CA</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertWarningBrush">#D4B270</SolidColorBrush>
       <SolidColorBrush x:Key="MmAlertCautionBrush">#E38A67</SolidColorBrush>

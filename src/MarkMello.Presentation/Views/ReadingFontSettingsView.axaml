@@ -6,7 +6,7 @@
   <ItemsControl ItemsSource="{Binding DocumentFonts}">
     <ItemsControl.ItemTemplate>
       <DataTemplate x:DataType="vm:DocumentFontSetting">
-        <Border Classes="mm-setting-row">
+        <Border Classes="mm-setting-row" Padding="6,6">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <TextBlock Classes="mm-setting-label" Text="{Binding Label}"
                        VerticalAlignment="Center" />
@@ -21,6 +21,7 @@
                 </ComboBox.ItemTemplate>
               </ComboBox>
               <TextBlock Classes="mm-setting-hint" Text="{Binding Hint}" MaxWidth="280"
+                         IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                          TextWrapping="Wrap" />
             </StackPanel>
           </Grid>
