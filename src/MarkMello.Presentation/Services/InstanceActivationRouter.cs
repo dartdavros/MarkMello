@@ -92,9 +92,16 @@ public sealed class InstanceActivationRouter : IDisposable
         {
             if (_directoryExists(path))
             {
-                // Папка подчиняется тем же правилам, что и «Открыть папку»: занятое окно
-                // отдаёт её новому окну или окну, где она уже открыта (ADR-0007 Rule 11).
-                // Открытие дожидаемся — следующий файл из неё должен найти её окно.
+                // Уже открытую папку не открываем заново: восстановление сессии перечитало бы
+                // вкладки и сбросило несохранённые правки. Достаточно вывести её окно вперёд.
+                if (_windows.TryFocusWindowWithFolder(path))
+                {
+                    continue;
+                }
+
+                // Остальное — по правилам «Открыть папку»: занятое окно отдаёт папку новому
+                // окну (ADR-0007 Rule 11). Открытие дожидаемся — следующий файл из неё
+                // должен найти её окно.
                 await target.OpenFolderPathAsync(path).ConfigureAwait(true);
             }
             else if (SupportedDocumentTypes.IsSupportedPath(path))

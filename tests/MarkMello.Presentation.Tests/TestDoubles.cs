@@ -311,7 +311,14 @@ internal sealed class RecordingWindowLauncher : MarkMello.Presentation.Services.
 
     public bool TryFocusWindowWithFolder(string folderPath)
     {
-        if (!OpenFolders.Contains(folderPath))
+        var openInShell = NewWindowShells
+            .Append(ActivationTarget)
+            .Any(shell => shell?.Workspace is { } workspace
+                && string.Equals(
+                    Path.TrimEndingDirectorySeparator(workspace.Folder.RootPath),
+                    Path.TrimEndingDirectorySeparator(folderPath),
+                    StringComparison.OrdinalIgnoreCase));
+        if (!openInShell && !OpenFolders.Contains(folderPath))
         {
             return false;
         }

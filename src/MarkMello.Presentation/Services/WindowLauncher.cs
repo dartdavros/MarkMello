@@ -82,7 +82,7 @@ public sealed class WindowLauncher : IWindowLauncher
                 continue;
             }
 
-            window.Activate();
+            BringToFront(window);
             return true;
         }
 

@@ -20,6 +20,7 @@ public sealed class InstanceActivationRouterTests
     private const string NotePath = @"C:\notes\note.md";
     private const string OtherPath = @"C:\notes\other.md";
     private const string SecondFile = @"C:\second\file.md";
+    private const string FirstFile = @"C:\first\a.md";
 
     [Fact]
     public async Task ReopeningAFileWithUnsavedEditsActivatesItsTabInsteadOfReloading()
@@ -39,6 +40,28 @@ public sealed class InstanceActivationRouterTests
         Assert.Equal("# unsaved", shell.EditorSession!.SourceText);
         Assert.True(shell.IsDirty);
         Assert.Equal(2, shell.OpenDocuments.Tabs.Count);
+    }
+
+    [Fact]
+    public async Task RelaunchWithAnOpenFolderKeepsItsTabsAndUnsavedEdits()
+    {
+        // Повторное ревью #51: «MarkMello C:\docs C:\docs\first.md» при уже открытой папке
+        // только выводит окно вперёд — сессия папки не восстанавливается заново.
+        var context = new Context();
+        var shell = context.CreateShell();
+        await shell.OpenFolderPathAsync(FirstRoot);
+        await shell.OpenPathAsync(FirstFile);
+        context.Settings.Session = new WorkspaceSessionState(FirstRoot, [FirstFile], FirstFile, []);
+        shell.ToggleEditModeCommand.Execute(null);
+        shell.EditorSession!.SourceText = "# unsaved";
+        var router = context.CreateRouter(shell);
+
+        await router.RouteAsync([FirstRoot, FirstFile]);
+
+        Assert.Equal(FirstFile, shell.OpenDocuments.ActiveTab!.Path);
+        Assert.Equal("# unsaved", shell.EditorSession!.SourceText);
+        Assert.True(shell.IsDirty);
+        Assert.Empty(context.Launcher.NewWindowFolders);
     }
 
     [Fact]
@@ -95,11 +118,11 @@ public sealed class InstanceActivationRouterTests
 
         public Context(bool yieldOnRead = false)
         {
-            _fileSystem.AddDirectory(FirstRoot, WorkspaceEntry.ForFile(@"C:\first\a.md", "a.md"));
+            _fileSystem.AddDirectory(FirstRoot, WorkspaceEntry.ForFile(FirstFile, "a.md"));
             _fileSystem.AddDirectory(SecondRoot, WorkspaceEntry.ForFile(SecondFile, "file.md"));
             _readFileSystem = yieldOnRead ? new YieldingWorkspaceFileSystem(_fileSystem) : _fileSystem;
 
-            foreach (var path in new[] { NotePath, OtherPath, SecondFile })
+            foreach (var path in new[] { NotePath, OtherPath, SecondFile, FirstFile })
             {
                 _loader.Sources[path] = new MarkdownSource(path, Path.GetFileName(path), $"# {Path.GetFileName(path)}");
             }
@@ -108,6 +131,9 @@ public sealed class InstanceActivationRouterTests
         }
 
         public RecordingWindowLauncher Launcher { get; } = new();
+
+        /// <summary>Настройки окна: сохранённая сессия папки восстанавливается при её открытии.</summary>
+        public InMemorySettingsStore Settings { get; } = new();
 
         public InstanceActivationRouter CreateRouter(ShellViewModel target)
         {
@@ -128,7 +154,7 @@ public sealed class InstanceActivationRouterTests
                 new StubFilePicker(),
                 new StubCommandLineActivation(),
                 new LocalizationService(AppLanguage.English),
-                new InMemorySettingsStore(),
+                Settings,
                 new RecordingThemeService(),
                 new RecordingStartupMetrics(),
                 new RenderMarkdownDocumentUseCase(new TestMarkdownRenderer(), new FakeDiagramRenderService()),
@@ -139,7 +165,8 @@ public sealed class InstanceActivationRouterTests
                 new WorkspaceFileOperationsUseCase(_fileSystem, platform),
                 platform,
                 static () => new FakeWorkspaceWatcher(),
-                Launcher);
+                Launcher,
+                fileExists: _fileSystem.Exists);
         }
     }
 
