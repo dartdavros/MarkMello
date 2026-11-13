@@ -1,9 +1,13 @@
 <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="product-version" required="true" />
+    <parameter name="file-version" required="true" />
+  </parameters>
   <zip-file>
-    <pe-file path="MarkMello.exe">
+    <pe-file path="MarkMello.exe" product-name="MarkMello" product-version="${product-version}" file-version="${file-version}">
       <authenticode-sign />
     </pe-file>
-    <pe-file path="MarkMello.dll" min-matches="0">
+    <pe-file path="MarkMello.dll" min-matches="0" product-name="MarkMello" product-version="${product-version}" file-version="${file-version}">
       <authenticode-sign />
     </pe-file>
   </zip-file>

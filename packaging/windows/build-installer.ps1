@@ -9,6 +9,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Version,
 
+    [string]$WindowsVersion,
+
     [string]$OutputDir = (Join-Path $PSScriptRoot "dist"),
 
     [string]$SetupIconPath = (Join-Path $PSScriptRoot "markmello-installer.ico"),
@@ -19,6 +21,20 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if (-not (Get-Command python -CommandType Application -ErrorAction SilentlyContinue)) {
+    throw 'Python 3.9 or later is required on PATH to normalize installer metadata.'
+}
+
+if (-not $WindowsVersion) {
+    if ($Version -notmatch '^(\d+)\.(\d+)\.(\d+)(?:[+-].*)?$') {
+        throw 'Provide WindowsVersion as a four-part Windows version.'
+    }
+    $WindowsVersion = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
+}
+if ($WindowsVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
+    throw 'WindowsVersion must contain exactly four numeric parts.'
+}
 
 $scriptPath = Join-Path $PSScriptRoot "MarkMello.iss"
 if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
@@ -54,6 +70,7 @@ if (-not $iscc) {
 & $iscc `
     "/DMyPublishDir=$publishPath" `
     "/DMyAppVersion=$Version" `
+    "/DMyWindowsVersion=$WindowsVersion" `
     "/DMyArchSuffix=$RuntimeId" `
     "/DMyOutputDir=$outputPath" `
     "/DMyOutputBaseName=$outputBaseName" `
@@ -63,3 +80,9 @@ if (-not $iscc) {
     "/DMyReleaseOwner=$ReleaseOwner" `
     "/DMyReleaseRepo=$ReleaseRepo" `
     $scriptPath
+if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+
+& python (Join-Path $PSScriptRoot 'normalize-installer-metadata.py') `
+    (Join-Path $outputPath "$outputBaseName.exe") `
+    --product-version $Version --file-version $WindowsVersion
+if ($LASTEXITCODE -ne 0) { throw 'Failed to normalize installer version metadata before signing.' }

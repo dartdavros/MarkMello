@@ -12,6 +12,10 @@ This folder captures the first release baseline from `ADR-0004`.
 
 ## Windows
 
+Local packaging requires the .NET SDK, Inno Setup 6 and Python 3.9+ on PATH.
+The metadata normalization step uses only Python's standard library. CI sets
+up Python 3.13 explicitly.
+
 - `windows/MarkMello.iss` is the per-user Inno Setup installer.
 - `windows/build-installer.ps1` compiles the installer from a published app folder.
 - `signpath/README.md` describes SignPath CI signing for the app and Windows installers.

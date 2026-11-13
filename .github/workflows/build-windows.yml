@@ -88,6 +88,11 @@ jobs:
         shell: pwsh
         run: choco install innosetup --no-progress -y
 
+      - name: Set up Python for installer metadata
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+
       - name: Publish desktop app
         shell: pwsh
         run: |
@@ -103,7 +108,8 @@ jobs:
             -p:Version=$env:RELEASE_VERSION `
             -p:FileVersion=$env:RELEASE_VERSION_WINDOWS `
             -p:AssemblyVersion=$env:RELEASE_VERSION_WINDOWS `
-            -p:InformationalVersion=$env:RELEASE_TAG `
+            -p:InformationalVersion=$env:RELEASE_VERSION `
+            -p:IncludeSourceRevisionInInformationalVersion=false `
             -p:MarkMelloReleaseOwner=$env:RELEASE_OWNER `
             -p:MarkMelloReleaseRepo=$env:RELEASE_REPO `
             -o $publishDir
@@ -114,6 +120,22 @@ jobs:
           .\tests\packaging\verify-signatures.tests.ps1 `
             -UnsignedAppDirectory "publish/${{ matrix.runtime_id }}"
 
+      - name: Verify app metadata before signing
+        shell: pwsh
+        run: |
+          .\packaging\windows\verify-metadata.ps1 `
+            -Directory "publish/${{ matrix.runtime_id }}" `
+            -FileNames @('MarkMello.exe', 'MarkMello.dll') `
+            -OptionalFileNames @('MarkMello.dll') `
+            -ProductVersion $env:RELEASE_VERSION `
+            -FileVersion $env:RELEASE_VERSION_WINDOWS
+
+          .\tests\packaging\verify-metadata.tests.ps1 `
+            -ArtifactDirectory "publish/${{ matrix.runtime_id }}" `
+            -FileName 'MarkMello.exe' `
+            -ProductVersion $env:RELEASE_VERSION `
+            -FileVersion $env:RELEASE_VERSION_WINDOWS
+
       - name: Sign published app binaries
         uses: ./.github/actions/signpath-sign
         with:
@@ -121,6 +143,8 @@ jobs:
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
           signing-policy: ${{ inputs.signing_policy }}
           artifact-configuration: windows-app
+          product-version: ${{ inputs.version }}
+          file-version: ${{ inputs.version_windows }}
           artifact-name: unsigned-app-${{ matrix.runtime_id }}
           paths: |
             publish/${{ matrix.runtime_id }}/MarkMello.exe
@@ -148,9 +172,19 @@ jobs:
             -PublishDir $publishDir `
             -RuntimeId "${{ matrix.runtime_id }}" `
             -Version $env:RELEASE_VERSION `
+            -WindowsVersion $env:RELEASE_VERSION_WINDOWS `
             -OutputDir $outputDir `
             -ReleaseOwner $env:RELEASE_OWNER `
             -ReleaseRepo $env:RELEASE_REPO
+
+      - name: Verify installer metadata before signing
+        shell: pwsh
+        run: |
+          .\packaging\windows\verify-metadata.ps1 `
+            -Directory "artifacts/${{ matrix.runtime_id }}" `
+            -FileNames @('MarkMello-setup-${{ matrix.runtime_id }}.exe') `
+            -ProductVersion $env:RELEASE_VERSION `
+            -FileVersion $env:RELEASE_VERSION_WINDOWS
 
       - name: Sign installer
         uses: ./.github/actions/signpath-sign
@@ -159,6 +193,8 @@ jobs:
           organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
           signing-policy: ${{ inputs.signing_policy }}
           artifact-configuration: windows-installer
+          product-version: ${{ inputs.version }}
+          file-version: ${{ inputs.version_windows }}
           artifact-name: unsigned-installer-${{ matrix.runtime_id }}
           paths: artifacts/${{ matrix.runtime_id }}/MarkMello-setup-${{ matrix.runtime_id }}.exe
           output-directory: artifacts/${{ matrix.runtime_id }}

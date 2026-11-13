@@ -18,6 +18,24 @@ that would add an extra archive level that these configurations do not match.
 Only MarkMello-owned binaries are signed; dependency DLLs keep their original
 signatures. App binaries are signed before Inno Setup embeds them in the installer.
 
+Both configurations require `product-version` and `file-version` parameters.
+They enforce `ProductName=MarkMello` and exact PE product/file versions before
+signing. The workflow uses the same release version for the application and
+installer's textual ProductVersion, and the same four-part Windows version for
+FileVersion. The composite action passes both values to SignPath; local CI
+checks reject mismatches before uploading an unsigned artifact.
+
+Inno Setup pads the text fields with spaces. The packager terminates those
+strings in their existing VERSIONINFO allocations and recomputes the PE
+checksum before signing. It preserves section offsets and the appended
+installer payload, refuses signed input, and rejects unexpected or truncated
+metadata instead of weakening the SignPath restrictions.
+
+After changing these XML files, update the matching Artifact Configurations in
+the SignPath panel before running the workflow. Repository files do not update
+the remote configuration automatically. Keep the Foundation's policy and
+trusted-origin restrictions enabled.
+
 Add the predefined GitHub.com Trusted Build System to the organization and link
 it to the MarkMello project. Preserve the Foundation's release policy restrictions.
 All jobs leading to the signing request use GitHub-hosted runners.
@@ -42,6 +60,22 @@ This workflow does not create, update, or publish a GitHub Release. Download the
 `windows-win-x64` / `windows-win-arm64` workflow artifacts to inspect the installers.
 Unsigned intermediate artifacts are retained for three days for troubleshooting.
 Test signatures are expected to be untrusted on customer machines.
+
+The Windows installer displays the bundled `packaging/PRIVACY.txt` offline.
+Automatic update checks are enabled by default. Its checked Additional Tasks
+option reads and saves the same per-user preference as Settings > Updates.
+Existing choices survive upgrades, including changes made from the application.
+The installer invokes the real Native AOT executable's preference-only commands
+as the original user, even when installing for all users with elevation.
+Those commands exit before initializing Avalonia or contacting GitHub.
+
+For silent installs, `/AUTOUPDATES=on` or `/AUTOUPDATES=off` sets the choice
+explicitly; otherwise it is preserved. Native `/TASKS` and `/MERGETASKS`
+overrides remain supported. The original user must be available for saving the
+preference; failures stop Setup rather than silently changing the choice.
+Turning checks off cancels delayed discovery in all open windows. Turning them
+on schedules a new shared delay. Manual checking and downloading remain
+available regardless of that choice.
 
 Verification uses the Windows Authenticode trust provider to check the embedded
 signature, not merely the presence of a certificate. Only the expected test

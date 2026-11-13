@@ -22,6 +22,12 @@ inputs:
   output-directory:
     required: true
     description: Directory to receive extracted signed files
+  product-version:
+    required: true
+    description: Exact PE ProductVersion expected in this release
+  file-version:
+    required: true
+    description: Exact four-part PE FileVersion expected in this release
 runs:
   using: composite
   steps:
@@ -42,5 +48,8 @@ runs:
         signing-policy-slug: ${{ inputs.signing-policy }}
         artifact-configuration-slug: ${{ inputs.artifact-configuration }}
         github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+        parameters: |
+          product-version: ${{ toJSON(inputs.product-version) }}
+          file-version: ${{ toJSON(inputs.file-version) }}
         wait-for-completion: true
         output-artifact-directory: ${{ inputs.output-directory }}
