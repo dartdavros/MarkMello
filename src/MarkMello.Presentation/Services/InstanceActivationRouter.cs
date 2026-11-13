@@ -17,12 +17,20 @@ public sealed class InstanceActivationRouter : IDisposable
     private readonly ICommandLineActivation _commandLine;
     private readonly IInstanceActivation _instances;
     private readonly IWindowLauncher _windows;
+    private readonly Func<string, bool> _directoryExists;
     private bool _isListening;
+
+    /// <summary>
+    /// Хвост очереди активаций. Активации идут строго по одной: иначе два одновременных
+    /// запуска с папками оба увидели бы окно без папки и подменили бы её друг другу.
+    /// </summary>
+    private Task _queueTail = Task.CompletedTask;
 
     public InstanceActivationRouter(
         ICommandLineActivation commandLine,
         IInstanceActivation instances,
-        IWindowLauncher windows)
+        IWindowLauncher windows,
+        Func<string, bool>? directoryExists = null)
     {
         ArgumentNullException.ThrowIfNull(commandLine);
         ArgumentNullException.ThrowIfNull(instances);
@@ -31,6 +39,7 @@ public sealed class InstanceActivationRouter : IDisposable
         _commandLine = commandLine;
         _instances = instances;
         _windows = windows;
+        _directoryExists = directoryExists ?? Directory.Exists;
 
         _commandLine.FileActivated += OnFileActivated;
     }
@@ -58,22 +67,41 @@ public sealed class InstanceActivationRouter : IDisposable
     {
         ArgumentNullException.ThrowIfNull(paths);
 
-        if (_windows.BringActivationTargetToFront() is not { } shell)
+        var previous = _queueTail;
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _queueTail = done.Task;
+        try
+        {
+            await previous.ConfigureAwait(true);
+            await RouteCoreAsync(paths).ConfigureAwait(true);
+        }
+        finally
+        {
+            done.SetResult();
+        }
+    }
+
+    private async Task RouteCoreAsync(IReadOnlyList<string> paths)
+    {
+        if (_windows.BringActivationTargetToFront() is not { } target)
         {
             return;
         }
 
         foreach (var path in paths)
         {
-            if (Directory.Exists(path))
+            if (_directoryExists(path))
             {
                 // Папка подчиняется тем же правилам, что и «Открыть папку»: занятое окно
                 // отдаёт её новому окну или окну, где она уже открыта (ADR-0007 Rule 11).
-                await shell.OpenFolderPathAsync(path).ConfigureAwait(true);
+                // Открытие дожидаемся — следующий файл из неё должен найти её окно.
+                await target.OpenFolderPathAsync(path).ConfigureAwait(true);
             }
             else if (SupportedDocumentTypes.IsSupportedPath(path))
             {
-                await shell.OpenPathAsync(path).ConfigureAwait(true);
+                // Файл из папки, открытой в другом окне («B B/file.md»), идёт в окно этой папки.
+                var shell = _windows.FocusWindowForDocument(path) ?? target;
+                await shell.OpenOrActivatePathAsync(path).ConfigureAwait(true);
             }
         }
     }

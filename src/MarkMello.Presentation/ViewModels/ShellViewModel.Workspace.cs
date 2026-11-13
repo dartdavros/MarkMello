@@ -13,6 +13,9 @@ namespace MarkMello.Presentation.ViewModels;
 /// </summary>
 public partial class ShellViewModel
 {
+    /// <summary>Хвост очереди открытий папки в этом окне (см. <see cref="OpenFolderPathAsync"/>).</summary>
+    private Task _folderOpenTail = Task.CompletedTask;
+
     /// <summary>
     /// Папка открыта. Дерево, поиск и файловые операции живут внутри
     /// <see cref="WorkspaceViewModel"/>, поэтому single-file режим не платит за них ничем.
@@ -111,6 +114,25 @@ public partial class ShellViewModel
     /// </summary>
     public async Task OpenFolderPathAsync(string path)
     {
+        // Проверка «папка уже открыта?» и открытие — одна операция. Иначе два одновременных
+        // открытия (повторные запуски, аргумент старта) оба увидели бы Workspace == null,
+        // и вторая папка заменила бы первую в этом же окне.
+        var previous = _folderOpenTail;
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _folderOpenTail = done.Task;
+        try
+        {
+            await previous.ConfigureAwait(true);
+            await OpenFolderPathCoreAsync(path).ConfigureAwait(true);
+        }
+        finally
+        {
+            done.SetResult();
+        }
+    }
+
+    private async Task OpenFolderPathCoreAsync(string path)
+    {
         // Одна папка — одно окно. Вторая папка либо переводит фокус на уже открытое окно,
         // либо получает своё: multi-root workspace не вводится (ADR-0007 Rule 11).
         if (Workspace is not null && !IsSameFolder(path))
@@ -120,7 +142,7 @@ public partial class ShellViewModel
                 return;
             }
 
-            _windowLauncher.OpenFolderInNewWindow(path);
+            await _windowLauncher.OpenFolderInNewWindowAsync(path).ConfigureAwait(true);
             return;
         }
 

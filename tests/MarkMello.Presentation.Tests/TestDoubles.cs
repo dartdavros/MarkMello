@@ -320,7 +320,36 @@ internal sealed class RecordingWindowLauncher : MarkMello.Presentation.Services.
         return true;
     }
 
-    public void OpenFolderInNewWindow(string folderPath) => NewWindowFolders.Add(folderPath);
+    /// <summary>
+    /// Shell «нового окна». Без фабрики новое окно только фиксируется; с ней папка
+    /// действительно открывается во втором shell, и туда можно отправлять файлы.
+    /// </summary>
+    public Func<ShellViewModel>? NewWindowFactory { get; set; }
+
+    /// <summary>Окна-shell, открытые через <see cref="OpenFolderInNewWindowAsync"/>.</summary>
+    public List<ShellViewModel> NewWindowShells { get; } = [];
+
+    public Task OpenFolderInNewWindowAsync(string folderPath)
+    {
+        NewWindowFolders.Add(folderPath);
+        if (NewWindowFactory is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var shell = NewWindowFactory();
+        NewWindowShells.Add(shell);
+        return shell.OpenFolderPathAsync(folderPath);
+    }
+
+    public ShellViewModel? FocusWindowForDocument(string documentPath)
+        => NewWindowShells
+            .Append(ActivationTarget)
+            .OfType<ShellViewModel>()
+            .FirstOrDefault(shell => shell.Workspace is { } workspace
+                && documentPath.StartsWith(
+                    Path.TrimEndingDirectorySeparator(workspace.Folder.RootPath) + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Окно, которое получает документы из повторного запуска.</summary>
     public ShellViewModel? ActivationTarget { get; set; }
