@@ -83,6 +83,47 @@ public sealed class CodeSyntaxHighlighterTests
     }
 
     [Fact]
+    public void PowerShellBackslashDoesNotEscapeTheClosingQuote()
+    {
+        // Пример из ревью #53: «\» в PowerShell — обычный символ пути, экранирует «`».
+        var roles = Roles("Write-Host \"C:\\\"; Get-ChildItem \"a`\"b\"", "powershell");
+
+        Assert.Contains(("\"C:\\\"", SyntaxTokenKind.String), roles);
+        Assert.Contains(("Get-ChildItem", SyntaxTokenKind.Function), roles);
+        Assert.Contains(("\"a`\"b\"", SyntaxTokenKind.String), roles);
+    }
+
+    [Fact]
+    public void SingleQuotedShellStringsHaveNoEscapes()
+    {
+        var roles = Roles("echo 'C:\\' && ls -la", "bash");
+
+        Assert.Contains(("'C:\\'", SyntaxTokenKind.String), roles);
+        Assert.Contains(("-la", SyntaxTokenKind.Type), roles);
+    }
+
+    [Fact]
+    public void SqlStringsUseDoubledQuotesInsteadOfBackslash()
+    {
+        var roles = Roles("SELECT 'C:\\', 'it''s' FROM t", "sql");
+
+        Assert.Contains(("'C:\\'", SyntaxTokenKind.String), roles);
+        Assert.Contains(("'it''s'", SyntaxTokenKind.String), roles);
+        Assert.Contains(("FROM", SyntaxTokenKind.Keyword), roles);
+    }
+
+    [Fact]
+    public void PythonCommentMayFollowCodeWithoutSpace()
+    {
+        // Пример из ревью #53: разделитель перед «#» нужен оболочкам и YAML, но не Python.
+        var roles = Roles("print(1)# return True", "python");
+
+        Assert.Contains(("# return True", SyntaxTokenKind.Comment), roles);
+        Assert.DoesNotContain(("return", SyntaxTokenKind.Keyword), roles);
+        Assert.DoesNotContain(("True", SyntaxTokenKind.Number), roles);
+    }
+
+    [Fact]
     public void MarkupHighlightsTagsAttributesAndComments()
     {
         var roles = Roles("<!-- note -->\n<a href=\"/x\" data-id='1'>&amp;</a>", "html");

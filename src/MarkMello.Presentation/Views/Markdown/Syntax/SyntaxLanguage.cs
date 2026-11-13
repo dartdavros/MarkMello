@@ -30,6 +30,24 @@ internal sealed class SyntaxLanguage
     /// <summary>Строки в тройных кавычках (Python, Kotlin, Swift) — многострочные.</summary>
     public bool TripleQuotes { get; init; }
 
+    /// <summary>
+    /// Экранирующий символ внутри строк: «\» почти везде, «`» в PowerShell,
+    /// null — экранирования нет (SQL).
+    /// </summary>
+    public char? EscapeChar { get; init; } = '\\';
+
+    /// <summary>Строки в одинарных кавычках без экранирования (Bash, PowerShell, YAML, TOML).</summary>
+    public bool RawSingleQuotes { get; init; }
+
+    /// <summary>Удвоенная кавычка внутри строки — символ, а не конец (SQL, PowerShell, YAML).</summary>
+    public bool DoubledQuoteEscapes { get; init; }
+
+    /// <summary>
+    /// «#»-комментарий начинается только после пробела: в оболочках и YAML «#» бывает
+    /// внутри слова ($#, a#b, build#1). В Python и Ruby комментарий может идти сразу за кодом.
+    /// </summary>
+    public bool HashCommentNeedsSeparator { get; init; }
+
     /// <summary>Кавычка-обратный апостроф допускает перевод строки (шаблоны JS, Go raw strings).</summary>
     public bool MultilineBacktick { get; init; }
 

@@ -61,8 +61,8 @@ internal sealed partial class SyntaxTokenizer
 
         foreach (var marker in _language.LineComments)
         {
-            // «#» внутри слова — не комментарий: $#, a#b в оболочке, цвет в YAML-значении.
-            if (StartsWith(marker) && (marker != "#" || IsAfterSeparator(_position)))
+            var needsSeparator = marker == "#" && _language.HashCommentNeedsSeparator;
+            if (StartsWith(marker) && (!needsSeparator || IsAfterSeparator(_position)))
             {
                 return Add(_position, LineEnd(_position), SyntaxTokenKind.Comment);
             }
@@ -89,9 +89,13 @@ internal sealed partial class SyntaxTokenizer
         }
         else
         {
+            // Verbatim-строка C# (@"…") и «сырые» одинарные кавычки не знают экранирования.
             var verbatim = _code.AsSpan(start, quoteAt - start).Contains('@');
+            var raw = verbatim || (quote == '\'' && _language.RawSingleQuotes);
+            var escape = raw ? null : _language.EscapeChar;
+            var doubled = verbatim || _language.DoubledQuoteEscapes;
             var multiline = verbatim || (quote == '`' && _language.MultilineBacktick);
-            end = FindStringEnd(quoteAt, quote, verbatim, multiline);
+            end = FindStringEnd(quoteAt, quote, escape, doubled, multiline);
         }
 
         // Строка-ключ в JSON окрашивается как ключ, а не как значение.
@@ -116,12 +120,12 @@ internal sealed partial class SyntaxTokenizer
         return index < _code.Length && _language.Quotes.Contains(_code[index], StringComparison.Ordinal) ? index : start;
     }
 
-    private int FindStringEnd(int quoteAt, char quote, bool verbatim, bool multiline)
+    private int FindStringEnd(int quoteAt, char quote, char? escape, bool doubled, bool multiline)
     {
         for (var index = quoteAt + 1; index < _code.Length; index++)
         {
             var current = _code[index];
-            if (current == '\\' && !verbatim)
+            if (current == escape)
             {
                 index++;
                 continue;
@@ -129,8 +133,8 @@ internal sealed partial class SyntaxTokenizer
 
             if (current == quote)
             {
-                // В verbatim-строке C# удвоенная кавычка — это символ, а не конец.
-                if (verbatim && index + 1 < _code.Length && _code[index + 1] == quote)
+                // Удвоенная кавычка ('it''s', @"a ""b""") — это символ, а не конец строки.
+                if (doubled && index + 1 < _code.Length && _code[index + 1] == quote)
                 {
                     index++;
                     continue;

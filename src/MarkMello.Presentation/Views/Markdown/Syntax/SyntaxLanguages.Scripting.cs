@@ -25,6 +25,8 @@ internal static partial class SyntaxLanguages
         Constants = Words("true false"),
         LineComments = HashComments,
         Quotes = "\"'`",
+        RawSingleQuotes = true,
+        HashCommentNeedsSeparator = true,
         VariableSigil = '$',
         IdentifierExtras = "-",
         DashParameters = true
@@ -37,6 +39,12 @@ internal static partial class SyntaxLanguages
         Constants = Words("$true $false $null"),
         LineComments = HashComments,
         BlockComments = [("<#", "#>")],
+
+        // В PowerShell экранирует обратный апостроф, а «\» — обычный символ пути.
+        EscapeChar = '`',
+        RawSingleQuotes = true,
+        DoubledQuoteEscapes = true,
+        HashCommentNeedsSeparator = true,
         VariableSigil = '$',
         IdentifierExtras = "-",
         DashParameters = true,
@@ -79,6 +87,7 @@ internal static partial class SyntaxLanguages
         Aliases = ["dockerfile", "docker", "containerfile"],
         Keywords = Words("from run cmd label maintainer expose env add copy entrypoint volume user workdir arg onbuild stopsignal healthcheck shell as"),
         LineComments = HashComments,
+        HashCommentNeedsSeparator = true,
         VariableSigil = '$',
         DashParameters = true,
         CaseInsensitive = true

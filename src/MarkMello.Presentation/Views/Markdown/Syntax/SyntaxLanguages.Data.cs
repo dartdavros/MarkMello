@@ -22,6 +22,9 @@ internal static partial class SyntaxLanguages
         Aliases = ["yaml", "yml"],
         Constants = Words("true false null yes no on off True False Null Yes No On Off TRUE FALSE NULL ~"),
         LineComments = HashComments,
+        RawSingleQuotes = true,
+        DoubledQuoteEscapes = true,
+        HashCommentNeedsSeparator = true,
         HighlightKeys = true,
         IdentifierExtras = "-."
     };
@@ -31,6 +34,10 @@ internal static partial class SyntaxLanguages
         Aliases = ["toml", "ini", "cfg", "conf", "properties", "editorconfig", "env", "dotenv", "gitconfig"],
         Constants = Words("true false"),
         LineComments = ["#", ";"],
+
+        // Литеральные строки TOML ('…') без экранирования; в значениях INI «#» бывает частью текста.
+        RawSingleQuotes = true,
+        HashCommentNeedsSeparator = true,
         HighlightKeys = true,
         SectionHeaders = true,
         IdentifierExtras = "-."
@@ -45,6 +52,10 @@ internal static partial class SyntaxLanguages
         LineComments = ["--"],
         BlockComments = CLikeBlockComments,
         Quotes = "'\"`",
+
+        // В стандартном SQL «\» не экранирует, кавычка внутри строки удваивается: 'it''s'.
+        EscapeChar = null,
+        DoubledQuoteEscapes = true,
         CaseInsensitive = true
     };
 
