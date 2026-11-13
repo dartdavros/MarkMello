@@ -30,6 +30,15 @@ GitHub Actions flow:
 - tags with prerelease suffixes like `v0.6.0-beta.1` stay GitHub prereleases and are not marked as latest
 - `workflow_dispatch` can create or refresh a release manually and optionally keep it as a draft after upload
 
+Release descriptions use the Skaro format: a short summary, a Windows/macOS/Linux
+download table, accurate signing information, and the source commit. Add a summary
+to `packaging/release-notes/<version>.md` before releasing. The pure-Python
+`release-notes.py` generates the description; `release_assets.py` checks the full
+five-installer matrix and its SHA256 sidecars before a draft becomes public.
+Downloaded checksum files must match GitHub's own SHA256 digests, and each payload's
+GitHub digest must match its sidecar. Missing, unexpected or mismatched assets keep
+the release private as a draft. Linux arm64 is not part of the current matrix.
+
 Example:
 
 ```powershell

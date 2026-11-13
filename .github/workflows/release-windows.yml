@@ -50,6 +50,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          submodules: true
 
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v5
@@ -60,13 +62,21 @@ jobs:
         shell: pwsh
         run: dotnet restore .\MarkMello.sln -m:1
 
+      - name: Set up Python for release tooling tests
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+
+      - name: Test release notes and asset verification
+        run: python -m unittest discover -s tests/packaging -p test_release_notes.py -v
+
       - name: Test domain layer
         shell: pwsh
-        run: dotnet test .\tests\MarkMello.Domain.Tests\MarkMello.Domain.Tests.csproj --no-restore -m:1 -nologo
+        run: dotnet test .\tests\MarkMello.Domain.Tests\MarkMello.Domain.Tests.csproj -c Release --no-restore -m:1 -nologo
 
       - name: Test presentation layer
         shell: pwsh
-        run: dotnet test .\tests\MarkMello.Presentation.Tests\MarkMello.Presentation.Tests.csproj --no-restore -m:1 -nologo
+        run: dotnet test .\tests\MarkMello.Presentation.Tests\MarkMello.Presentation.Tests.csproj -c Release --no-restore -m:1 -nologo
 
       - name: Build desktop app in Release
         shell: pwsh
@@ -87,6 +97,14 @@ jobs:
       repo_name: ${{ steps.vars.outputs.repo_name }}
 
     steps:
+      - name: Check out release tooling
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+
       - name: Resolve release parameters
         id: vars
         shell: bash
@@ -166,10 +184,12 @@ jobs:
           args=(
             release create "$tag"
             --draft
-            --generate-notes
             --target "$GITHUB_SHA"
-            --title "$tag"
+            --title "MarkMello ${tag#v}"
+            --notes-file "$RUNNER_TEMP/release-notes.md"
           )
+
+          python packaging/release-notes.py --tag "$tag" --source-commit "$GITHUB_SHA" --output "$RUNNER_TEMP/release-notes.md"
 
           if [[ "${{ steps.vars.outputs.prerelease }}" == "true" ]]; then
             args+=(--prerelease)
@@ -227,6 +247,14 @@ jobs:
       && !contains(needs.*.result, 'failure') }}
 
     steps:
+      - name: Check out release tooling
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+
       - name: Publish prepared release
         shell: bash
         env:
@@ -234,6 +262,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           tag="${{ needs.prepare_release.outputs.tag }}"
+          gh api "repos/$GH_REPO/releases/tags/$tag" > "$RUNNER_TEMP/release-assets.json"
+          mkdir -p "$RUNNER_TEMP/release-checksums"
+          gh release download "$tag" --pattern '*.sha256' --dir "$RUNNER_TEMP/release-checksums"
+          python packaging/release-notes.py \
+            --tag "$tag" --source-commit "$GITHUB_SHA" \
+            --release-metadata "$RUNNER_TEMP/release-assets.json" \
+            --checksum-directory "$RUNNER_TEMP/release-checksums" \
+            --output "$RUNNER_TEMP/release-notes.md"
+          gh release edit "$tag" --title "MarkMello ${tag#v}" --notes-file "$RUNNER_TEMP/release-notes.md"
           args=(release edit "$tag" --draft=false)
 
           if [[ "${{ needs.prepare_release.outputs.prerelease }}" != "true" ]]; then
