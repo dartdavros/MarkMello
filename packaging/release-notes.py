@@ -8,7 +8,7 @@ from pathlib import Path
 from release_assets import download_table, validate_assets
 
 
-def render_notes(tag: str, source_commit: str, summary: str) -> str:
+def render_notes(tag: str, source_commit: str, summary: str, unsigned_windows: bool = False) -> str:
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", tag):
         raise ValueError("Expected a semantic version tag such as v0.7.0")
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
@@ -19,7 +19,8 @@ def render_notes(tag: str, source_commit: str, summary: str) -> str:
         f"MarkMello {tag[1:]}.",
         summary.strip(),
         download_table(tag),
-        "Windows installers are signed through SignPath Foundation. "
+        ("Windows installers are unsigned; Windows may show an unknown publisher warning. "
+         if unsigned_windows else "Windows installers are signed through SignPath Foundation. ") +
         "macOS builds use an ad-hoc signature and are not notarized; "
         "macOS may require approval on first launch.",
         "Download the installer matching your system. SHA256 checksum files accompany all downloads.",
@@ -32,6 +33,7 @@ def main() -> None:
     parser.add_argument("--tag", required=True)
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--unsigned-windows", action="store_true")
     parser.add_argument("--release-metadata", type=Path)
     parser.add_argument("--checksum-directory", type=Path)
     args = parser.parse_args()
@@ -41,7 +43,7 @@ def main() -> None:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version_core):
         parser.error("Invalid version")
     summary = (Path(__file__).parent / "release-notes" / f"{version_core}.md").read_text(encoding="utf-8")
-    notes = render_notes(args.tag, args.source_commit, summary)
+    notes = render_notes(args.tag, args.source_commit, summary, args.unsigned_windows)
     if args.release_metadata:
         metadata = json.loads(args.release_metadata.read_text(encoding="utf-8"))
         if metadata.get("tag_name") != args.tag or not metadata.get("draft"):
