@@ -20,6 +20,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MarkMello.Domain.Tests", "t
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MarkMello.Presentation.Tests", "tests\MarkMello.Presentation.Tests\MarkMello.Presentation.Tests.csproj", "{77777777-7777-7777-7777-777777777777}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "external", "external", "{A288BEE0-695A-BEEA-455C-649571D89326}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Naiad", "external\Naiad\src\Naiad\Naiad.csproj", "{027E0CDD-43B9-4B4C-9970-FC0C2D557D5D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,6 +58,10 @@ Global
 		{77777777-7777-7777-7777-777777777777}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{77777777-7777-7777-7777-777777777777}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{77777777-7777-7777-7777-777777777777}.Release|Any CPU.Build.0 = Release|Any CPU
+		{027E0CDD-43B9-4B4C-9970-FC0C2D557D5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{027E0CDD-43B9-4B4C-9970-FC0C2D557D5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{027E0CDD-43B9-4B4C-9970-FC0C2D557D5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{027E0CDD-43B9-4B4C-9970-FC0C2D557D5D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -66,5 +74,6 @@ Global
 		{55555555-5555-5555-5555-555555555555} = {C1A3B5D7-E9F1-4321-9876-ABCDEF012345}
 		{66666666-6666-6666-6666-666666666666} = {D9C6141E-5E6A-4A1A-9E2D-0A8EF0BB2A90}
 		{77777777-7777-7777-7777-777777777777} = {D9C6141E-5E6A-4A1A-9E2D-0A8EF0BB2A90}
+		{027E0CDD-43B9-4B4C-9970-FC0C2D557D5D} = {A288BEE0-695A-BEEA-455C-649571D89326}
 	EndGlobalSection
 EndGlobal

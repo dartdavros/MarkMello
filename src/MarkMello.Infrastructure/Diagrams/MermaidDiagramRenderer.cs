@@ -1,7 +1,7 @@
 using MarkMello.Application.Abstractions;
 using MarkMello.Domain;
 using MarkMello.Infrastructure.Diagrams.Sequence;
-using MermaidSharp;
+using Naiad;
 
 namespace MarkMello.Infrastructure.Diagrams;
 

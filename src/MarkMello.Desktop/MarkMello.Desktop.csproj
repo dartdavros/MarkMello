@@ -39,6 +39,10 @@
   <ItemGroup>
     <None Include="..\..\packaging\PRIVACY.txt" Link="PRIVACY.txt"
           CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\external\Naiad\license.txt" Link="licenses\Naiad.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\packaging\licenses\Pidgin.txt" Link="licenses\Pidgin.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
